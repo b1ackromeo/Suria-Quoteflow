@@ -306,6 +306,243 @@ class DocumentWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_global_pending_approvals_page_lists_pending_documents_across_modules(): void
+    {
+        $quotation = $this->createDocument('customer-quotations', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'GLOBAL-PENDING-CQ',
+            'description' => 'Quotation waiting for global approval list',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+        $this->submitForApproval($quotation);
+
+        $purchaseRequest = $this->createDocument('purchase-requests', [
+            'supplier_id' => $this->supplier->id,
+            'external_reference' => 'GLOBAL-PENDING-PR',
+            'description' => 'Purchase request waiting for global approval list',
+            'quantity' => 2,
+            'unit_price' => 450,
+        ]);
+        $this->submitForApproval($purchaseRequest);
+
+        $response = $this->get(route('approvals.pending'));
+
+        $response->assertOk();
+        $response->assertSee('Pending approvals');
+        $response->assertSee($quotation->document_number);
+        $response->assertSee('Customer Quotation');
+        $response->assertSee($this->customer->name);
+        $response->assertSee($purchaseRequest->document_number);
+        $response->assertSee('Purchase Request');
+        $response->assertSee($this->supplier->name);
+        $response->assertSee($this->admin->name);
+        $response->assertSee('Pending Approval');
+        $response->assertSee(route('documents.show', $quotation), false);
+        $response->assertSee(route('documents.show', $purchaseRequest), false);
+    }
+
+    public function test_header_bell_points_to_global_pending_approvals_page(): void
+    {
+        $quotation = $this->createDocument('customer-quotations', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'GLOBAL-BELL-CQ',
+            'description' => 'Quotation counted by header notification',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+        $this->submitForApproval($quotation);
+
+        $response = $this->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertSee('href="'.route('approvals.pending').'"', false);
+        $response->assertSee('<span>1</span>', false);
+    }
+
+    public function test_non_approver_cannot_approve_pending_document_through_direct_post(): void
+    {
+        $quotation = $this->createDocument('customer-quotations', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'GLOBAL-NON-APPROVER-CQ',
+            'description' => 'Quotation should reject sales approval attempt',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+        $this->submitForApproval($quotation);
+
+        $salesUser = User::factory()->create([
+            'role' => 'sales',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($salesUser)
+            ->post(route('documents.approve', $quotation), [
+                'comment' => 'Sales should not be allowed to approve.',
+            ])
+            ->assertForbidden();
+
+        $this->assertSame('pending_approval', $quotation->refresh()->status);
+        $this->assertDatabaseHas('approvals', [
+            'document_id' => $quotation->id,
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_pending_approvals_page_is_paginated(): void
+    {
+        for ($i = 1; $i <= 26; $i++) {
+            $this->createPendingApprovalRecord('PAGE-PENDING-'.str_pad((string) $i, 2, '0', STR_PAD_LEFT), now()->addMinutes($i));
+        }
+
+        $response = $this->get(route('approvals.pending'));
+
+        $response->assertOk();
+        $response->assertViewHas('approvals', function ($approvals) {
+            return $approvals instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator
+                && $approvals->perPage() === 25
+                && $approvals->count() === 25
+                && $approvals->total() === 26;
+        });
+        $response->assertSee('PAGE-PENDING-26');
+        $response->assertDontSee('PAGE-PENDING-01');
+    }
+
+    public function test_customer_invoice_payment_is_available_only_after_issue_and_part_payment(): void
+    {
+        $invoice = $this->createDocument('customer-invoices', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'PAY-ELIG-CUST-DRAFT',
+            'description' => 'Customer invoice blocked before issue',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+
+        $draftPage = $this->get(route('documents.show', $invoice));
+        $draftPage->assertOk();
+        $draftPage->assertDontSee('Record payment');
+        $draftPage->assertSee('Payment is available after this customer invoice is issued.');
+
+        $this->from(route('documents.show', $invoice))
+            ->get(route('payments.create', $invoice))
+            ->assertRedirect(route('documents.show', $invoice))
+            ->assertSessionHasErrors(['payment' => 'Payment is available after this customer invoice is issued.']);
+
+        $this->from(route('documents.show', $invoice))
+            ->post(route('payments.store', $invoice), $this->paymentPayload($invoice, 100, 'PAY-CUST-DRAFT'))
+            ->assertRedirect(route('documents.show', $invoice))
+            ->assertSessionHasErrors(['payment' => 'Payment is available after this customer invoice is issued.']);
+
+        $this->assertDatabaseMissing('payments', [
+            'document_id' => $invoice->id,
+            'reference' => 'PAY-CUST-DRAFT',
+        ]);
+
+        $this->submitAndApprove($invoice);
+
+        $approvedPage = $this->get(route('documents.show', $invoice));
+        $approvedPage->assertOk();
+        $approvedPage->assertDontSee('Record payment');
+        $approvedPage->assertSee('Payment is available after this customer invoice is issued.');
+
+        $this->from(route('documents.show', $invoice))
+            ->post(route('payments.store', $invoice), $this->paymentPayload($invoice, 100, 'PAY-CUST-APPROVED'))
+            ->assertRedirect(route('documents.show', $invoice))
+            ->assertSessionHasErrors(['payment' => 'Payment is available after this customer invoice is issued.']);
+
+        $this->assertDatabaseMissing('payments', [
+            'document_id' => $invoice->id,
+            'reference' => 'PAY-CUST-APPROVED',
+        ]);
+
+        $this->transition($invoice, 'issue', 'issued');
+
+        $issuedPage = $this->get(route('documents.show', $invoice));
+        $issuedPage->assertOk();
+        $issuedPage->assertSee('Record payment');
+
+        $this->post(route('payments.store', $invoice), $this->paymentPayload($invoice, 100, 'PAY-CUST-ISSUED'))
+            ->assertRedirect();
+
+        $this->assertSame('part_paid', $invoice->refresh()->status);
+        $this->assertDatabaseHas('payments', [
+            'document_id' => $invoice->id,
+            'direction' => 'incoming',
+            'reference' => 'PAY-CUST-ISSUED',
+            'amount' => '100.00',
+        ]);
+
+        $partPaidPage = $this->get(route('documents.show', $invoice));
+        $partPaidPage->assertOk();
+        $partPaidPage->assertSee('Record payment');
+
+        $this->post(route('payments.store', $invoice), $this->paymentPayload($invoice, 50, 'PAY-CUST-PART-PAID'))
+            ->assertRedirect();
+
+        $this->assertSame('part_paid', $invoice->refresh()->status);
+        $this->assertDatabaseHas('payments', [
+            'document_id' => $invoice->id,
+            'direction' => 'incoming',
+            'reference' => 'PAY-CUST-PART-PAID',
+            'amount' => '50.00',
+        ]);
+    }
+
+    public function test_supplier_invoice_payment_is_available_only_after_matching(): void
+    {
+        $supplierInvoice = $this->createDocument('supplier-invoices', [
+            'supplier_id' => $this->supplier->id,
+            'source_type' => 'direct_supplier_invoice',
+            'source_note' => 'Finance approved this low-value direct supplier invoice for payment workflow testing.',
+            'external_reference' => 'PAY-ELIG-SIN',
+            'description' => 'Supplier invoice blocked before matching',
+            'quantity' => 1,
+            'unit_price' => 450,
+        ]);
+
+        $this->uploadAndVerifySupplierInvoiceExtraction($supplierInvoice, [
+            'invoice_number' => 'PAY-ELIG-SIN',
+            'invoice_date' => now()->toDateString(),
+            'subtotal' => '450.00',
+            'tax_total' => '36.00',
+            'total' => '486.00',
+            'payment_terms' => '30 days from invoice date',
+        ]);
+        $this->submitAndApprove($supplierInvoice);
+
+        $approvedPage = $this->get(route('documents.show', $supplierInvoice));
+        $approvedPage->assertOk();
+        $approvedPage->assertDontSee('Record payment');
+        $approvedPage->assertSee('Supplier payment is locked until this invoice is matched.');
+
+        $this->from(route('documents.show', $supplierInvoice))
+            ->post(route('payments.store', $supplierInvoice), $this->paymentPayload($supplierInvoice, 100, 'PAY-SIN-APPROVED'))
+            ->assertRedirect(route('documents.show', $supplierInvoice))
+            ->assertSessionHasErrors(['payment' => 'Supplier payment is locked until this invoice is matched.']);
+
+        $this->assertDatabaseMissing('payments', [
+            'document_id' => $supplierInvoice->id,
+            'reference' => 'PAY-SIN-APPROVED',
+        ]);
+
+        $this->transition($supplierInvoice, 'match', 'matched');
+
+        $matchedPage = $this->get(route('documents.show', $supplierInvoice));
+        $matchedPage->assertOk();
+        $matchedPage->assertSee('Record payment');
+
+        $this->post(route('payments.store', $supplierInvoice), $this->paymentPayload($supplierInvoice, 100, 'PAY-SIN-MATCHED'))
+            ->assertRedirect();
+
+        $this->assertSame('part_paid', $supplierInvoice->refresh()->status);
+        $this->assertDatabaseHas('payments', [
+            'document_id' => $supplierInvoice->id,
+            'direction' => 'outgoing',
+            'reference' => 'PAY-SIN-MATCHED',
+            'amount' => '100.00',
+        ]);
+    }
+
     public function test_incoming_procurement_open_pages_do_not_offer_wrong_issue_actions(): void
     {
         $purchaseRequest = $this->createDocument('purchase-requests', [
@@ -369,6 +606,8 @@ class DocumentWorkflowTest extends TestCase
 
         $supplierInvoice = $this->createDocument('supplier-invoices', [
             'supplier_id' => $this->supplier->id,
+            'source_type' => 'direct_supplier_invoice',
+            'source_note' => 'Direct supplier invoice used to check incoming invoice actions.',
             'external_reference' => 'NO-ISSUE-SIN',
             'description' => 'Incoming supplier invoice should be matched not issued',
             'quantity' => 1,
@@ -427,6 +666,190 @@ class DocumentWorkflowTest extends TestCase
 
         $customerPo->update(['status' => 'issued']);
         $this->assertSame('Accepted', $customerPo->fresh()->statusDisplay());
+    }
+
+    public function test_direct_exception_source_types_require_source_note(): void
+    {
+        foreach ($this->directExceptionCases() as $case) {
+            $payload = $this->documentPayload($case['module'], $case['overrides']);
+            unset($payload['source_note']);
+
+            $this->post(route('documents.store', $case['module']), $payload)
+                ->assertSessionHasErrors('source_note');
+
+            $this->assertDatabaseMissing('documents', [
+                'external_reference' => $case['overrides']['external_reference'],
+            ]);
+        }
+    }
+
+    public function test_direct_exception_source_types_save_with_source_note_and_audit_context(): void
+    {
+        foreach ($this->directExceptionCases() as $case) {
+            $note = 'Approved exception: '.$case['overrides']['external_reference'];
+            $payload = $this->documentPayload($case['module'], $case['overrides'] + [
+                'source_note' => $note,
+            ]);
+
+            $this->post(route('documents.store', $case['module']), $payload)
+                ->assertRedirect();
+
+            $document = Document::where('external_reference', $case['overrides']['external_reference'])->firstOrFail();
+            $this->assertSame($case['overrides']['source_type'], $document->source_type);
+            $this->assertSame($note, $document->source_note);
+
+            $audit = AuditTrail::where('action', 'document_created')
+                ->where('auditable_type', Document::class)
+                ->where('auditable_id', $document->id)
+                ->firstOrFail();
+
+            $this->assertSame($case['overrides']['source_type'], $audit->after_values['source_type'] ?? null);
+            $this->assertSame($note, $audit->after_values['source_note'] ?? null);
+        }
+    }
+
+    public function test_normal_source_path_still_works_without_exception_note(): void
+    {
+        $quotation = $this->createDocument('customer-quotations', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'NORMAL-SOURCE-QUOTE',
+            'description' => 'Quotation used as normal PO source',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+        $this->submitAndApprove($quotation);
+
+        $payload = $this->documentPayload('customer-pos', [
+            'customer_id' => $this->customer->id,
+            'related_document_id' => $quotation->id,
+            'source_type' => 'quotation',
+            'external_reference' => 'NORMAL-SOURCE-CPO',
+            'description' => 'PO received from approved quotation',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+        unset($payload['source_note']);
+
+        $this->post(route('documents.store', 'customer-pos'), $payload)
+            ->assertRedirect();
+
+        $customerPo = Document::where('external_reference', 'NORMAL-SOURCE-CPO')->firstOrFail();
+        $this->assertSame($quotation->id, $customerPo->related_document_id);
+        $this->assertSame('quotation', $customerPo->source_type);
+        $this->assertNull($customerPo->source_note);
+    }
+
+    public function test_goods_receipt_normal_flow_requires_issued_supplier_po(): void
+    {
+        $supplierPo = $this->createDocument('supplier-pos', [
+            'supplier_id' => $this->supplier->id,
+            'external_reference' => 'GR-SOURCE-SPO',
+            'description' => 'Supplier PO for receiving validation',
+            'quantity' => 3,
+            'unit_price' => 450,
+        ]);
+
+        $this->post(route('documents.store', 'goods-receipts'), $this->documentPayload('goods-receipts', [
+            'supplier_id' => $this->supplier->id,
+            'related_document_id' => $supplierPo->id,
+            'source_type' => 'supplier_po',
+            'external_reference' => 'GR-DRAFT-SPO-BLOCKED',
+            'description' => 'Receiving should wait for issued PO',
+            'quantity' => 3,
+            'unit_price' => 450,
+        ]))->assertSessionHasErrors('related_document_id');
+
+        $this->submitAndApprove($supplierPo);
+
+        $this->post(route('documents.store', 'goods-receipts'), $this->documentPayload('goods-receipts', [
+            'supplier_id' => $this->supplier->id,
+            'related_document_id' => $supplierPo->id,
+            'source_type' => 'supplier_po',
+            'external_reference' => 'GR-APPROVED-SPO-BLOCKED',
+            'description' => 'Receiving should wait for issued PO',
+            'quantity' => 3,
+            'unit_price' => 450,
+        ]))->assertSessionHasErrors('related_document_id');
+
+        $this->transition($supplierPo, 'issue', 'issued');
+
+        $this->post(route('documents.store', 'goods-receipts'), $this->documentPayload('goods-receipts', [
+            'supplier_id' => $this->supplier->id,
+            'related_document_id' => $supplierPo->id,
+            'source_type' => 'supplier_po',
+            'external_reference' => 'GR-ISSUED-SPO-OK',
+            'description' => 'Receiving against issued supplier PO',
+            'quantity' => 3,
+            'unit_price' => 450,
+        ]))->assertRedirect();
+
+        $goodsReceipt = Document::where('external_reference', 'GR-ISSUED-SPO-OK')->firstOrFail();
+        $this->assertSame($supplierPo->id, $goodsReceipt->related_document_id);
+        $this->assertSame('supplier_po', $goodsReceipt->source_type);
+        $this->assertNull($goodsReceipt->source_note);
+    }
+
+    public function test_goods_receipt_rejects_supplier_po_from_another_supplier(): void
+    {
+        $otherSupplier = Supplier::create([
+            'name' => 'Other Supplier Sdn Bhd',
+            'code' => 'OTHER',
+            'category' => 'Materials / Hardware',
+            'email' => 'accounts@other.test',
+            'payment_terms_days' => 30,
+            'is_active' => true,
+        ]);
+
+        $otherSupplierPo = $this->createDocument('supplier-pos', [
+            'supplier_id' => $otherSupplier->id,
+            'external_reference' => 'GR-OTHER-SPO',
+            'description' => 'Issued PO for another supplier',
+            'quantity' => 2,
+            'unit_price' => 450,
+        ]);
+        $this->submitAndApprove($otherSupplierPo);
+        $this->transition($otherSupplierPo, 'issue', 'issued');
+
+        $this->post(route('documents.store', 'goods-receipts'), $this->documentPayload('goods-receipts', [
+            'supplier_id' => $this->supplier->id,
+            'related_document_id' => $otherSupplierPo->id,
+            'source_type' => 'supplier_po',
+            'external_reference' => 'GR-OTHER-SUPPLIER-BLOCKED',
+            'description' => 'Receiving should match selected supplier',
+            'quantity' => 2,
+            'unit_price' => 450,
+        ]))->assertSessionHasErrors('related_document_id');
+    }
+
+    public function test_direct_receipt_exception_requires_and_saves_source_note(): void
+    {
+        $blockedPayload = $this->documentPayload('goods-receipts', [
+            'supplier_id' => $this->supplier->id,
+            'source_type' => 'direct_receipt',
+            'external_reference' => 'DIRECT-GR-BLOCKED',
+            'description' => 'Direct receipt missing explanation',
+            'quantity' => 1,
+            'unit_price' => 450,
+        ]);
+        unset($blockedPayload['source_note']);
+
+        $this->post(route('documents.store', 'goods-receipts'), $blockedPayload)
+            ->assertSessionHasErrors('source_note');
+
+        $this->post(route('documents.store', 'goods-receipts'), $this->documentPayload('goods-receipts', [
+            'supplier_id' => $this->supplier->id,
+            'source_type' => 'direct_receipt',
+            'source_note' => 'Delivery arrived before PO was available; manager approved direct receipt.',
+            'external_reference' => 'DIRECT-GR-OK',
+            'description' => 'Direct receipt with explanation',
+            'quantity' => 1,
+            'unit_price' => 450,
+        ]))->assertRedirect();
+
+        $goodsReceipt = Document::where('external_reference', 'DIRECT-GR-OK')->firstOrFail();
+        $this->assertNull($goodsReceipt->related_document_id);
+        $this->assertSame('direct_receipt', $goodsReceipt->source_type);
+        $this->assertSame('Delivery arrived before PO was available; manager approved direct receipt.', $goodsReceipt->source_note);
     }
 
     public function test_pdf_attachment_document_csv_and_report_csv_outputs_work(): void
@@ -736,6 +1159,8 @@ class DocumentWorkflowTest extends TestCase
             'quantity' => 5,
             'unit_price' => 450,
         ]);
+        $this->submitAndApprove($supplierPo);
+        $this->transition($supplierPo, 'issue', 'issued');
 
         $goodsReceipt = $this->createDocument('goods-receipts', [
             'supplier_id' => $this->supplier->id,
@@ -874,7 +1299,7 @@ class DocumentWorkflowTest extends TestCase
 
         $show = $this->get(route('documents.show', $supplierInvoice));
         $show->assertOk();
-        $show->assertSee('Extracted invoice details');
+        $show->assertSee('Supplier invoice details');
         $show->assertSee('Ready to verify');
         $show->assertSee('Verify and update invoice record');
 
@@ -889,6 +1314,9 @@ class DocumentWorkflowTest extends TestCase
                 'total' => '2430.00',
                 'payment_terms' => '14 days from invoice date',
             ],
+            'supplier_confirmed' => '1',
+            'recorded_total_confirmed' => '1',
+            'verification_notes' => 'OCR draft checked against the uploaded supplier invoice.',
         ])->assertRedirect()
             ->assertSessionHas('status', 'Supplier invoice extraction verified.');
 
@@ -901,6 +1329,448 @@ class DocumentWorkflowTest extends TestCase
         $this->post(route('documents.submit', $supplierInvoice))
             ->assertRedirect();
         $this->assertSame('pending_approval', $supplierInvoice->refresh()->status);
+    }
+
+    public function test_supplier_invoice_submission_requires_invoice_copy_and_verified_details(): void
+    {
+        Storage::fake('local');
+        config(['ocr.enabled' => false]);
+
+        $supplierInvoice = $this->createDocument('supplier-invoices', [
+            'supplier_id' => $this->supplier->id,
+            'source_type' => 'direct_supplier_invoice',
+            'source_note' => 'Direct supplier invoice recorded for verification gate testing.',
+            'external_reference' => 'VERIFY-GATE-001',
+            'description' => 'Supplier invoice missing verification evidence',
+            'quantity' => 1,
+            'unit_price' => 450,
+        ]);
+
+        $this->from(route('documents.show', $supplierInvoice))
+            ->post(route('documents.submit', $supplierInvoice))
+            ->assertRedirect(route('documents.show', $supplierInvoice))
+            ->assertSessionHasErrors('approval');
+        $this->assertSame('draft', $supplierInvoice->refresh()->status);
+
+        $this->uploadSupplierInvoiceCopy($supplierInvoice);
+
+        $this->from(route('documents.show', $supplierInvoice))
+            ->post(route('documents.submit', $supplierInvoice))
+            ->assertRedirect(route('documents.show', $supplierInvoice))
+            ->assertSessionHasErrors('approval');
+        $this->assertSame('draft', $supplierInvoice->refresh()->status);
+    }
+
+    public function test_supplier_invoice_with_ocr_failure_can_be_manually_verified_and_submitted(): void
+    {
+        Storage::fake('local');
+        $this->fakeFailingTesseractExtractor();
+
+        $supplierInvoice = $this->createDocument('supplier-invoices', [
+            'supplier_id' => $this->supplier->id,
+            'source_type' => 'direct_supplier_invoice',
+            'source_note' => 'Manual verification fallback approved by procurement lead.',
+            'external_reference' => 'MANUAL-VERIFY-001',
+            'description' => 'Supplier invoice with unreadable OCR scan',
+            'quantity' => 1,
+            'unit_price' => 450,
+        ]);
+
+        $this->uploadSupplierInvoiceCopy($supplierInvoice);
+        $extraction = AttachmentExtraction::where('document_id', $supplierInvoice->id)->firstOrFail();
+        $this->assertSame('failed', $extraction->status);
+
+        $salesUser = User::factory()->create([
+            'role' => 'sales',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($salesUser)
+            ->put(route('documents.supplier-invoice-verification.verify', $supplierInvoice), $this->manualVerificationPayload([
+                'fields' => [
+                    'invoice_number' => 'MANUAL-VERIFY-001',
+                    'invoice_date' => '2026-05-14',
+                    'total' => '486.00',
+                ],
+            ]))
+            ->assertForbidden();
+
+        $this->actingAs($this->admin)
+            ->put(route('documents.supplier-invoice-verification.verify', $supplierInvoice), $this->manualVerificationPayload([
+                'fields' => [
+                    'invoice_number' => 'MANUAL-VERIFY-001',
+                    'invoice_date' => '2026-05-14',
+                    'total' => '486.00',
+                ],
+            ]))
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Supplier invoice details verified.');
+
+        $extraction->refresh();
+        $this->assertSame('verified', $extraction->status);
+        $this->assertSame('manual', $extraction->verification_method);
+        $this->assertTrue($extraction->supplier_confirmed);
+        $this->assertTrue($extraction->recorded_total_confirmed);
+
+        $this->assertDatabaseHas('audit_trails', [
+            'action' => 'supplier_invoice_details_verified',
+            'auditable_type' => AttachmentExtraction::class,
+            'auditable_id' => $extraction->id,
+        ]);
+
+        $this->post(route('documents.submit', $supplierInvoice))
+            ->assertRedirect();
+        $this->assertSame('pending_approval', $supplierInvoice->refresh()->status);
+    }
+
+    public function test_supplier_invoice_matching_requires_verified_details(): void
+    {
+        Storage::fake('local');
+        config(['ocr.enabled' => false]);
+
+        $supplierInvoice = $this->createDocument('supplier-invoices', [
+            'supplier_id' => $this->supplier->id,
+            'source_type' => 'direct_supplier_invoice',
+            'source_note' => 'Direct supplier invoice waiting for verification before matching.',
+            'external_reference' => 'MATCH-UNVERIFIED-001',
+            'description' => 'Unverified supplier invoice should not match',
+            'quantity' => 1,
+            'unit_price' => 450,
+        ]);
+        $this->uploadSupplierInvoiceCopy($supplierInvoice);
+        $supplierInvoice->update(['status' => 'approved']);
+
+        $show = $this->get(route('documents.show', $supplierInvoice));
+        $show->assertOk();
+        $show->assertSee('Supplier invoice matching checklist');
+        $show->assertSee('Blocked: Invoice details verified');
+        $show->assertDontSee('Mark matched');
+
+        $this->from(route('documents.show', $supplierInvoice))
+            ->post(route('documents.transition', [$supplierInvoice, 'match']))
+            ->assertRedirect(route('documents.show', $supplierInvoice))
+            ->assertSessionHasErrors('matching');
+        $this->assertSame('approved', $supplierInvoice->refresh()->status);
+    }
+
+    public function test_supplier_invoice_matching_blocks_missing_source_supplier_mismatch_and_duplicate_invoice_number(): void
+    {
+        Storage::fake('local');
+        config(['ocr.enabled' => false]);
+
+        $missingSourceInvoice = $this->createDocument('supplier-invoices', [
+            'supplier_id' => $this->supplier->id,
+            'source_type' => 'supplier_po',
+            'external_reference' => 'MATCH-MISSING-SOURCE',
+            'description' => 'Supplier invoice missing source document',
+            'quantity' => 1,
+            'unit_price' => 450,
+        ]);
+        $this->uploadSupplierInvoiceCopy($missingSourceInvoice);
+        $this->verifySupplierInvoiceManually($missingSourceInvoice, [
+            'fields' => [
+                'invoice_number' => 'MATCH-MISSING-SOURCE',
+                'invoice_date' => '2026-05-14',
+                'total' => '486.00',
+            ],
+        ]);
+        $missingSourceInvoice->update(['status' => 'approved']);
+
+        $this->from(route('documents.show', $missingSourceInvoice))
+            ->post(route('documents.transition', [$missingSourceInvoice, 'match']))
+            ->assertRedirect(route('documents.show', $missingSourceInvoice))
+            ->assertSessionHasErrors('matching');
+
+        $otherSupplier = Supplier::create([
+            'name' => 'Mismatch Supplier Sdn Bhd',
+            'code' => 'MIS',
+            'category' => 'Materials / Hardware',
+            'email' => 'accounts@mismatch.test',
+            'payment_terms_days' => 30,
+            'is_active' => true,
+        ]);
+        $otherSupplierPo = $this->createDocument('supplier-pos', [
+            'supplier_id' => $otherSupplier->id,
+            'external_reference' => 'MATCH-MISMATCH-SPO',
+            'description' => 'Source PO for another supplier',
+            'quantity' => 1,
+            'unit_price' => 450,
+        ]);
+        $this->submitAndApprove($otherSupplierPo);
+        $this->transition($otherSupplierPo, 'issue', 'issued');
+
+        $supplierMismatchInvoice = $this->createDocument('supplier-invoices', [
+            'supplier_id' => $this->supplier->id,
+            'source_type' => 'supplier_po',
+            'external_reference' => 'MATCH-SUPPLIER-MISMATCH',
+            'description' => 'Supplier invoice linked to mismatched PO',
+            'quantity' => 1,
+            'unit_price' => 450,
+        ]);
+        $supplierMismatchInvoice->update(['related_document_id' => $otherSupplierPo->id]);
+        $this->uploadSupplierInvoiceCopy($supplierMismatchInvoice);
+        $this->verifySupplierInvoiceManually($supplierMismatchInvoice, [
+            'fields' => [
+                'invoice_number' => 'MATCH-SUPPLIER-MISMATCH',
+                'invoice_date' => '2026-05-14',
+                'total' => '486.00',
+            ],
+        ]);
+        $supplierMismatchInvoice->update(['status' => 'approved']);
+
+        $this->from(route('documents.show', $supplierMismatchInvoice))
+            ->post(route('documents.transition', [$supplierMismatchInvoice, 'match']))
+            ->assertRedirect(route('documents.show', $supplierMismatchInvoice))
+            ->assertSessionHasErrors('matching');
+
+        $firstDuplicate = $this->createDocument('supplier-invoices', [
+            'supplier_id' => $this->supplier->id,
+            'source_type' => 'direct_supplier_invoice',
+            'source_note' => 'First invoice with this supplier invoice number.',
+            'external_reference' => 'DUP-SUPPLIER-INV',
+            'description' => 'First duplicate invoice number',
+            'quantity' => 1,
+            'unit_price' => 450,
+        ]);
+        $this->uploadSupplierInvoiceCopy($firstDuplicate);
+        $this->verifySupplierInvoiceManually($firstDuplicate, [
+            'fields' => [
+                'invoice_number' => 'DUP-SUPPLIER-INV',
+                'invoice_date' => '2026-05-14',
+                'total' => '486.00',
+            ],
+        ]);
+
+        $secondDuplicate = $this->createDocument('supplier-invoices', [
+            'supplier_id' => $this->supplier->id,
+            'source_type' => 'direct_supplier_invoice',
+            'source_note' => 'Second invoice should be blocked by duplicate number check.',
+            'external_reference' => 'DUP-SUPPLIER-INV',
+            'description' => 'Second duplicate invoice number',
+            'quantity' => 1,
+            'unit_price' => 450,
+        ]);
+        $this->uploadSupplierInvoiceCopy($secondDuplicate);
+        $this->verifySupplierInvoiceManually($secondDuplicate, [
+            'fields' => [
+                'invoice_number' => 'DUP-SUPPLIER-INV',
+                'invoice_date' => '2026-05-14',
+                'total' => '486.00',
+            ],
+        ]);
+        $secondDuplicate->update(['status' => 'approved']);
+
+        $this->from(route('documents.show', $secondDuplicate))
+            ->post(route('documents.transition', [$secondDuplicate, 'match']))
+            ->assertRedirect(route('documents.show', $secondDuplicate))
+            ->assertSessionHasErrors('matching');
+    }
+
+    public function test_supplier_invoice_can_be_matched_when_checklist_passes(): void
+    {
+        Storage::fake('local');
+
+        $supplierPo = $this->createDocument('supplier-pos', [
+            'supplier_id' => $this->supplier->id,
+            'external_reference' => 'MATCH-PASS-SPO',
+            'description' => 'Issued PO for matching pass test',
+            'quantity' => 2,
+            'unit_price' => 450,
+        ]);
+        $this->submitAndApprove($supplierPo);
+        $this->transition($supplierPo, 'issue', 'issued');
+
+        $goodsReceipt = $this->createDocument('goods-receipts', [
+            'supplier_id' => $this->supplier->id,
+            'related_document_id' => $supplierPo->id,
+            'source_type' => 'supplier_po',
+            'external_reference' => 'MATCH-PASS-GR',
+            'description' => 'Received goods for matching pass test',
+            'quantity' => 2,
+            'unit_price' => 450,
+        ]);
+        $this->submitAndApprove($goodsReceipt);
+        $this->transition($goodsReceipt, 'receive', 'received');
+
+        $supplierInvoice = $this->createDocument('supplier-invoices', [
+            'supplier_id' => $this->supplier->id,
+            'related_document_id' => $goodsReceipt->id,
+            'source_type' => 'goods_receipt',
+            'external_reference' => 'MATCH-PASS-SIN',
+            'description' => 'Supplier invoice with passing checklist',
+            'quantity' => 2,
+            'unit_price' => 450,
+        ]);
+        $this->uploadAndVerifySupplierInvoiceExtraction($supplierInvoice, [
+            'invoice_number' => 'MATCH-PASS-SIN',
+            'invoice_date' => now()->toDateString(),
+            'subtotal' => '900.00',
+            'tax_total' => '72.00',
+            'total' => '972.00',
+            'payment_terms' => '30 days from invoice date',
+        ]);
+        $this->submitAndApprove($supplierInvoice);
+
+        $show = $this->get(route('documents.show', $supplierInvoice));
+        $show->assertOk();
+        $show->assertSee('Supplier invoice matching checklist');
+        $show->assertSee('Passed: Invoice details verified');
+        $show->assertSee('Mark matched');
+
+        $this->transition($supplierInvoice, 'match', 'matched');
+    }
+
+    public function test_supplier_invoice_amount_tolerance_allows_exact_rounding_and_soft_variance(): void
+    {
+        Storage::fake('local');
+        config(['ocr.enabled' => false]);
+
+        $exact = $this->createApprovedSupplierInvoiceForAmountCheck('AMOUNT-EXACT', 1000, 1000);
+        $exactShow = $this->get(route('documents.show', $exact));
+        $exactShow->assertOk();
+        $exactShow->assertSee('Invoice total matches the source amount exactly.');
+        $this->transition($exact, 'match', 'matched');
+
+        $rounding = $this->createApprovedSupplierInvoiceForAmountCheck('AMOUNT-ROUNDING', 1000, 1000.009);
+        $roundingShow = $this->get(route('documents.show', $rounding));
+        $roundingShow->assertOk();
+        $roundingShow->assertSee('Invoice total is within the RM 0.01 rounding tolerance.');
+        $this->transition($rounding, 'match', 'matched');
+
+        $soft = $this->createApprovedSupplierInvoiceForAmountCheck('AMOUNT-SOFT', 1000, 1000.463);
+        $softShow = $this->get(route('documents.show', $soft));
+        $softShow->assertOk();
+        $softShow->assertSee('Invoice total variance of RM 0.50 is within the soft tolerance of RM 1.00.');
+        $this->transition($soft, 'match', 'matched');
+    }
+
+    public function test_supplier_invoice_amount_variance_above_soft_tolerance_fails_for_normal_users(): void
+    {
+        Storage::fake('local');
+        config(['ocr.enabled' => false]);
+
+        $supplierInvoice = $this->createApprovedSupplierInvoiceForAmountCheck('AMOUNT-ABOVE-SOFT', 1000, 1001);
+
+        $show = $this->get(route('documents.show', $supplierInvoice));
+        $show->assertOk();
+        $show->assertSee('Invoice total variance of RM 1.08 exceeds the soft tolerance of RM 1.00.');
+        $show->assertSee('Match with audited override');
+        $show->assertDontSee('Mark matched');
+
+        $procurementUser = User::factory()->create([
+            'role' => 'procurement',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($procurementUser)
+            ->from(route('documents.show', $supplierInvoice))
+            ->post(route('documents.transition', [$supplierInvoice, 'match']))
+            ->assertRedirect(route('documents.show', $supplierInvoice))
+            ->assertSessionHasErrors('matching');
+
+        $this->actingAs($procurementUser)
+            ->post(route('documents.transition', [$supplierInvoice, 'match']), [
+                'matching_override_reason' => 'Procurement accepts the price difference.',
+            ])
+            ->assertForbidden();
+
+        $this->assertSame('approved', $supplierInvoice->refresh()->status);
+    }
+
+    public function test_partial_supplier_invoice_amount_requires_explicit_override_when_partial_matching_is_not_supported(): void
+    {
+        Storage::fake('local');
+        config(['ocr.enabled' => false]);
+
+        $supplierInvoice = $this->createApprovedSupplierInvoiceForAmountCheck('AMOUNT-PARTIAL', 1000, 500);
+
+        $show = $this->get(route('documents.show', $supplierInvoice));
+        $show->assertOk();
+        $show->assertSee('Partial supplier invoice amount differs from the source by RM 540.00.');
+        $show->assertSee('Partial matching is not treated as a normal match');
+        $show->assertDontSee('Mark matched');
+
+        $this->from(route('documents.show', $supplierInvoice))
+            ->post(route('documents.transition', [$supplierInvoice, 'match']))
+            ->assertRedirect(route('documents.show', $supplierInvoice))
+            ->assertSessionHasErrors('matching');
+
+        $this->post(route('documents.transition', [$supplierInvoice, 'match']), [
+            'matching_override_reason' => 'Manager accepted this as a partial supplier invoice against the PO.',
+        ])->assertRedirect()
+            ->assertSessionHas('status', 'Matched recorded with audited override.');
+
+        $this->assertSame('matched', $supplierInvoice->refresh()->status);
+        $this->assertDatabaseHas('audit_trails', [
+            'action' => 'supplier_invoice_match_override',
+            'auditable_type' => Document::class,
+            'auditable_id' => $supplierInvoice->id,
+        ]);
+    }
+
+    public function test_supplier_invoice_matching_override_requires_reason_authority_and_audit_trail(): void
+    {
+        Storage::fake('local');
+        config(['ocr.enabled' => false]);
+
+        $supplierPo = $this->createDocument('supplier-pos', [
+            'supplier_id' => $this->supplier->id,
+            'external_reference' => 'MATCH-OVERRIDE-SPO',
+            'description' => 'Issued PO with lower amount',
+            'quantity' => 1,
+            'unit_price' => 450,
+        ]);
+        $this->submitAndApprove($supplierPo);
+        $this->transition($supplierPo, 'issue', 'issued');
+
+        $supplierInvoice = $this->createDocument('supplier-invoices', [
+            'supplier_id' => $this->supplier->id,
+            'related_document_id' => $supplierPo->id,
+            'source_type' => 'supplier_po',
+            'external_reference' => 'MATCH-OVERRIDE-SIN',
+            'description' => 'Supplier invoice with approved amount difference',
+            'quantity' => 1,
+            'unit_price' => 500,
+        ]);
+        $this->uploadSupplierInvoiceCopy($supplierInvoice);
+        $this->verifySupplierInvoiceManually($supplierInvoice, [
+            'fields' => [
+                'invoice_number' => 'MATCH-OVERRIDE-SIN',
+                'invoice_date' => '2026-05-14',
+                'total' => '540.00',
+            ],
+        ]);
+        $supplierInvoice->update(['status' => 'approved']);
+
+        $this->from(route('documents.show', $supplierInvoice))
+            ->post(route('documents.transition', [$supplierInvoice, 'match']))
+            ->assertRedirect(route('documents.show', $supplierInvoice))
+            ->assertSessionHasErrors('matching');
+
+        $procurementUser = User::factory()->create([
+            'role' => 'procurement',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($procurementUser)
+            ->post(route('documents.transition', [$supplierInvoice, 'match']), [
+                'matching_override_reason' => 'Supplier confirmed accepted variance by email.',
+            ])
+            ->assertForbidden();
+        $this->assertSame('approved', $supplierInvoice->refresh()->status);
+
+        $this->actingAs($this->admin)
+            ->post(route('documents.transition', [$supplierInvoice, 'match']), [
+                'matching_override_reason' => 'Manager accepted supplier price variance against the PO.',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('matched', $supplierInvoice->refresh()->status);
+        $this->assertDatabaseHas('audit_trails', [
+            'action' => 'supplier_invoice_match_override',
+            'auditable_type' => Document::class,
+            'auditable_id' => $supplierInvoice->id,
+        ]);
     }
 
     public function test_document_form_uses_document_level_tax_input_not_line_item_tax(): void
@@ -1406,28 +2276,11 @@ class DocumentWorkflowTest extends TestCase
     {
         $reference = $overrides['external_reference'];
 
-        $payload = [
-            'customer_id' => $overrides['customer_id'] ?? null,
-            'supplier_id' => $overrides['supplier_id'] ?? null,
-            'related_document_id' => $overrides['related_document_id'] ?? null,
-            'source_type' => $overrides['source_type'] ?? ($module === 'goods-receipts' && empty($overrides['related_document_id']) ? 'direct_receipt' : null),
-            'external_reference' => $reference,
-            'issue_date' => '2026-05-14',
-            'due_date' => '2026-06-13',
-            'currency' => 'MYR',
-            'items' => [
-                [
-                    'product_id' => $this->service->id,
-                    'description' => $overrides['description'],
-                    'quantity' => $overrides['quantity'],
-                    'unit' => 'job',
-                    'unit_price' => $overrides['unit_price'],
-                    'tax_rate' => 8,
-                ],
-            ],
-            'notes' => 'Feature test workflow document.',
-            'terms' => 'Generated by automated workflow coverage.',
-        ];
+        $payload = $this->documentPayload($module, $overrides);
+
+        if (($payload['source_type'] ?? null) === 'direct_receipt' && empty($payload['source_note'])) {
+            $payload['source_note'] = 'Direct receipt exception for feature test.';
+        }
 
         $this->post(route('documents.store', $module), $payload)
             ->assertRedirect();
@@ -1444,7 +2297,131 @@ class DocumentWorkflowTest extends TestCase
         return $document;
     }
 
-    private function submitAndApprove(Document $document): void
+    private function documentPayload(string $module, array $overrides): array
+    {
+        return [
+            'customer_id' => $overrides['customer_id'] ?? null,
+            'supplier_id' => $overrides['supplier_id'] ?? null,
+            'related_document_id' => $overrides['related_document_id'] ?? null,
+            'source_type' => $overrides['source_type'] ?? ($module === 'goods-receipts' && empty($overrides['related_document_id']) ? 'direct_receipt' : null),
+            'source_note' => $overrides['source_note'] ?? null,
+            'external_reference' => $overrides['external_reference'],
+            'issue_date' => '2026-05-14',
+            'due_date' => '2026-06-13',
+            'currency' => 'MYR',
+            'items' => [
+                [
+                    'product_id' => $this->service->id,
+                    'description' => $overrides['description'],
+                    'quantity' => $overrides['quantity'],
+                    'unit' => 'job',
+                    'unit_price' => $overrides['unit_price'],
+                    'tax_rate' => 8,
+                ],
+            ],
+            'notes' => 'Feature test workflow document.',
+            'terms' => 'Generated by automated workflow coverage.',
+        ];
+    }
+
+    private function directExceptionCases(): array
+    {
+        return [
+            [
+                'module' => 'customer-pos',
+                'overrides' => [
+                    'customer_id' => $this->customer->id,
+                    'source_type' => 'direct_customer_po',
+                    'external_reference' => 'DIRECT-CPO-NOTE-REQUIRED',
+                    'description' => 'Direct customer PO exception',
+                    'quantity' => 1,
+                    'unit_price' => 1200,
+                ],
+            ],
+            [
+                'module' => 'customer-invoices',
+                'overrides' => [
+                    'customer_id' => $this->customer->id,
+                    'source_type' => 'direct_invoice',
+                    'external_reference' => 'DIRECT-CINV-NOTE-REQUIRED',
+                    'description' => 'Direct customer invoice exception',
+                    'quantity' => 1,
+                    'unit_price' => 1200,
+                ],
+            ],
+            [
+                'module' => 'supplier-pos',
+                'overrides' => [
+                    'supplier_id' => $this->supplier->id,
+                    'source_type' => 'direct_supplier_po',
+                    'external_reference' => 'DIRECT-SPO-NOTE-REQUIRED',
+                    'description' => 'Direct supplier PO exception',
+                    'quantity' => 1,
+                    'unit_price' => 450,
+                ],
+            ],
+            [
+                'module' => 'goods-receipts',
+                'overrides' => [
+                    'supplier_id' => $this->supplier->id,
+                    'source_type' => 'direct_receipt',
+                    'external_reference' => 'DIRECT-GR-NOTE-REQUIRED',
+                    'description' => 'Direct receipt exception',
+                    'quantity' => 1,
+                    'unit_price' => 450,
+                ],
+            ],
+            [
+                'module' => 'supplier-invoices',
+                'overrides' => [
+                    'supplier_id' => $this->supplier->id,
+                    'source_type' => 'direct_supplier_invoice',
+                    'external_reference' => 'DIRECT-SIN-NOTE-REQUIRED',
+                    'description' => 'Direct supplier invoice exception',
+                    'quantity' => 1,
+                    'unit_price' => 450,
+                ],
+            ],
+        ];
+    }
+
+    private function createPendingApprovalRecord(string $documentNumber, ?\DateTimeInterface $requestedAt = null): Document
+    {
+        $document = Document::create([
+            'type' => 'customer_quotation',
+            'direction' => 'outgoing',
+            'document_number' => $documentNumber,
+            'external_reference' => $documentNumber,
+            'customer_id' => $this->customer->id,
+            'status' => 'pending_approval',
+            'issue_date' => '2026-05-14',
+            'due_date' => '2026-06-13',
+            'currency' => 'MYR',
+            'subtotal' => 100,
+            'tax_total' => 8,
+            'total' => 108,
+            'notes' => 'Pagination test pending approval.',
+            'terms' => 'Generated by automated workflow coverage.',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $approval = Approval::create([
+            'document_id' => $document->id,
+            'requested_by' => $this->admin->id,
+            'status' => 'pending',
+        ]);
+
+        if ($requestedAt) {
+            $approval->forceFill([
+                'created_at' => $requestedAt,
+                'updated_at' => $requestedAt,
+            ])->save();
+        }
+
+        return $document;
+    }
+
+    private function submitForApproval(Document $document): void
     {
         $this->post(route('documents.submit', $document))
             ->assertRedirect();
@@ -1455,6 +2432,11 @@ class DocumentWorkflowTest extends TestCase
             'requested_by' => $this->admin->id,
             'status' => 'pending',
         ]);
+    }
+
+    private function submitAndApprove(Document $document): void
+    {
+        $this->submitForApproval($document);
 
         $this->post(route('documents.approve', $document), [
             'comment' => 'Approved by workflow feature test.',
@@ -1485,9 +2467,94 @@ class DocumentWorkflowTest extends TestCase
 
         $this->put(route('attachment-extractions.verify', $extraction), [
             'fields' => $fields,
+            'supplier_confirmed' => '1',
+            'recorded_total_confirmed' => '1',
+            'verification_notes' => 'OCR-assisted details checked by feature test.',
         ])->assertRedirect();
 
         $this->assertSame('verified', $extraction->refresh()->status);
+    }
+
+    private function uploadSupplierInvoiceCopy(Document $document, string $filename = 'supplier-invoice.jpg'): Attachment
+    {
+        $upload = UploadedFile::fake()->image($filename, 900, 1200);
+        $this->post(route('documents.attachments.store', $document), [
+            'attachment' => $upload,
+            'category' => 'invoice_copy',
+        ])->assertRedirect();
+
+        return Attachment::where('document_id', $document->id)
+            ->where('category', 'invoice_copy')
+            ->latest('id')
+            ->firstOrFail();
+    }
+
+    private function verifySupplierInvoiceManually(Document $document, array $overrides = []): AttachmentExtraction
+    {
+        $this->put(route('documents.supplier-invoice-verification.verify', $document), $this->manualVerificationPayload($overrides))
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Supplier invoice details verified.');
+
+        return AttachmentExtraction::where('document_id', $document->id)
+            ->latest('id')
+            ->firstOrFail();
+    }
+
+    private function createApprovedSupplierInvoiceForAmountCheck(string $reference, float $sourceUnitPrice, float $invoiceUnitPrice): Document
+    {
+        $supplierPo = $this->createDocument('supplier-pos', [
+            'supplier_id' => $this->supplier->id,
+            'external_reference' => $reference.'-SPO',
+            'description' => 'Source purchase order for '.$reference,
+            'quantity' => 1,
+            'unit_price' => $sourceUnitPrice,
+        ]);
+        $this->submitAndApprove($supplierPo);
+        $this->transition($supplierPo, 'issue', 'issued');
+
+        $supplierInvoice = $this->createDocument('supplier-invoices', [
+            'supplier_id' => $this->supplier->id,
+            'related_document_id' => $supplierPo->id,
+            'source_type' => 'supplier_po',
+            'external_reference' => $reference,
+            'description' => 'Supplier invoice amount check for '.$reference,
+            'quantity' => 1,
+            'unit_price' => $invoiceUnitPrice,
+        ]);
+
+        $this->uploadSupplierInvoiceCopy($supplierInvoice);
+        $this->verifySupplierInvoiceManually($supplierInvoice, [
+            'fields' => [
+                'invoice_number' => $reference,
+                'invoice_date' => '2026-05-14',
+                'total' => number_format((float) $supplierInvoice->refresh()->total, 2, '.', ''),
+            ],
+        ]);
+        $this->submitAndApprove($supplierInvoice);
+
+        return $supplierInvoice->refresh();
+    }
+
+    private function manualVerificationPayload(array $overrides = []): array
+    {
+        $fields = array_merge([
+            'supplier_name' => 'Best Supplies Sdn Bhd',
+            'invoice_number' => 'MANUAL-SIN-001',
+            'invoice_date' => '2026-05-14',
+            'po_number' => 'SPO-REFERENCE',
+            'subtotal' => '450.00',
+            'tax_total' => '36.00',
+            'total' => '486.00',
+            'payment_terms' => '30 days from invoice date',
+        ], $overrides['fields'] ?? []);
+
+        return [
+            'verification_method' => $overrides['verification_method'] ?? 'manual',
+            'fields' => $fields,
+            'supplier_confirmed' => $overrides['supplier_confirmed'] ?? '1',
+            'recorded_total_confirmed' => $overrides['recorded_total_confirmed'] ?? '1',
+            'verification_notes' => $overrides['verification_notes'] ?? 'Manual verification checked against uploaded invoice copy.',
+        ];
     }
 
     private function fakeTesseractExtractor(array $fields, string $rawText = 'Supplier invoice OCR text'): void
@@ -1516,12 +2583,44 @@ class DocumentWorkflowTest extends TestCase
         });
     }
 
+    private function fakeFailingTesseractExtractor(string $message = 'Tesseract could not read the scan.'): void
+    {
+        config(['ocr.enabled' => true]);
+
+        $this->app->instance(TesseractInvoiceExtractor::class, new class($message) extends TesseractInvoiceExtractor {
+            public function __construct(private string $message)
+            {
+            }
+
+            public function canExtract(Attachment $attachment): bool
+            {
+                return $attachment->canBeExtracted();
+            }
+
+            public function extract(Attachment $attachment): array
+            {
+                throw new \RuntimeException($this->message);
+            }
+        });
+    }
+
     private function transition(Document $document, string $action, string $expectedStatus): void
     {
         $this->post(route('documents.transition', [$document, $action]))
             ->assertRedirect();
 
         $this->assertSame($expectedStatus, $document->refresh()->status);
+    }
+
+    private function paymentPayload(Document $document, float $amount, string $reference): array
+    {
+        return [
+            'payment_date' => '2026-05-14',
+            'amount' => $amount,
+            'method' => 'Bank transfer',
+            'reference' => $reference,
+            'notes' => 'Payment eligibility feature test.',
+        ];
     }
 
     private function recordPayment(Document $document, string $expectedDirection): void

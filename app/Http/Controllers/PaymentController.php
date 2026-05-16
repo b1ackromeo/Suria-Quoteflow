@@ -4,13 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\Payment;
+use App\Services\Documents\PaymentEligibilityService;
 use App\Support\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class PaymentController extends Controller
 {
+    public function __construct(private PaymentEligibilityService $paymentEligibility)
+    {
+    }
+
     public function index(): View
     {
         return view('payments.index', [
@@ -23,6 +29,7 @@ class PaymentController extends Controller
     public function create(Document $document): View
     {
         $this->ensurePaymentAccess();
+        $this->ensurePaymentEligible($document);
 
         return view('payments.form', [
             'document' => $document->load(['customer', 'supplier', 'payments']),
@@ -36,6 +43,7 @@ class PaymentController extends Controller
     public function store(Request $request, Document $document): RedirectResponse
     {
         $this->ensurePaymentAccess();
+        $this->ensurePaymentEligible($document);
 
         $data = $request->validate([
             'payment_date' => ['required', 'date'],
@@ -68,5 +76,16 @@ class PaymentController extends Controller
     private function ensurePaymentAccess(): void
     {
         abort_unless(request()->user()->hasRole('admin', 'manager', 'accounts'), 403);
+    }
+
+    private function ensurePaymentEligible(Document $document): void
+    {
+        if ($this->paymentEligibility->canRecordPayment($document)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'payment' => $this->paymentEligibility->blockedReason($document),
+        ]);
     }
 }

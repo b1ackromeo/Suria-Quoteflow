@@ -2,12 +2,19 @@
     $attachments = $document->attachments ?? collect();
     $previewOnly = $previewOnly ?? false;
     $previewableAttachments = $attachments->filter(fn ($attachment) => $attachment->isPreviewable())->values();
-    $invoiceAttachment = $previewableAttachments->firstWhere('category', 'invoice_copy') ?? $previewableAttachments->first();
+    $invoiceAttachment = $attachments->firstWhere('category', 'invoice_copy') ?? $previewableAttachments->first();
     $extraction = $invoiceAttachment?->extraction;
     $currency = strtoupper($document->currency ?: 'MYR');
     $canVerifyExtraction = in_array(auth()->user()?->role, ['admin', 'manager', 'procurement', 'accounts'], true);
     $extractedFields = $extraction?->extracted_fields ?? [];
     $verifiedFields = $extraction?->verified_fields ?? [];
+    $supplierInvoiceVerification = $supplierInvoiceVerification ?? null;
+    $verificationMethod = $extraction?->verification_method ?: ($extraction?->status === 'verified' ? 'ocr_assisted' : 'manual');
+    $verificationMethodLabel = match ($verificationMethod) {
+        'ocr_assisted' => 'OCR-assisted',
+        'external' => 'External',
+        default => 'Manual',
+    };
     $fieldLabels = [
         'supplier_name' => 'Supplier name',
         'invoice_number' => 'Supplier invoice no.',
@@ -21,6 +28,16 @@
     $supportingAttachments = $attachments
         ->filter(fn ($attachment) => $attachment->id !== $invoiceAttachment?->id)
         ->values();
+    $manualFields = [
+        'supplier_name' => $document->supplier?->name,
+        'invoice_number' => $document->external_reference,
+        'invoice_date' => optional($document->issue_date)->format('Y-m-d'),
+        'po_number' => $document->relatedDocument?->document_number,
+        'subtotal' => number_format((float) $document->subtotal, 2, '.', ''),
+        'tax_total' => number_format((float) $document->tax_total, 2, '.', ''),
+        'total' => number_format((float) $document->total, 2, '.', ''),
+        'payment_terms' => $document->paymentTermsDisplay(),
+    ];
 @endphp
 
 <article class="supplier-invoice-preview-card {{ $previewOnly ? 'supplier-invoice-preview-card-compact' : '' }}" data-supplier-invoice-file-preview>
@@ -86,6 +103,8 @@
                                 @csrf
                                 <button type="submit" class="btn btn-secondary min-h-9 px-3 py-1.5">{{ $extraction ? 'Re-run OCR' : 'Run OCR' }}</button>
                             </form>
+                        @elseif(! $invoiceAttachment->canBeExtracted())
+                            <a class="btn btn-secondary min-h-9 px-3 py-1.5" href="{{ route('attachments.download', $invoiceAttachment) }}">Download file</a>
                         @endif
                     </div>
                 </div>
@@ -101,6 +120,12 @@
                 <div class="supplier-invoice-image-viewer">
                     <img src="{{ route('attachments.preview', $invoiceAttachment) }}" alt="Supplier invoice image preview: {{ $invoiceAttachment->original_name }}">
                 </div>
+            @else
+                <div class="supplier-invoice-empty-preview">
+                    <h4>Invoice file is saved</h4>
+                    <p>This file cannot be previewed in the browser. Download it, check the supplier invoice details, then verify the fields manually.</p>
+                    <a class="btn btn-secondary mt-3" href="{{ route('attachments.download', $invoiceAttachment) }}">Download invoice file</a>
+                </div>
             @endif
         </section>
 
@@ -109,19 +134,19 @@
             <div class="supplier-invoice-extraction-heading">
                 <div>
                     <p class="document-pane-kicker">Verification</p>
-                    <h4>Extracted invoice details</h4>
+                    <h4>Supplier invoice details</h4>
                 </div>
                 @if($extraction?->verified_at)
-                    <span>Verified {{ $extraction->verified_at->format('d M Y, g:i A') }}</span>
+                    <span>{{ $verificationMethodLabel }} verification · {{ $extraction->verified_at->format('d M Y, g:i A') }}</span>
                 @endif
             </div>
 
             @if(! $extraction)
-                <p class="supplier-invoice-extraction-note">Run OCR to extract supplier invoice details from this PDF or image. The extracted draft will appear here for checking.</p>
+                <p class="supplier-invoice-extraction-note">Run OCR when the file is readable. If OCR is not available or the scan is unclear, verify the invoice details manually below.</p>
             @elseif($extraction->status === 'failed')
                 <div class="supplier-invoice-extraction-error">
                     <strong>OCR could not read this file.</strong>
-                    <span>{{ $extraction->error_message ?: 'Check that Tesseract is installed and configured on this machine.' }}</span>
+                    <span>{{ $extraction->error_message ?: 'Verify the invoice details manually, or re-run OCR after replacing the file.' }}</span>
                 </div>
             @else
                 <form method="post" action="{{ route('attachment-extractions.verify', $extraction) }}" class="supplier-invoice-extraction-form">
@@ -138,6 +163,18 @@
                             >
                         </label>
                     @endforeach
+                    <label class="flex items-start gap-2 text-sm font-semibold text-slate-700">
+                        <input type="checkbox" name="supplier_confirmed" value="1" class="mt-1" @checked(old('supplier_confirmed', $extraction->supplier_confirmed)) @disabled($extraction->status === 'verified')>
+                        <span>Supplier on the invoice matches this supplier record.</span>
+                    </label>
+                    <label class="flex items-start gap-2 text-sm font-semibold text-slate-700">
+                        <input type="checkbox" name="recorded_total_confirmed" value="1" class="mt-1" @checked(old('recorded_total_confirmed', $extraction->recorded_total_confirmed)) @disabled($extraction->status === 'verified')>
+                        <span>Recorded total has been checked against the invoice copy.</span>
+                    </label>
+                    <label>
+                        <span>Verification notes</span>
+                        <textarea class="form-input" name="verification_notes" @if($extraction->status === 'verified') readonly @endif>{{ old('verification_notes', $extraction->verification_notes) }}</textarea>
+                    </label>
 
                     @if($canVerifyExtraction && $extraction->status !== 'verified')
                         <button type="submit" class="btn btn-primary supplier-invoice-verify-button">Verify and update invoice record</button>
@@ -150,6 +187,47 @@
                         <pre>{{ \Illuminate\Support\Str::limit($extraction->raw_text, 2500) }}</pre>
                     </details>
                 @endif
+            @endif
+
+            @if($canVerifyExtraction && $extraction?->status !== 'verified')
+                <div class="supplier-invoice-extraction-error">
+                    <strong>Manual verification fallback</strong>
+                    <span>Use this when OCR is unavailable, failed, or the extracted draft is not reliable. Manual and external verification require notes.</span>
+                </div>
+                <form method="post" action="{{ route('documents.supplier-invoice-verification.verify', $document) }}" class="supplier-invoice-extraction-form">
+                    @csrf
+                    @method('PUT')
+                    <label>
+                        <span>Verification method</span>
+                        <select class="form-input" name="verification_method">
+                            <option value="manual" @selected(old('verification_method', 'manual') === 'manual')>Manual</option>
+                            <option value="external" @selected(old('verification_method') === 'external')>External</option>
+                        </select>
+                    </label>
+                    @foreach($fieldLabels as $key => $label)
+                        <label>
+                            <span>{{ $label }}</span>
+                            <input
+                                class="form-input"
+                                name="fields[{{ $key }}]"
+                                value="{{ old('fields.'.$key, $manualFields[$key] ?? '') }}"
+                            >
+                        </label>
+                    @endforeach
+                    <label class="flex items-start gap-2 text-sm font-semibold text-slate-700">
+                        <input type="checkbox" name="supplier_confirmed" value="1" class="mt-1" @checked(old('supplier_confirmed'))>
+                        <span>Supplier on the invoice matches this supplier record.</span>
+                    </label>
+                    <label class="flex items-start gap-2 text-sm font-semibold text-slate-700">
+                        <input type="checkbox" name="recorded_total_confirmed" value="1" class="mt-1" @checked(old('recorded_total_confirmed'))>
+                        <span>Recorded total has been checked against the invoice copy.</span>
+                    </label>
+                    <label>
+                        <span>Verification notes</span>
+                        <textarea class="form-input" name="verification_notes" required>{{ old('verification_notes') }}</textarea>
+                    </label>
+                    <button type="submit" class="btn btn-primary supplier-invoice-verify-button">Verify invoice details</button>
+                </form>
             @endif
         </section>
         @endunless

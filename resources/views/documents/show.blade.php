@@ -7,6 +7,12 @@
     $canWrite = auth()->user()->hasRole('admin', 'manager')
         || ($document->direction === 'outgoing' && auth()->user()->hasRole('sales', 'accounts'))
         || ($document->direction === 'incoming' && auth()->user()->hasRole('procurement', 'accounts'));
+    $paymentEligible = $paymentEligible ?? false;
+    $paymentBlockedReason = $paymentBlockedReason ?? null;
+    $isPaymentDocument = in_array($document->type, ['customer_invoice', 'supplier_invoice'], true);
+    $canManagePayments = auth()->user()->hasRole('admin', 'manager', 'accounts');
+    $canRecordPayment = $canManagePayments && $paymentEligible;
+    $showPaymentBlockedReason = $canManagePayments && $isPaymentDocument && ! $paymentEligible && filled($paymentBlockedReason);
     $primaryDateLabel = match ($document->type) {
         'customer_po' => 'Date received',
         'supplier_po' => 'PO date',
@@ -20,12 +26,17 @@
         $document->type === 'customer_po' => $document->status === 'fulfilled',
         default => false,
     };
+    $supplierInvoiceMatching = $supplierInvoiceMatching ?? null;
+    $supplierInvoiceCanMatch = (bool) ($supplierInvoiceMatching['passes'] ?? false);
+    $supplierInvoiceMatchingBlockers = $supplierInvoiceMatching['blocking_messages'] ?? [];
     $canSubmitForApproval = in_array($document->status, ['draft', 'rejected'], true);
     $canApproveDocument = auth()->user()->canApprove() && $document->status === 'pending_approval';
     $canMarkIssued = $document->status === 'approved'
         && in_array($document->type, ['customer_quotation', 'customer_po', 'customer_invoice', 'supplier_po'], true);
     $canMarkReceived = in_array($document->status, ['issued', 'approved'], true) && $document->type === 'goods_receipt';
-    $canMarkMatched = in_array($document->status, ['received', 'issued', 'approved'], true) && $document->type === 'supplier_invoice';
+    $canTrySupplierInvoiceMatch = in_array($document->status, ['received', 'issued', 'approved'], true) && $document->type === 'supplier_invoice';
+    $canMarkMatched = $canTrySupplierInvoiceMatch && $supplierInvoiceCanMatch;
+    $canOverrideSupplierInvoiceMatch = $canTrySupplierInvoiceMatch && ! $supplierInvoiceCanMatch && auth()->user()->hasRole('admin', 'manager');
     $hasWorkflowActions = $canWrite && (
         $canSubmitForApproval
         || $canApproveDocument
@@ -33,6 +44,7 @@
         || $canRecordDeliveryComplete
         || $canMarkReceived
         || $canMarkMatched
+        || $canOverrideSupplierInvoiceMatch
         || $canCloseDocument
     );
     $issueActionLabel = match ($document->type) {
@@ -77,7 +89,7 @@
     @if($canWrite && ! in_array($document->status, ['paid', 'closed', 'cancelled'], true))
         <a class="btn btn-secondary" href="{{ route('documents.edit', $document) }}">Edit</a>
     @endif
-    @if(auth()->user()->hasRole('admin', 'manager', 'accounts') && in_array($document->type, ['customer_invoice', 'supplier_invoice'], true) && ! in_array($document->status, ['paid', 'closed', 'cancelled'], true))
+    @if($canRecordPayment)
         <a class="btn btn-primary" href="{{ route('payments.create', $document) }}">Record payment</a>
     @endif
 </div>
@@ -169,6 +181,16 @@
                 <span>{{ $document->statusDisplay() }}</span>
             </div>
             <h2>{{ $nextAction }}</h2>
+            @if($showPaymentBlockedReason)
+                <p class="mt-3 text-sm font-semibold text-amber-700">{{ $paymentBlockedReason }}</p>
+            @endif
+            @if($canTrySupplierInvoiceMatch && ! $supplierInvoiceCanMatch && $supplierInvoiceMatchingBlockers !== [])
+                <div class="mt-3 grid gap-1 text-sm font-semibold text-amber-700">
+                    @foreach($supplierInvoiceMatchingBlockers as $blocker)
+                        <p>{{ $blocker }}</p>
+                    @endforeach
+                </div>
+            @endif
             @if($nextDocumentLinks !== [])
                 <div class="mt-4 grid gap-2">
                     @foreach($nextDocumentLinks as $link)
@@ -200,9 +222,33 @@
                 @if($canMarkMatched)
                     <form method="post" action="{{ route('documents.transition', [$document, 'match']) }}"><input type="hidden" name="_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-secondary w-full">Mark matched</button></form>
                 @endif
+                @if($canOverrideSupplierInvoiceMatch)
+                    <form method="post" action="{{ route('documents.transition', [$document, 'match']) }}" class="space-y-2">
+                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                        <label class="form-label">Matching override notes
+                            <textarea class="form-input" name="matching_override_reason" placeholder="Explain why this invoice can be matched despite the checklist blockers." required></textarea>
+                            <span class="mt-1 block text-xs font-semibold text-slate-500">Use only when the amount mismatch or checklist blocker is accepted by an approver. The override is recorded in the audit trail.</span>
+                        </label>
+                        <button type="submit" class="btn btn-secondary w-full">Match with audited override</button>
+                    </form>
+                @endif
                 @if($canCloseDocument)
                     <form method="post" action="{{ route('documents.transition', [$document, 'close']) }}"><input type="hidden" name="_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-secondary w-full">Close</button></form>
                 @endif
+            </section>
+        @endif
+
+        @if($document->type === 'supplier_invoice' && $supplierInvoiceMatching)
+            <section class="document-side-card">
+                <h2 class="panel-title">Supplier invoice matching checklist</h2>
+                <div class="grid gap-3 text-sm">
+                    @foreach($supplierInvoiceMatching['checks'] as $check)
+                        <div>
+                            <strong>{{ $check['passed'] ? 'Passed' : 'Blocked' }}: {{ $check['label'] }}</strong>
+                            <p class="{{ $check['passed'] ? 'text-slate-600' : 'text-amber-700 font-semibold' }}">{{ $check['message'] }}</p>
+                        </div>
+                    @endforeach
+                </div>
             </section>
         @endif
 

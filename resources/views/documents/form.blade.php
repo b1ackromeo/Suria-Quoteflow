@@ -52,17 +52,17 @@
     $sourceOptions = match ($meta['type']) {
         'customer_po' => [
             'quotation' => ['title' => 'From approved quotation', 'copy' => 'Use this when the PO received from the customer follows a quotation already approved in Suria QuoteFlow.'],
-            'direct_customer_po' => ['title' => 'Direct PO received', 'copy' => 'Use this for repeat orders, contract work, rate-card work, email approval, or a PO received without quotation.'],
+            'direct_customer_po' => ['title' => 'Direct PO received', 'copy' => 'Use only when no quotation is required. Add a reason.'],
         ],
         'customer_invoice' => [
             'customer_po' => ['title' => 'From PO received', 'copy' => 'Use this when billing against a PO already recorded from the customer.'],
             'progress_claim' => ['title' => 'Progress claim', 'copy' => 'Use this for staged billing where the invoice represents the current billing stage.'],
-            'direct_invoice' => ['title' => 'Direct invoice', 'copy' => 'Use this for approved work where billing is allowed without a recorded PO.'],
+            'direct_invoice' => ['title' => 'Direct invoice', 'copy' => 'Use only when billing is allowed without a recorded PO. Add a reason.'],
         ],
         'supplier_po' => [
             'supplier_quote' => ['title' => 'From supplier quotation', 'copy' => 'Use this when the order follows a supplier quotation.'],
             'purchase_request' => ['title' => 'From purchase request', 'copy' => 'Use this when internal approval started from a purchase request.'],
-            'direct_supplier_po' => ['title' => 'Direct purchase order', 'copy' => 'Use this for approved procurement without a supplier quotation.'],
+            'direct_supplier_po' => ['title' => 'Direct purchase order', 'copy' => 'Use only when no supplier quotation or purchase request is required. Add a reason.'],
         ],
         'supplier_quotation' => [
             'purchase_request' => ['title' => 'From purchase request', 'copy' => 'Use this when the quotation was requested because of an approved internal purchase request.'],
@@ -70,12 +70,12 @@
         ],
         'goods_receipt' => [
             'supplier_po' => ['title' => 'Against issued purchase order', 'copy' => 'Normal path. Open from the issued PO so the supplier, site, ordered lines, and quantities are copied for receiving.'],
-            'direct_receipt' => ['title' => 'Direct receipt exception', 'copy' => 'Use only when goods or services must be recorded before the PO is available. Link the PO later before invoice matching.'],
+            'direct_receipt' => ['title' => 'Direct receipt exception', 'copy' => 'Use only when goods or services must be captured before the PO is available. Add a reason.'],
         ],
         'supplier_invoice' => [
             'goods_receipt' => ['title' => 'From receipt', 'copy' => 'Use this when matching supplier invoice to accepted goods or service receipt.'],
             'supplier_po' => ['title' => 'From purchase order', 'copy' => 'Use this when invoice matching is based directly on the purchase order.'],
-            'direct_supplier_invoice' => ['title' => 'Direct supplier invoice', 'copy' => 'Use this for bills that are approved without PO or receipt matching.'],
+            'direct_supplier_invoice' => ['title' => 'Direct supplier invoice', 'copy' => 'Use only when no PO or receipt is required. Add a reason.'],
         ],
         default => [],
     };
@@ -239,11 +239,19 @@
     };
     $sourceNotePlaceholder = match ($meta['type']) {
         'customer_po' => 'Example: Customer sent PO directly under existing rate card; quotation not required.',
-        'supplier_po' => 'Example: Purchase order follows supplier quotation SQ-2026-00012.',
-        'customer_invoice' => 'Example: Billing Progress Claim 1 against PO received from customer.',
-        'goods_receipt' => 'Example: Delivery order DO-7788 received at Cyberjaya, 5 sets received, no shortage or damage.',
-        'supplier_invoice' => 'Example: Supplier invoice matched to accepted service receipt.',
+        'supplier_po' => 'Example: Urgent replacement part approved by manager before supplier quotation was received.',
+        'customer_invoice' => 'Example: Customer approved billing by email; no PO is required for this job.',
+        'goods_receipt' => 'Example: Delivery arrived before PO was available; manager approved direct receipt.',
+        'supplier_invoice' => 'Example: Utility bill does not require PO or receipt matching; approved by finance lead.',
         default => 'Add any source context that helps the next user understand this record.',
+    };
+    $sourceNoteHelper = match ($meta['type']) {
+        'customer_po' => 'Required for direct PO received. Explain why no quotation is used.',
+        'supplier_po' => 'Required for direct purchase order. Explain why no supplier quotation or purchase request is used.',
+        'customer_invoice' => 'Required for direct invoice. Explain why billing is allowed without a recorded PO.',
+        'goods_receipt' => 'Required for direct receipt. Normal receiving must use an issued purchase order.',
+        'supplier_invoice' => 'Required for direct supplier invoice. Explain why no PO or receipt is required.',
+        default => 'Add source context when this record does not follow the normal chain.',
     };
 @endphp
 
@@ -280,16 +288,14 @@
         </div>
     @endif
 
-    @if($isGoodsReceipt && $sourceOptions !== [])
-        <input type="hidden" name="source_type" value="{{ $selectedSourceType === 'direct_receipt' ? 'direct_receipt' : 'supplier_po' }}">
-    @elseif($sourceOptions !== [])
+    @if($sourceOptions !== [])
         <section class="studio-source-panel @if($isGoodsReceipt) receiving-source-panel @endif" aria-labelledby="source-workflow-heading">
             <div>
                 <p class="studio-section-kicker">{{ $isGoodsReceipt ? 'Source PO' : 'Source path' }}</p>
                 <h2 id="source-workflow-heading" class="studio-section-title">{{ $isGoodsReceipt ? 'Start with the issued purchase order' : $sourceQuestion }}</h2>
                 <p class="studio-section-copy">
                     @if($isGoodsReceipt)
-                        Normal receiving is done against an issued PO. Use direct receipt only when the delivery must be captured before the PO is available.
+                        Normal receiving is done against an issued supplier PO. Use direct receipt only when the delivery must be captured before the PO is available, and add a reason.
                     @elseif($meta['type'] === 'supplier_po')
                         Choose whether this PO comes from an accepted supplier quotation, an approved purchase request, or approved direct procurement. This source becomes the audit trail before approval and issue.
                     @elseif($meta['type'] === 'supplier_invoice')
@@ -316,8 +322,9 @@
                     @endforeach
                 </div>
             </div>
-            <label class="form-label">Internal note{{ $isGoodsReceipt ? ' (optional)' : '' }}
+            <label class="form-label">Source note
                 <textarea class="form-input {{ $isGoodsReceipt ? 'min-h-16' : 'min-h-24' }}" name="source_note" placeholder="{{ $sourceNotePlaceholder }}">{{ old('source_note', $document->source_note) }}</textarea>
+                <span class="mt-1 block text-xs font-semibold text-slate-500">{{ $sourceNoteHelper }}</span>
             </label>
         </section>
     @endif

@@ -110,7 +110,7 @@
                             <x-icon name="chevron" class="h-4 w-4 text-slate-400" />
                         </div>
                     @endif
-                    <a class="icon-button notification-button" href="{{ route('documents.index', ['module' => 'customer-quotations', 'status' => 'pending_approval']) }}" aria-label="Pending approvals">
+                    <a class="icon-button notification-button" href="{{ route('approvals.pending') }}" aria-label="Pending approvals">
                         <x-icon name="bell" class="h-5 w-5" />
                         <span>{{ \App\Models\Approval::where('status', 'pending')->count() }}</span>
                     </a>

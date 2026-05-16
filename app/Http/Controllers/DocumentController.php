@@ -9,6 +9,9 @@ use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Product;
 use App\Models\Supplier;
+use App\Services\Documents\PaymentEligibilityService;
+use App\Services\Invoices\SupplierInvoiceMatchingService;
+use App\Services\Invoices\SupplierInvoiceVerificationService;
 use App\Services\Ocr\TesseractInvoiceExtractor;
 use App\Support\Audit;
 use App\Support\SearchFilters;
@@ -19,12 +22,27 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Throwable;
 
 class DocumentController extends Controller
 {
+    private const DIRECT_EXCEPTION_SOURCE_TYPES = [
+        'direct_customer_po',
+        'direct_invoice',
+        'direct_supplier_po',
+        'direct_receipt',
+        'direct_supplier_invoice',
+    ];
+
+    public function __construct(
+        private SupplierInvoiceVerificationService $supplierInvoiceVerification,
+        private SupplierInvoiceMatchingService $supplierInvoiceMatching
+    ) {
+    }
+
     public function index(Request $request, string $module): View
     {
         $meta = Document::metaForSlug($module);
@@ -118,14 +136,24 @@ class DocumentController extends Controller
         return redirect()->route('documents.show', $document)->with('status', $meta['singular'].' created.');
     }
 
-    public function show(Document $document): View
+    public function show(Document $document, PaymentEligibilityService $paymentEligibility): View
     {
         $document->load(['customer', 'supplier', 'relatedDocument', 'items.product', 'billingStages', 'payments.creator', 'approvals.requester', 'approvals.decider', 'attachments.uploader', 'attachments.extraction.verifier', 'creator', 'approver']);
+        $supplierInvoiceVerification = $document->type === 'supplier_invoice'
+            ? $this->supplierInvoiceVerification->summary($document)
+            : null;
+        $supplierInvoiceMatching = $document->type === 'supplier_invoice'
+            ? $this->supplierInvoiceMatching->checklist($document)
+            : null;
 
         return view('documents.show', [
             'document' => $document,
             'meta' => Document::metaForSlug(Document::slugForType($document->type)),
             'statuses' => Document::STATUSES,
+            'paymentEligible' => $paymentEligibility->canRecordPayment($document),
+            'paymentBlockedReason' => $paymentEligibility->blockedReason($document),
+            'supplierInvoiceVerification' => $supplierInvoiceVerification,
+            'supplierInvoiceMatching' => $supplierInvoiceMatching,
         ]);
     }
 
@@ -184,7 +212,7 @@ class DocumentController extends Controller
         $this->ensureWriteAccess($meta);
         abort_unless(in_array($document->status, ['draft', 'rejected'], true), 422, 'Only draft or rejected documents can be submitted.');
 
-        $blockingIssues = $this->approvalBlockingIssues($document);
+        $blockingIssues = $this->supplierInvoiceVerification->blockingIssues($document);
         if ($blockingIssues !== []) {
             throw ValidationException::withMessages([
                 'approval' => 'This supplier invoice cannot be submitted yet. '.implode(' ', $blockingIssues),
@@ -255,7 +283,7 @@ class DocumentController extends Controller
         return back()->with('status', 'Rejected.');
     }
 
-    public function transition(Document $document, string $action): RedirectResponse
+    public function transition(Request $request, Document $document, string $action): RedirectResponse
     {
         $meta = Document::metaForSlug(Document::slugForType($document->type));
         $this->ensureWriteAccess($meta);
@@ -286,6 +314,35 @@ class DocumentController extends Controller
         abort_unless($this->transitionAppliesToDocument($document, $action), 422, 'This workflow action does not apply to this document type.');
         abort_unless(in_array($document->status, $allowed[$action], true), 422, 'This status change is not allowed.');
 
+        $matchingOverride = null;
+
+        if ($action === 'match' && $document->type === 'supplier_invoice') {
+            $matchingChecklist = $this->supplierInvoiceMatching->checklist($document);
+
+            if (! $matchingChecklist['passes']) {
+                $overrideReason = trim((string) $request->input('matching_override_reason', ''));
+
+                if ($overrideReason === '') {
+                    throw ValidationException::withMessages([
+                        'matching' => 'Complete the matching checklist before marking this invoice matched. '.implode(' ', $matchingChecklist['blocking_messages']),
+                    ]);
+                }
+
+                abort_unless($request->user()->hasRole('admin', 'manager'), 403);
+
+                $request->validate([
+                    'matching_override_reason' => ['required', 'string', 'max:2000'],
+                ], [
+                    'matching_override_reason.required' => 'Add matching notes before using manager override.',
+                ]);
+
+                $matchingOverride = [
+                    'reason' => $overrideReason,
+                    'checklist' => $matchingChecklist['checks'],
+                ];
+            }
+        }
+
         $before = $document->only(['status', 'fulfilled_at']);
         $payload = ['status' => $status];
         if ($action === 'fulfill') {
@@ -295,7 +352,19 @@ class DocumentController extends Controller
         $document->update($payload);
         Audit::record('document_'.$action, $document, $before, $document->only(['status', 'fulfilled_at']));
 
-        return back()->with('status', $document->statusDisplay().' recorded.');
+        if ($matchingOverride) {
+            Audit::record('supplier_invoice_match_override', $document, $before, [
+                'status' => $document->status,
+                'override_reason' => $matchingOverride['reason'],
+                'checklist' => $matchingOverride['checklist'],
+            ]);
+        }
+
+        $message = $matchingOverride
+            ? $document->statusDisplay().' recorded with audited override.'
+            : $document->statusDisplay().' recorded.';
+
+        return back()->with('status', $message);
     }
 
     public function uploadAttachment(Request $request, Document $document, TesseractInvoiceExtractor $extractor): RedirectResponse
@@ -373,13 +442,20 @@ class DocumentController extends Controller
         $data = $request->validate([
             'fields' => ['required', 'array'],
             'fields.supplier_name' => ['nullable', 'string', 'max:255'],
-            'fields.invoice_number' => ['nullable', 'string', 'max:255'],
-            'fields.invoice_date' => ['nullable', 'string', 'max:80'],
+            'fields.invoice_number' => ['required', 'string', 'max:255'],
+            'fields.invoice_date' => ['required', 'string', 'max:80'],
             'fields.po_number' => ['nullable', 'string', 'max:255'],
             'fields.subtotal' => ['nullable', 'string', 'max:80'],
             'fields.tax_total' => ['nullable', 'string', 'max:80'],
             'fields.total' => ['nullable', 'string', 'max:80'],
             'fields.payment_terms' => ['nullable', 'string', 'max:255'],
+            'supplier_confirmed' => ['accepted'],
+            'recorded_total_confirmed' => ['nullable', 'boolean'],
+            'verification_notes' => ['nullable', 'string', 'max:2000'],
+        ], [
+            'fields.invoice_number.required' => 'Enter the supplier invoice number before verifying.',
+            'fields.invoice_date.required' => 'Enter the invoice date before verifying.',
+            'supplier_confirmed.accepted' => 'Confirm the invoice supplier matches this supplier record.',
         ]);
 
         $fields = collect($data['fields'])
@@ -387,12 +463,24 @@ class DocumentController extends Controller
             ->filter(fn ($value) => filled($value))
             ->all();
 
-        DB::transaction(function () use ($extraction, $document, $fields) {
-            $before = $extraction->only(['status', 'verified_by', 'verified_at']);
+        $recordedTotalConfirmed = $request->boolean('recorded_total_confirmed');
+        $verificationNotes = $request->string('verification_notes')->trim()->toString() ?: null;
+        if (! filled($fields['total'] ?? null) && ! $recordedTotalConfirmed) {
+            throw ValidationException::withMessages([
+                'recorded_total_confirmed' => 'Enter the invoice total or confirm the recorded total was checked.',
+            ]);
+        }
+
+        DB::transaction(function () use ($extraction, $document, $fields, $recordedTotalConfirmed, $verificationNotes) {
+            $before = $extraction->only(['status', 'verified_by', 'verified_at', 'verification_method', 'verification_notes', 'supplier_confirmed', 'recorded_total_confirmed']);
 
             $extraction->update([
                 'status' => 'verified',
                 'verified_fields' => $fields,
+                'verification_method' => SupplierInvoiceVerificationService::METHOD_OCR_ASSISTED,
+                'verification_notes' => $verificationNotes,
+                'supplier_confirmed' => true,
+                'recorded_total_confirmed' => $recordedTotalConfirmed,
                 'verified_by' => auth()->id(),
                 'verified_at' => now(),
             ]);
@@ -405,10 +493,101 @@ class DocumentController extends Controller
                 'status' => 'verified',
                 'verified_by' => auth()->id(),
                 'verified_field_keys' => array_keys($fields),
+                'verification_method' => SupplierInvoiceVerificationService::METHOD_OCR_ASSISTED,
             ]);
         });
 
         return back()->with('status', 'Supplier invoice extraction verified.');
+    }
+
+    public function verifySupplierInvoiceDetails(Request $request, Document $document): RedirectResponse
+    {
+        $meta = Document::metaForSlug(Document::slugForType($document->type));
+        $this->ensureWriteAccess($meta);
+        abort_unless($document->type === 'supplier_invoice', 422, 'Manual verification is only available for supplier invoices.');
+
+        $document->loadMissing('attachments.extraction');
+        $invoiceCopy = $document->attachments->firstWhere('category', 'invoice_copy');
+
+        if (! $invoiceCopy) {
+            throw ValidationException::withMessages([
+                'verification' => 'Upload the supplier invoice file as Invoice copy before verifying details.',
+            ]);
+        }
+
+        $data = $request->validate([
+            'verification_method' => ['required', Rule::in([
+                SupplierInvoiceVerificationService::METHOD_MANUAL,
+                SupplierInvoiceVerificationService::METHOD_EXTERNAL,
+            ])],
+            'fields' => ['required', 'array'],
+            'fields.supplier_name' => ['nullable', 'string', 'max:255'],
+            'fields.invoice_number' => ['required', 'string', 'max:255'],
+            'fields.invoice_date' => ['required', 'string', 'max:80'],
+            'fields.po_number' => ['nullable', 'string', 'max:255'],
+            'fields.subtotal' => ['nullable', 'string', 'max:80'],
+            'fields.tax_total' => ['nullable', 'string', 'max:80'],
+            'fields.total' => ['nullable', 'string', 'max:80'],
+            'fields.payment_terms' => ['nullable', 'string', 'max:255'],
+            'supplier_confirmed' => ['accepted'],
+            'recorded_total_confirmed' => ['nullable', 'boolean'],
+            'verification_notes' => ['required', 'string', 'max:2000'],
+        ], [
+            'fields.invoice_number.required' => 'Enter the supplier invoice number before verifying.',
+            'fields.invoice_date.required' => 'Enter the invoice date before verifying.',
+            'supplier_confirmed.accepted' => 'Confirm the invoice supplier matches this supplier record.',
+            'verification_notes.required' => 'Add verification notes for manual or external verification.',
+        ]);
+
+        $fields = collect($data['fields'])
+            ->map(fn ($value) => is_string($value) ? trim($value) : $value)
+            ->filter(fn ($value) => filled($value))
+            ->all();
+
+        $recordedTotalConfirmed = $request->boolean('recorded_total_confirmed');
+        if (! filled($fields['total'] ?? null) && ! $recordedTotalConfirmed) {
+            throw ValidationException::withMessages([
+                'recorded_total_confirmed' => 'Enter the invoice total or confirm the recorded total was checked.',
+            ]);
+        }
+
+        DB::transaction(function () use ($invoiceCopy, $document, $fields, $data, $recordedTotalConfirmed) {
+            $extraction = $invoiceCopy->extraction ?: new AttachmentExtraction([
+                'attachment_id' => $invoiceCopy->id,
+                'document_id' => $document->id,
+                'engine' => $data['verification_method'],
+                'language' => (string) config('ocr.language', 'eng'),
+                'extracted_fields' => [],
+            ]);
+            $before = $extraction->exists
+                ? $extraction->only(['status', 'verified_by', 'verified_at', 'verification_method', 'verification_notes', 'supplier_confirmed', 'recorded_total_confirmed'])
+                : null;
+
+            $extraction->fill([
+                'document_id' => $document->id,
+                'status' => 'verified',
+                'verified_fields' => $fields,
+                'verification_method' => $data['verification_method'],
+                'verification_notes' => trim((string) $data['verification_notes']),
+                'supplier_confirmed' => true,
+                'recorded_total_confirmed' => $recordedTotalConfirmed,
+                'error_message' => null,
+                'verified_by' => auth()->id(),
+                'verified_at' => now(),
+            ]);
+            $extraction->save();
+
+            $this->applyVerifiedSupplierInvoiceFields($document, $fields);
+
+            Audit::record('supplier_invoice_details_verified', $extraction, $before, [
+                'document_id' => $document->id,
+                'verification_method' => $data['verification_method'],
+                'verified_by' => auth()->id(),
+                'verified_field_keys' => array_keys($fields),
+            ]);
+        });
+
+        return back()->with('status', 'Supplier invoice details verified.');
     }
 
     public function downloadAttachment(Attachment $attachment)
@@ -496,40 +675,6 @@ class DocumentController extends Controller
         ]);
 
         return $extraction;
-    }
-
-    private function approvalBlockingIssues(Document $document): array
-    {
-        if ($document->type !== 'supplier_invoice') {
-            return [];
-        }
-
-        $document->loadMissing('attachments.extraction');
-        $invoiceCopies = $document->attachments->where('category', 'invoice_copy');
-
-        if ($invoiceCopies->isEmpty()) {
-            return ['Upload the supplier invoice file as Invoice copy.'];
-        }
-
-        $extractableInvoiceCopies = $invoiceCopies->filter(fn (Attachment $attachment) => $attachment->canBeExtracted());
-
-        if ($extractableInvoiceCopies->isEmpty()) {
-            return ['Upload a PDF or image invoice copy so the system can extract the supplier invoice content first.'];
-        }
-
-        if ($extractableInvoiceCopies->contains(fn (Attachment $attachment) => $attachment->extraction?->status === 'verified')) {
-            return [];
-        }
-
-        if ($extractableInvoiceCopies->contains(fn (Attachment $attachment) => $attachment->extraction?->status === 'processed')) {
-            return ['Verify the extracted supplier invoice fields before approval.'];
-        }
-
-        if ($extractableInvoiceCopies->contains(fn (Attachment $attachment) => $attachment->extraction?->status === 'failed')) {
-            return ['OCR extraction failed. Re-run OCR successfully and verify the extracted fields before approval.'];
-        }
-
-        return ['Run OCR and verify the extracted supplier invoice fields before approval.'];
     }
 
     private function applyVerifiedSupplierInvoiceFields(Document $document, array $fields): void
@@ -657,12 +802,15 @@ class DocumentController extends Controller
         $relatedDocuments = Document::where('id', '!=', $document->id ?? 0)
             ->where('direction', $meta['direction'])
             ->when($allowedRelatedTypes !== [], fn ($query) => $query->whereIn('type', $allowedRelatedTypes))
-            ->when($allowedRelatedTypes === [], fn ($query) => $query->whereRaw('1 = 0'))
-            ->when(
-                in_array($meta['type'], ['customer_quotation'], true),
-                fn ($query) => $query,
-                fn ($query) => $query->whereIn('status', ['approved', 'issued', 'fulfilled', 'received', 'matched'])
-            )
+            ->when($allowedRelatedTypes === [], fn ($query) => $query->whereRaw('1 = 0'));
+
+        if ($meta['type'] === 'goods_receipt') {
+            $relatedDocuments->where('status', 'issued');
+        } elseif (! in_array($meta['type'], ['customer_quotation'], true)) {
+            $relatedDocuments->whereIn('status', ['approved', 'issued', 'fulfilled', 'received', 'matched']);
+        }
+
+        $relatedDocuments = $relatedDocuments
             ->latest('issue_date')
             ->limit(100)
             ->get();
@@ -694,6 +842,10 @@ class DocumentController extends Controller
         $allowedRelatedTypes = $this->allowedRelatedTypes($meta['type']);
 
         if ($sourceDocument->direction !== $meta['direction'] || ! in_array($sourceDocument->type, $allowedRelatedTypes, true)) {
+            return;
+        }
+
+        if ($meta['type'] === 'goods_receipt' && $sourceDocument->status !== 'issued') {
             return;
         }
 
@@ -804,6 +956,13 @@ class DocumentController extends Controller
             'billing_stages.*.is_current' => ['nullable', 'boolean'],
         ]);
 
+        $data['source_type'] = is_string($data['source_type'] ?? null) ? trim($data['source_type']) : ($data['source_type'] ?? null);
+        $data['source_note'] = is_string($data['source_note'] ?? null) ? trim($data['source_note']) : ($data['source_note'] ?? null);
+
+        if ($meta['type'] === 'goods_receipt' && ($data['source_type'] ?? null) !== 'direct_receipt') {
+            $data['source_type'] = 'supplier_po';
+        }
+
         if ($meta['party'] === 'customer' && empty($data['customer_id'])) {
             throw ValidationException::withMessages(['customer_id' => 'Select a customer.']);
         }
@@ -812,9 +971,17 @@ class DocumentController extends Controller
             throw ValidationException::withMessages(['supplier_id' => 'Select a supplier.']);
         }
 
-        if ($meta['type'] === 'goods_receipt' && ($data['source_type'] ?? null) !== 'direct_receipt' && empty($data['related_document_id'])) {
+        if (in_array($data['source_type'] ?? null, self::DIRECT_EXCEPTION_SOURCE_TYPES, true) && ! filled($data['source_note'] ?? null)) {
+            throw ValidationException::withMessages([
+                'source_note' => $this->directExceptionSourceNoteMessage($data['source_type']),
+            ]);
+        }
+
+        if ($meta['type'] === 'goods_receipt' && ($data['source_type'] ?? null) === 'supplier_po' && empty($data['related_document_id'])) {
             throw ValidationException::withMessages(['related_document_id' => 'Select the issued purchase order this receipt is recorded against, or choose Direct receipt exception.']);
         }
+
+        $relatedDocument = null;
 
         if (! empty($data['related_document_id'])) {
             $relatedDocument = Document::find($data['related_document_id']);
@@ -835,6 +1002,10 @@ class DocumentController extends Controller
             if ($meta['party'] === 'supplier' && (int) $relatedDocument->supplier_id !== (int) ($data['supplier_id'] ?? 0)) {
                 throw ValidationException::withMessages(['related_document_id' => 'Select a related document for the selected supplier.']);
             }
+        }
+
+        if ($meta['type'] === 'goods_receipt' && ($data['source_type'] ?? null) === 'supplier_po' && $relatedDocument?->status !== 'issued') {
+            throw ValidationException::withMessages(['related_document_id' => 'Select an issued supplier purchase order before recording receiving.']);
         }
 
         $data['items'] = collect($data['items'])
@@ -868,6 +1039,18 @@ class DocumentController extends Controller
             ->all();
 
         return $data;
+    }
+
+    private function directExceptionSourceNoteMessage(string $sourceType): string
+    {
+        return match ($sourceType) {
+            'direct_customer_po' => 'Add a reason for this direct PO received.',
+            'direct_invoice' => 'Add a reason for this direct customer invoice.',
+            'direct_supplier_po' => 'Add a reason for this direct purchase order.',
+            'direct_receipt' => 'Add a reason for this direct receipt.',
+            'direct_supplier_invoice' => 'Add a reason for this direct supplier invoice.',
+            default => 'Add a reason for this direct exception.',
+        };
     }
 
     private function syncItems(Document $document, array $items, ?float $documentTaxRate = null): void

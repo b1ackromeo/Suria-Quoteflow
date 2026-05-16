@@ -19,6 +19,10 @@ class AttachmentExtraction extends Model
         'raw_text',
         'extracted_fields',
         'verified_fields',
+        'verification_method',
+        'verification_notes',
+        'supplier_confirmed',
+        'recorded_total_confirmed',
         'error_message',
         'verified_by',
         'verified_at',
@@ -27,6 +31,8 @@ class AttachmentExtraction extends Model
     protected $casts = [
         'extracted_fields' => 'array',
         'verified_fields' => 'array',
+        'supplier_confirmed' => 'boolean',
+        'recorded_total_confirmed' => 'boolean',
         'verified_at' => 'datetime',
     ];
 

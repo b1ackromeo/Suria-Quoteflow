@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuditTrailController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
@@ -28,6 +29,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 Route::middleware(['auth', 'role:admin,manager,sales,procurement,accounts,viewer'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/search', SearchController::class)->name('search.index');
+    Route::get('/approvals/pending', [ApprovalController::class, 'indexPending'])->name('approvals.pending');
 
     Route::resource('customers', CustomerController::class)->middleware('role:admin,manager,sales')->except(['show', 'destroy']);
     Route::resource('suppliers', SupplierController::class)->middleware('role:admin,manager,procurement')->except(['show', 'destroy']);
@@ -44,6 +46,7 @@ Route::middleware(['auth', 'role:admin,manager,sales,procurement,accounts,viewer
     Route::post('/document/{document}/submit', [DocumentController::class, 'submit'])->name('documents.submit');
     Route::post('/document/{document}/approve', [DocumentController::class, 'approve'])->middleware('role:admin,manager')->name('documents.approve');
     Route::post('/document/{document}/reject', [DocumentController::class, 'reject'])->middleware('role:admin,manager')->name('documents.reject');
+    Route::put('/document/{document}/supplier-invoice-verification', [DocumentController::class, 'verifySupplierInvoiceDetails'])->name('documents.supplier-invoice-verification.verify');
     Route::post('/document/{document}/transition/{action}', [DocumentController::class, 'transition'])->name('documents.transition');
     Route::post('/document/{document}/attachments', [DocumentController::class, 'uploadAttachment'])->name('documents.attachments.store');
     Route::post('/attachments/{attachment}/extract', [DocumentController::class, 'extractAttachment'])->name('attachments.extract');
