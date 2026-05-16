@@ -9,11 +9,12 @@ Before making code changes:
 1. Read this `AGENTS.md` file.
 2. Read the specific task file under `docs/codex-tasks/` assigned for the work.
 3. For UI, UX, Blade, CSS, dashboard, form, navigation, copywriting, or accessibility work, read the relevant files under `docs/design/`.
-4. Inspect all affected routes, controllers, models, migrations, Blade views, CSS, and tests before editing.
-5. Summarize the current behavior and the smallest safe implementation plan.
-6. Implement one objective at a time.
-7. Add or update tests when behavior changes.
-8. Summarize changed files, tests run, and remaining risks.
+4. For backend, dashboard, reports, exports, document lists, document show pages, PDF, OCR, or UI loading work, read `docs/performance/01_performance_and_loading_rules.md`.
+5. Inspect all affected routes, controllers, models, migrations, Blade views, CSS, and tests before editing.
+6. Summarize the current behavior and the smallest safe implementation plan.
+7. Implement one objective at a time.
+8. Add or update tests when behavior changes.
+9. Summarize changed files, tests run, performance considerations, and remaining risks.
 
 Do not make broad unrelated refactors while completing a task.
 
@@ -56,6 +57,32 @@ Allowed patterns:
 - sync queue
 - prebuilt CSS at `public/css/app.css`
 
+## Performance and loading rules
+
+Every change must preserve smooth page loading on shared hosting.
+
+Do not introduce:
+
+- obvious N+1 queries
+- unbounded `all()` or `get()` on large operational tables
+- dashboard queries that load full collections just to count/sum
+- file contents loaded into normal page renders
+- heavy JavaScript frameworks
+- large hidden previews rendered for every list row
+- report/export logic that loads all rows into memory
+
+Prefer:
+
+- pagination
+- bounded queries
+- eager loading only for relationships used by the page
+- SQL aggregates for counts/sums
+- streamed or chunked exports
+- lightweight Blade partials
+- progressive disclosure for heavy history/reference sections
+
+Follow `docs/performance/01_performance_and_loading_rules.md` for performance-sensitive work.
+
 ## Business-rule placement
 
 Prefer this separation:
@@ -97,8 +124,12 @@ A task is complete only when:
 - keyboard/focus accessibility is preserved for UI work
 - audit trail is preserved where relevant
 - tests are added or updated for changed behavior
+- page loading remains smooth and bounded
+- no obvious N+1 or unbounded large-table query is introduced
 - shared-hosting constraints are preserved
 - changed files are summarized
+- tests run are summarized
+- performance considerations are summarized
 - remaining risks are listed
 
 ## Reference docs
@@ -113,5 +144,6 @@ Use these only as needed for the current task:
 - `docs/codex-reference/08_SHARED_HOSTING_DONT_BREAK_RULES.md`
 - `docs/design/00_README.md`
 - `docs/design/09_ui_ux_audit_findings.md`
+- `docs/performance/01_performance_and_loading_rules.md`
 
 For task execution, prefer the focused files under `docs/codex-tasks/` over rereading every long reference file every time.
