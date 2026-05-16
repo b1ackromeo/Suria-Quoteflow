@@ -8,11 +8,12 @@ Before making code changes:
 
 1. Read this `AGENTS.md` file.
 2. Read the specific task file under `docs/codex-tasks/` assigned for the work.
-3. Inspect all affected routes, controllers, models, migrations, Blade views, and tests before editing.
-4. Summarize the current behavior and the smallest safe implementation plan.
-5. Implement one objective at a time.
-6. Add or update tests when behavior changes.
-7. Summarize changed files, tests run, and remaining risks.
+3. For UI, UX, Blade, CSS, dashboard, form, navigation, copywriting, or accessibility work, read the relevant files under `docs/design/`.
+4. Inspect all affected routes, controllers, models, migrations, Blade views, CSS, and tests before editing.
+5. Summarize the current behavior and the smallest safe implementation plan.
+6. Implement one objective at a time.
+7. Add or update tests when behavior changes.
+8. Summarize changed files, tests run, and remaining risks.
 
 Do not make broad unrelated refactors while completing a task.
 
@@ -66,13 +67,34 @@ Prefer this separation:
 
 Do not rely only on hiding buttons in Blade. Backend controllers/services must enforce the same rules.
 
+## UI/UX rules
+
+For interface work, preserve QuoteFlow as an action-first operations product:
+
+```text
+What is this record or area?
+What state is it in?
+What needs attention?
+What is the next action?
+What blocks that action?
+Where is the evidence?
+What happened before?
+```
+
+Follow `docs/design/` for layout, components, status language, UX writing, accessibility, responsive behavior, and visual identity.
+
+Do not copy decorative dashboard trends blindly. Use Figma-style component discipline, Dribbble-level polish, and real workflow clarity.
+
 ## Definition of done
 
 A task is complete only when:
 
-- backend rule is enforced server-side
+- backend rule is enforced server-side where behavior changes
 - Blade UI matches backend behavior
 - validation messages are clear
+- UI copy is concise and business-readable
+- important blockers are visible before the user acts
+- keyboard/focus accessibility is preserved for UI work
 - audit trail is preserved where relevant
 - tests are added or updated for changed behavior
 - shared-hosting constraints are preserved
@@ -89,5 +111,7 @@ Use these only as needed for the current task:
 - `docs/codex-reference/06_ACCEPTANCE_TEST_CHECKLIST.md`
 - `docs/codex-reference/07_SUGGESTED_FILE_MAP.md`
 - `docs/codex-reference/08_SHARED_HOSTING_DONT_BREAK_RULES.md`
+- `docs/design/00_README.md`
+- `docs/design/09_ui_ux_audit_findings.md`
 
 For task execution, prefer the focused files under `docs/codex-tasks/` over rereading every long reference file every time.
