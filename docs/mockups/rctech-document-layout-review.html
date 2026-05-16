@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RCTech Document Layout Review</title>
+<style>
+:root {
+  --navy: #0a345f;
+  --navy-deep: #061f3b;
+  --blue: #1d7df2;
+  --ink: #142033;
+  --muted: #607084;
+  --line: #d8e2ee;
+  --soft: #f6f9fc;
+  --due: #e8f2ff;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #dfe8f2;
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+}
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 22px;
+  background: #081f39;
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(8, 31, 57, .22);
+}
+.topbar h1 { margin: 0; font-size: 16px; }
+.topbar p { margin: 3px 0 0; color: #c8dcf6; font-size: 12px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tab {
+  border: 1px solid rgba(255,255,255,.24);
+  background: rgba(255,255,255,.08);
+  color: #dbeafe;
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.tab.active { background: #fff; color: #08213d; }
+.review-note {
+  max-width: 980px;
+  margin: 16px auto 12px;
+  padding: 0 18px;
+  color: #243b55;
+  font-size: 13px;
+}
+.viewer { display: flex; justify-content: center; padding: 0 18px 34px; }
+.page-frame { position: relative; }
+.document { display: none; }
+.document.active { display: block; }
+.page {
+  position: relative;
+  width: 794px;
+  min-height: 1123px;
+  background: #fff;
+  box-shadow: 0 22px 60px rgba(20, 40, 70, .22);
+  transform-origin: top left;
+  overflow: hidden;
+}
+.page-inner { padding: 38px 44px 34px; }
+.masthead {
+  margin: -38px -44px 26px;
+  padding: 23px 44px;
+  min-height: 136px;
+  background: linear-gradient(135deg, var(--navy-deep), var(--navy));
+  color: #fff;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  position: relative;
+}
+.masthead:after {
+  content: "";
+  position: absolute;
+  right: 44px;
+  bottom: 18px;
+  width: 148px;
+  height: 3px;
+  background: var(--blue);
+}
+.brand { display: flex; align-items: center; gap: 16px; }
+.logo { width: 68px; height: 68px; border-radius: 17px; object-fit: cover; }
+.company { font-size: 18px; font-weight: 900; line-height: 1.12; letter-spacing: .045em; }
+.company-meta { margin-top: 7px; color: #c6ddf6; font-size: 10.2px; line-height: 1.35; }
+.doc-title { text-align: right; }
+.doc-title h2 { margin: 0; font-size: 31px; line-height: 1; letter-spacing: .07em; }
+.document-number { margin-top: 15px; color: #fff; font-size: 13px; font-weight: 800; }
+.grid-2 { display: grid; grid-template-columns: 1.04fr .96fr; gap: 22px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.block-title {
+  margin: 0 0 7px;
+  color: var(--navy);
+  font-size: 10.5px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.card {
+  border: 1px solid var(--line);
+  background: #fff;
+  padding: 13px 15px;
+  min-height: 106px;
+}
+.card.accent { border-left: 4px solid var(--blue); }
+.card.soft { background: var(--soft); }
+.card h3 { margin: 0 0 8px; font-size: 15px; }
+.text { color: #344054; font-size: 11.5px; line-height: 1.52; }
+.details {
+  border: 1px solid var(--line);
+  background: var(--soft);
+  padding: 11px 14px;
+}
+.detail-row {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid #e2ebf4;
+  font-size: 11.5px;
+}
+.detail-row:last-child { border-bottom: 0; }
+.label { color: var(--muted); }
+.value { text-align: right; font-weight: 800; }
+.compact-details .detail-row { grid-template-columns: 82px 1fr; }
+.compact-details .value { font-size: 10.9px; }
+.info-strip {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--line);
+}
+.info-item {
+  padding: 11px 13px;
+  min-height: 58px;
+  border-right: 1px solid var(--line);
+  background: #fbfdff;
+}
+.info-item:last-child { border-right: 0; }
+.info-item span {
+  display: block;
+  color: var(--muted);
+  font-size: 9.7px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.info-item strong { display: block; margin-top: 5px; font-size: 11.5px; }
+table { width: 100%; border-collapse: collapse; }
+.items { margin-top: 18px; }
+.items th {
+  background: var(--navy);
+  color: #fff;
+  padding: 9px 7px;
+  font-size: 9.6px;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: .055em;
+}
+.items td {
+  padding: 11px 7px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11.3px;
+  vertical-align: top;
+}
+.desc { font-weight: 800; }
+.small { display: block; margin-top: 4px; color: var(--muted); font-size: 10.5px; line-height: 1.38; }
+.right { text-align: right !important; }
+.schedule {
+  margin-top: 13px;
+  border: 1px solid var(--line);
+}
+.schedule-title {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--navy);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  background: #fbfdff;
+}
+.schedule th {
+  padding: 7px 8px;
+  background: #edf4fb;
+  color: var(--navy);
+  font-size: 9.1px;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: .055em;
+}
+.schedule td {
+  padding: 7px 8px;
+  border-top: 1px solid var(--line);
+  font-size: 10.3px;
+  vertical-align: top;
+}
+.schedule .current td { background: var(--due); font-weight: 800; }
+.lower-grid {
+  display: grid;
+  grid-template-columns: 1.05fr .95fr;
+  gap: 24px;
+  margin-top: 18px;
+  align-items: start;
+}
+.terms {
+  border-top: 3px solid var(--blue);
+  background: #fbfdff;
+  padding: 12px 14px;
+}
+.terms h3,
+.payment h3 {
+  margin: 0 0 8px;
+  color: var(--navy);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.terms p,
+.terms li {
+  color: #344054;
+  font-size: 11.3px;
+  line-height: 1.5;
+}
+.terms ul { margin: 0; padding-left: 17px; }
+.totals { border: 1px solid var(--line); }
+.totals-row {
+  display: grid;
+  grid-template-columns: 1fr 132px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11.5px;
+}
+.totals-row:last-child { border-bottom: 0; }
+.totals-row.grand { background: var(--navy); color: #fff; font-size: 15.5px; font-weight: 900; }
+.totals-row.due { background: var(--due); color: var(--navy); font-weight: 900; }
+.signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
+.signature { min-height: 78px; border: 1px solid var(--line); padding: 13px; }
+.signature strong { font-size: 13px; }
+.signature .line {
+  margin-top: 27px;
+  padding-top: 7px;
+  border-top: 1px solid #98a2b3;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+.invoice-summary {
+  display: grid;
+  grid-template-columns: 1.04fr .96fr;
+  gap: 22px;
+}
+.amount-due {
+  border: 1px solid var(--line);
+  background: var(--due);
+  padding: 15px 16px;
+}
+.amount-due span { display: block; color: var(--navy); font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .09em; }
+.amount-due strong { display: block; margin-top: 7px; color: var(--navy); font-size: 25px; }
+.payment {
+  border: 1px solid var(--line);
+  background: #fbfdff;
+  padding: 13px 15px;
+}
+.footer {
+  position: absolute;
+  left: 44px;
+  right: 44px;
+  bottom: 25px;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
+  color: #667085;
+  font-size: 10px;
+}
+.footer strong { color: var(--navy); }
+@media print {
+  body { background: #fff; }
+  .topbar, .review-note { display: none; }
+  .viewer { padding: 0; }
+  .page { box-shadow: none; transform: none !important; }
+  .page-frame { height: auto !important; }
+  .document:not(.active) { display: none !important; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div>
+    <h1>RCTech Document Layout Review</h1>
+    <p>Revised to standard business document practice. One document per tab.</p>
+  </div>
+  <nav class="tabs" aria-label="Document mockup tabs">
+    <button class="tab active" type="button" data-tab="quotation">Quotation</button>
+    <button class="tab" type="button" data-tab="po">Purchase Order</button>
+    <button class="tab" type="button" data-tab="invoice">Invoice</button>
+  </nav>
+</header>
+
+<p class="review-note">This mockup removes the non-standard proposal/internal blocks. It keeps the RCTech brand, but the document bodies now follow conventional quotation, purchase order and invoice structure.</p>
+
+<main class="viewer">
+  <div class="page-frame" id="pageFrame">
+    <section class="document active" data-document="quotation">
+      <article class="page">
+        <div class="page-inner">
+          <div class="masthead">
+            <div class="brand">
+              <img class="logo" src="assets/rctech-logo-crop.png" alt="RC Technology Resources logo">
+              <div>
+                <div class="company">RC TECHNOLOGY<br>RESOURCES</div>
+                <div class="company-meta">Reg. No. 202603107223 (003844744-P)<br>1-3 Level 1, Jalan Perdana Blok 4801, CBD Perdana, Cyberjaya<br>rctech@gmail.com | +60 16-445 2786</div>
+              </div>
+            </div>
+            <div class="doc-title">
+              <h2>QUOTATION</h2>
+              <div class="document-number">CQ-2026-00003</div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div>
+              <div class="block-title">Quote To</div>
+              <div class="card accent">
+                <h3>Acme Trading Sdn Bhd</h3>
+                <div class="text">Attn: Project Manager<br>Cyberjaya, Selangor, Malaysia<br>Email: procurement@acme.test</div>
+              </div>
+            </div>
+            <div>
+              <div class="block-title">Quotation Details</div>
+              <div class="details">
+                <div class="detail-row"><span class="label">Quotation No.</span><span class="value">CQ-2026-00003</span></div>
+                <div class="detail-row"><span class="label">Quotation Date</span><span class="value">14 May 2026</span></div>
+                <div class="detail-row"><span class="label">Valid Until</span><span class="value">13 Jun 2026</span></div>
+                <div class="detail-row"><span class="label">Customer Ref.</span><span class="value">INQ-RCT-1042</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="info-strip">
+            <div class="info-item"><span>Currency</span><strong>MYR</strong></div>
+            <div class="info-item"><span>Payment Terms</span><strong>Milestone-Based</strong></div>
+            <div class="info-item"><span>Prepared By</span><strong>RCTech</strong></div>
+            <div class="info-item"><span>Site / Project</span><strong>Cyberjaya Site</strong></div>
+          </div>
+
+          <table class="items">
+            <thead><tr><th style="width:34px">No.</th><th>Description</th><th class="right">Qty</th><th>Unit</th><th class="right">Unit Price</th><th class="right">Amount</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td><span class="desc">Telecommunications installation and commissioning support</span><span class="small">Site coordination, cabling support, verification and handover notes.</span></td><td class="right">2.000</td><td>job</td><td class="right">1,200.00</td><td class="right">2,400.00</td></tr>
+              <tr><td>2</td><td><span class="desc">Technical documentation pack</span><span class="small">As-built notes, test record summary and acceptance checklist.</span></td><td class="right">1.000</td><td>set</td><td class="right">350.00</td><td class="right">350.00</td></tr>
+            </tbody>
+          </table>
+
+          <div class="schedule">
+            <div class="schedule-title">Payment Schedule</div>
+            <table>
+              <thead><tr><th>Billing Stage</th><th>Invoice Condition</th><th class="right">%</th><th class="right">Amount</th><th>Payment Term</th></tr></thead>
+              <tbody>
+                <tr><td>Deposit</td><td>Upon PO received / written acceptance</td><td class="right">40%</td><td class="right">MYR 1,188.00</td><td>Due upon invoice</td></tr>
+                <tr><td>Progress Claim 1</td><td>Upon delivery or installation start</td><td class="right">40%</td><td class="right">MYR 1,188.00</td><td>7 days from invoice date</td></tr>
+                <tr><td>Final Claim</td><td>Upon completion and handover acceptance</td><td class="right">20%</td><td class="right">MYR 594.00</td><td>14 days from invoice date</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="lower-grid">
+            <div class="terms">
+              <h3>Terms And Conditions</h3>
+              <ul>
+                <li>This quotation is valid until the date stated above.</li>
+                <li>Prices are subject to confirmed scope, site access and agreed work schedule.</li>
+                <li>Each progress invoice will state the billing stage, invoice amount and due date.</li>
+                <li>Any additional work must be confirmed in writing before execution.</li>
+              </ul>
+            </div>
+            <div class="totals">
+              <div class="totals-row"><span>Subtotal</span><span class="right">MYR 2,750.00</span></div>
+              <div class="totals-row"><span>Tax</span><span class="right">MYR 220.00</span></div>
+              <div class="totals-row grand"><span>Total</span><span class="right">MYR 2,970.00</span></div>
+            </div>
+          </div>
+
+          <div class="signature-grid">
+            <div class="signature"><strong>Prepared By</strong><div class="line">RC Technology Resources</div></div>
+            <div class="signature"><strong>Customer Acceptance</strong><div class="line">Name, signature and company stamp</div></div>
+          </div>
+          <div class="footer"><span><strong>RC Technology Resources</strong> | 1-3 Level 1, Jalan Perdana Blok 4801, CBD Perdana, Cyberjaya</span><span>Page 1 of 1</span></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="document" data-document="po">
+      <article class="page">
+        <div class="page-inner">
+          <div class="masthead">
+            <div class="brand">
+              <img class="logo" src="assets/rctech-logo-crop.png" alt="RC Technology Resources logo">
+              <div>
+                <div class="company">RC TECHNOLOGY<br>RESOURCES</div>
+                <div class="company-meta">Reg. No. 202603107223 (003844744-P)<br>1-3 Level 1, Jalan Perdana Blok 4801, CBD Perdana, Cyberjaya<br>rctech@gmail.com | +60 16-445 2786</div>
+              </div>
+            </div>
+            <div class="doc-title">
+              <h2>PURCHASE ORDER</h2>
+              <div class="document-number">SPO-2026-00002</div>
+            </div>
+          </div>
+
+          <div class="grid-3">
+            <div>
+              <div class="block-title">Vendor</div>
+              <div class="card accent">
+                <h3>Best Supplies Sdn Bhd</h3>
+                <div class="text">Sales Department<br>Kuala Lumpur, Malaysia<br>sales@bestsup.test</div>
+              </div>
+            </div>
+            <div>
+              <div class="block-title">Ship To</div>
+              <div class="card">
+                <h3>RCTech Project Site</h3>
+                <div class="text">Cyberjaya, Selangor<br>Contact: Operations Lead<br>Phone: +60 16-445 2786</div>
+              </div>
+            </div>
+            <div>
+              <div class="block-title">Bill To</div>
+              <div class="card">
+                <h3>RC Technology Resources</h3>
+                <div class="text">CBD Perdana, Cyberjaya<br>Email: rctech@gmail.com<br>Phone: +60 16-445 2786</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="info-strip">
+            <div class="info-item"><span>PO Date</span><strong>14 May 2026</strong></div>
+            <div class="info-item"><span>Delivery Date</span><strong>13 Jun 2026</strong></div>
+            <div class="info-item"><span>Payment Terms</span><strong>Milestone-Based</strong></div>
+            <div class="info-item"><span>Supplier Ref.</span><strong>SQ-2026-00002</strong></div>
+          </div>
+
+          <table class="items">
+            <thead><tr><th style="width:34px">No.</th><th>Item / Service Description</th><th class="right">Qty</th><th>Unit</th><th class="right">Unit Price</th><th class="right">Amount</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td><span class="desc">Operations hardware kit</span><span class="small">Supply for telecom/ELV site support package.</span></td><td class="right">5.000</td><td>set</td><td class="right">450.00</td><td class="right">2,250.00</td></tr>
+              <tr><td>2</td><td><span class="desc">Delivery and support coordination</span><span class="small">Coordinate delivery timing and supporting documentation.</span></td><td class="right">1.000</td><td>lot</td><td class="right">250.00</td><td class="right">250.00</td></tr>
+            </tbody>
+          </table>
+
+          <div class="schedule">
+            <div class="schedule-title">Payment Schedule</div>
+            <table>
+              <thead><tr><th>Billing Stage</th><th>Supplier May Invoice When</th><th class="right">%</th><th class="right">Amount</th><th>Payment Term</th></tr></thead>
+              <tbody>
+                <tr><td>Deposit</td><td>PO acknowledged by supplier</td><td class="right">40%</td><td class="right">MYR 1,080.00</td><td>Due upon receipt of valid invoice</td></tr>
+                <tr><td>Progress Claim 1</td><td>Delivery readiness / site mobilization accepted by RCTech</td><td class="right">40%</td><td class="right">MYR 1,080.00</td><td>7 days from receipt of valid invoice</td></tr>
+                <tr><td>Final Claim</td><td>Goods/services accepted by RCTech</td><td class="right">20%</td><td class="right">MYR 540.00</td><td>14 days from receipt of valid invoice</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="lower-grid">
+            <div class="terms">
+              <h3>Purchase Order Terms</h3>
+              <ul>
+                <li>Supplier invoice must state PO number, billing stage and supporting DO/acceptance reference.</li>
+                <li>Payment period starts after RCTech receives a valid invoice for accepted goods/services.</li>
+                <li>Any price, quantity or scope change requires written approval.</li>
+              </ul>
+            </div>
+            <div class="totals">
+              <div class="totals-row"><span>Subtotal</span><span class="right">MYR 2,500.00</span></div>
+              <div class="totals-row"><span>Tax</span><span class="right">MYR 200.00</span></div>
+              <div class="totals-row grand"><span>PO Total</span><span class="right">MYR 2,700.00</span></div>
+            </div>
+          </div>
+
+          <div class="signature-grid">
+            <div class="signature"><strong>Authorized Signature</strong><div class="line">Name, signature and date</div></div>
+            <div class="signature"><strong>Supplier Acknowledgement</strong><div class="line">Name, signature and company stamp</div></div>
+          </div>
+          <div class="footer"><span><strong>RC Technology Resources</strong> | Reg. No. 202603107223 (003844744-P) | rctech@gmail.com</span><span>Page 1 of 1</span></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="document" data-document="invoice">
+      <article class="page">
+        <div class="page-inner">
+          <div class="masthead">
+            <div class="brand">
+              <img class="logo" src="assets/rctech-logo-crop.png" alt="RC Technology Resources logo">
+              <div>
+                <div class="company">RC TECHNOLOGY<br>RESOURCES</div>
+                <div class="company-meta">Reg. No. 202603107223 (003844744-P)<br>1-3 Level 1, Jalan Perdana Blok 4801, CBD Perdana, Cyberjaya<br>rctech@gmail.com | +60 16-445 2786</div>
+              </div>
+            </div>
+            <div class="doc-title">
+              <h2>INVOICE</h2>
+              <div class="document-number">INV-2026-00002</div>
+            </div>
+          </div>
+
+          <div class="invoice-summary">
+            <div>
+              <div class="block-title">Bill To</div>
+              <div class="card accent">
+                <h3>Acme Trading Sdn Bhd</h3>
+                <div class="text">Finance Department<br>Cyberjaya, Selangor, Malaysia<br>Email: finance@acme.test</div>
+              </div>
+            </div>
+            <div>
+              <div class="block-title">Invoice Details</div>
+              <div class="details">
+                <div class="detail-row"><span class="label">Invoice Date</span><span class="value">14 May 2026</span></div>
+                <div class="detail-row"><span class="label">Due Date</span><span class="value">21 May 2026</span></div>
+                <div class="detail-row"><span class="label">PO Ref.</span><span class="value">CPO-2026-00002</span></div>
+                <div class="detail-row"><span class="label">Progress Invoice</span><span class="value">No. 2 of 3</span></div>
+                <div class="detail-row"><span class="label">Billing Stage</span><span class="value">Progress Claim 1</span></div>
+                <div class="detail-row"><span class="label">Payment Term</span><span class="value">7 Days From Invoice Date</span></div>
+              </div>
+            </div>
+          </div>
+
+          <table class="items">
+            <thead><tr><th style="width:34px">No.</th><th>Description</th><th class="right">Qty</th><th>Unit</th><th class="right">Unit Price</th><th class="right">Amount</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td><span class="desc">Progress Claim 1 - installation start</span><span class="small">Current progress billing stage as per accepted quotation CQ-2026-00003 and PO received CPO-2026-00002.</span></td><td class="right">1.000</td><td>stage</td><td class="right">1,100.00</td><td class="right">1,100.00</td></tr>
+            </tbody>
+          </table>
+
+          <div class="schedule">
+            <div class="schedule-title">Progress Billing Summary</div>
+            <table>
+              <thead><tr><th>Billing Stage</th><th class="right">%</th><th class="right">Scheduled Amount</th><th class="right">Previously Invoiced</th><th class="right">This Invoice</th><th class="right">Remaining To Invoice</th></tr></thead>
+              <tbody>
+                <tr><td>Deposit</td><td class="right">40%</td><td class="right">MYR 1,188.00</td><td class="right">MYR 1,188.00</td><td class="right">MYR 0.00</td><td class="right">MYR 0.00</td></tr>
+                <tr class="current"><td>Progress Claim 1</td><td class="right">40%</td><td class="right">MYR 1,188.00</td><td class="right">MYR 0.00</td><td class="right">MYR 1,188.00</td><td class="right">MYR 0.00</td></tr>
+                <tr><td>Final Claim</td><td class="right">20%</td><td class="right">MYR 594.00</td><td class="right">MYR 0.00</td><td class="right">MYR 0.00</td><td class="right">MYR 594.00</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="lower-grid">
+            <div>
+              <div class="payment">
+                <h3>Payment Details</h3>
+                <div class="text"><strong>Payment Method:</strong> Bank transfer<br><strong>Payment Term:</strong> 7 days from invoice date<br><strong>Payment Reference:</strong> INV-2026-00002<br><strong>Email:</strong> rctech@gmail.com</div>
+              </div>
+              <div class="amount-due" style="margin-top: 14px;">
+                <span>Balance Due</span>
+                <strong>MYR 1,188.00</strong>
+              </div>
+            </div>
+            <div class="totals">
+              <div class="totals-row"><span>Subtotal</span><span class="right">MYR 1,100.00</span></div>
+              <div class="totals-row"><span>Tax</span><span class="right">MYR 88.00</span></div>
+              <div class="totals-row grand"><span>Invoice Total</span><span class="right">MYR 1,188.00</span></div>
+              <div class="totals-row"><span>Paid</span><span class="right">MYR 0.00</span></div>
+              <div class="totals-row due"><span>Balance Due</span><span class="right">MYR 1,188.00</span></div>
+            </div>
+          </div>
+
+          <div class="signature-grid">
+            <div class="signature"><strong>Issued By</strong><div class="line">RC Technology Resources</div></div>
+            <div class="signature"><strong>Received By</strong><div class="line">Name, signature and company stamp</div></div>
+          </div>
+          <div class="footer"><span><strong>RC Technology Resources</strong> | 1-3 Level 1, Jalan Perdana Blok 4801, CBD Perdana, Cyberjaya</span><span>Page 1 of 1</span></div>
+        </div>
+      </article>
+    </section>
+  </div>
+</main>
+
+<script>
+const frame = document.getElementById('pageFrame');
+const tabs = Array.from(document.querySelectorAll('.tab'));
+const documents = Array.from(document.querySelectorAll('.document'));
+function fitPage() {
+  const page = frame.querySelector('.document.active .page');
+  if (!page) return;
+  const scale = Math.min(1, (window.innerWidth - 36) / 794);
+  page.style.transform = `scale(${scale})`;
+  frame.style.width = `${794 * scale}px`;
+  frame.style.height = `${1123 * scale}px`;
+}
+function showDocument(name) {
+  tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.tab === name));
+  documents.forEach(doc => doc.classList.toggle('active', doc.dataset.document === name));
+  fitPage();
+}
+tabs.forEach(tab => tab.addEventListener('click', () => showDocument(tab.dataset.tab)));
+window.addEventListener('resize', fitPage);
+fitPage();
+</script>
+</body>
+</html>

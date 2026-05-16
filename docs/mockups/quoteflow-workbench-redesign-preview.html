@@ -1,0 +1,1699 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Suria QuoteFlow Workbench Redesign Preview</title>
+    <style>
+        :root {
+            --ink: #102033;
+            --muted: #607086;
+            --soft: #eef3f8;
+            --line: #d8e1eb;
+            --panel: #ffffff;
+            --panel-2: #f8fbfd;
+            --blue: #175ea8;
+            --blue-2: #0b3f78;
+            --sky: #e9f3ff;
+            --amber: #a76700;
+            --amber-bg: #fff7e5;
+            --green: #08785d;
+            --green-bg: #e8f8f2;
+            --red: #b42318;
+            --red-bg: #fff0ed;
+            --shadow: 0 18px 42px rgba(20, 40, 70, .10);
+            font-family: Inter, "Segoe UI", Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            color: var(--ink);
+            background: #dfe8f1;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .deck {
+            display: grid;
+            gap: 32px;
+            padding: 24px;
+        }
+
+        .board {
+            min-height: 960px;
+            overflow: hidden;
+            border: 1px solid #c8d5e2;
+            background: var(--soft);
+            box-shadow: var(--shadow);
+        }
+
+        .topline {
+            display: grid;
+            grid-template-columns: 248px 1fr;
+            min-height: 70px;
+            border-bottom: 1px solid var(--line);
+            background: #fff;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 20px;
+            border-right: 1px solid var(--line);
+        }
+
+        .brand-mark,
+        .company-mark {
+            display: grid;
+            width: 38px;
+            height: 38px;
+            place-items: center;
+            border-radius: 10px;
+            color: #fff;
+            background: linear-gradient(135deg, #0b579f, #0d2f5b);
+            font-weight: 900;
+            letter-spacing: -.02em;
+        }
+
+        .brand h1,
+        .company-card strong {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 900;
+            letter-spacing: -.01em;
+        }
+
+        .brand p,
+        .company-card span {
+            margin: 1px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 650;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 0 22px;
+        }
+
+        .search {
+            display: flex;
+            align-items: center;
+            min-width: 430px;
+            height: 42px;
+            gap: 10px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 0 14px;
+            color: #8a98aa;
+            background: #fbfdff;
+            font-weight: 650;
+        }
+
+        .top-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .company-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            height: 44px;
+            min-width: 238px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 0 14px;
+            background: #fff;
+        }
+
+        .company-mark {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .company-card div:last-child {
+            min-width: 0;
+        }
+
+        .company-card strong {
+            display: block;
+        }
+
+        .company-card span {
+            display: none;
+        }
+
+        .date-chip,
+        .user-chip {
+            height: 44px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 0 13px;
+            color: #26384f;
+            background: #fff;
+            font-weight: 800;
+        }
+
+        .shell {
+            display: grid;
+            grid-template-columns: 248px 1fr;
+            min-height: calc(960px - 70px);
+        }
+
+        .side {
+            border-right: 1px solid var(--line);
+            background: #fff;
+            padding: 14px 12px;
+        }
+
+        .side-group {
+            margin: 12px 0 18px;
+        }
+
+        .side-label {
+            margin: 0 0 7px 8px;
+            color: #8b9ab0;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            height: 34px;
+            border-radius: 8px;
+            padding: 0 10px;
+            color: #34465f;
+            font-size: 13px;
+            font-weight: 760;
+        }
+
+        .nav-item.active {
+            color: #fff;
+            background: var(--blue);
+        }
+
+        .dot-icon {
+            width: 16px;
+            color: inherit;
+            text-align: center;
+            font-weight: 900;
+        }
+
+        .screen {
+            min-width: 0;
+            background: #edf3f8;
+        }
+
+        .screen-head {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            min-height: 106px;
+            border-bottom: 1px solid var(--line);
+            padding: 22px;
+            background: #fff;
+        }
+
+        .screen-kicker {
+            margin: 0 0 4px;
+            color: var(--blue);
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        h2 {
+            margin: 0;
+            color: #071326;
+            font-size: 25px;
+            line-height: 1.08;
+            letter-spacing: -.02em;
+        }
+
+        .screen-sub {
+            margin: 7px 0 0;
+            max-width: 780px;
+            color: #56677e;
+            font-size: 14px;
+            font-weight: 650;
+        }
+
+        .button-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 40px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            padding: 0 15px;
+            color: #102033;
+            background: #fff;
+            font-weight: 850;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .btn.primary {
+            border-color: var(--blue);
+            color: #fff;
+            background: var(--blue);
+        }
+
+        .btn.soft {
+            color: var(--blue);
+            background: var(--sky);
+            border-color: #bdd8f8;
+        }
+
+        .stage-strip {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 6px;
+            border-bottom: 1px solid var(--line);
+            padding: 12px 22px;
+            background: #f9fbfd;
+        }
+
+        .stage {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 38px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 0 10px;
+            color: #52647b;
+            background: #fff;
+            font-size: 12px;
+            font-weight: 850;
+        }
+
+        .stage b {
+            display: grid;
+            width: 20px;
+            height: 20px;
+            place-items: center;
+            border-radius: 999px;
+            color: var(--blue);
+            background: #eaf4ff;
+            font-size: 11px;
+        }
+
+        .stage.active {
+            border-color: var(--blue);
+            color: #0a3769;
+            background: #eaf4ff;
+        }
+
+        .workbench {
+            display: grid;
+            grid-template-columns: 360px minmax(520px, 1fr) 360px;
+            height: 782px;
+            min-height: 0;
+        }
+
+        .pane {
+            min-width: 0;
+            overflow: auto;
+            border-right: 1px solid var(--line);
+            background: var(--panel);
+        }
+
+        .pane:last-child {
+            border-right: 0;
+        }
+
+        .pane-pad {
+            padding: 18px;
+        }
+
+        .filter-grid {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .input {
+            display: flex;
+            align-items: center;
+            min-height: 40px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            padding: 0 12px;
+            color: #8796aa;
+            background: #fff;
+            font-weight: 700;
+        }
+
+        .seg {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+            padding: 4px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #f5f8fb;
+        }
+
+        .seg span {
+            display: grid;
+            min-height: 30px;
+            place-items: center;
+            border-radius: 7px;
+            color: #5f7085;
+            font-size: 12px;
+            font-weight: 850;
+        }
+
+        .seg .on {
+            color: #0b3f78;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(18, 45, 79, .08);
+        }
+
+        .queue-card {
+            margin-bottom: 10px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 14px;
+            background: #fff;
+        }
+
+        .queue-card.selected {
+            border-color: #73aaf0;
+            box-shadow: inset 3px 0 0 var(--blue);
+        }
+
+        .queue-top,
+        .row-between {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .queue-card h3,
+        .side-panel h3,
+        .preview-title {
+            margin: 0;
+            color: #071326;
+            font-size: 15px;
+            font-weight: 950;
+            letter-spacing: -.01em;
+        }
+
+        .queue-card p {
+            margin: 4px 0 0;
+            color: #334761;
+            font-size: 13px;
+            font-weight: 750;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            min-height: 24px;
+            border: 1px solid #aee8d2;
+            border-radius: 999px;
+            padding: 0 9px;
+            color: var(--green);
+            background: var(--green-bg);
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .tag.warn {
+            border-color: #ffd48a;
+            color: var(--amber);
+            background: var(--amber-bg);
+        }
+
+        .tag.danger {
+            border-color: #ffbeb4;
+            color: var(--red);
+            background: var(--red-bg);
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .meta dt,
+        .summary-card dt {
+            color: #8392a7;
+            font-size: 10px;
+            font-weight: 950;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+
+        .meta dd,
+        .summary-card dd {
+            margin: 2px 0 0;
+            color: #071326;
+            font-size: 13px;
+            font-weight: 850;
+        }
+
+        .preview-pane {
+            background: #dfe8f1;
+        }
+
+        .preview-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--line);
+            padding: 13px 18px;
+            background: rgba(255, 255, 255, .96);
+        }
+
+        .document-bundle {
+            position: sticky;
+            top: 67px;
+            z-index: 2;
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 8px;
+            overflow-x: hidden;
+            border-bottom: 1px solid var(--line);
+            padding: 10px 18px;
+            background: rgba(247, 250, 253, .98);
+        }
+
+        .bundle-file {
+            display: grid;
+            min-width: 0;
+            gap: 2px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 9px 10px;
+            color: #26384f;
+            background: #fff;
+        }
+
+        .bundle-file.active {
+            border-color: #77aef2;
+            background: #edf6ff;
+            box-shadow: inset 0 0 0 1px #77aef2;
+        }
+
+        .bundle-file strong {
+            font-size: 11px;
+            font-weight: 950;
+        }
+
+        .bundle-file span {
+            color: #6b7b90;
+            font-size: 9px;
+            font-weight: 850;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+
+        .bundle-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .bundle-list-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: center;
+            border: 1px solid #e1e8f0;
+            border-radius: 9px;
+            padding: 9px 10px;
+            background: #fbfdff;
+        }
+
+        .bundle-list-row b {
+            display: block;
+            color: #071326;
+            font-size: 12px;
+        }
+
+        .bundle-list-row small {
+            display: block;
+            margin-top: 1px;
+            color: #617188;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .viewer-tools {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #506176;
+            font-size: 12px;
+            font-weight: 850;
+        }
+
+        .viewer-tool {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 38px;
+            min-height: 34px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 0 10px;
+            color: #21344b;
+            background: #fff;
+        }
+
+        .file-stage {
+            display: grid;
+            place-items: center;
+            padding: 20px;
+        }
+
+        .pdf-sheet {
+            width: min(100%, 680px);
+            min-height: 830px;
+            border: 1px solid #cfd8e4;
+            background: #fff;
+            box-shadow: 0 14px 34px rgba(23, 44, 71, .12);
+        }
+
+        .pdf-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 86px;
+            border-bottom: 1px solid #dbe3ec;
+            padding: 24px 28px;
+        }
+
+        .vendor-logo {
+            display: grid;
+            width: 52px;
+            height: 52px;
+            place-items: center;
+            border-radius: 10px;
+            color: #fff;
+            background: #252f3f;
+            font-weight: 950;
+        }
+
+        .pdf-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            padding: 24px 28px;
+        }
+
+        .pdf-box {
+            border: 1px solid #dbe3ec;
+            padding: 14px;
+        }
+
+        .pdf-box strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 11px;
+            color: #7a8798;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+        .pdf-table {
+            width: calc(100% - 56px);
+            margin: 8px 28px 0;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .pdf-table th {
+            padding: 11px 9px;
+            color: #fff;
+            text-align: left;
+            background: #26384f;
+        }
+
+        .pdf-table td {
+            border-bottom: 1px solid #e4eaf1;
+            padding: 12px 9px;
+        }
+
+        .pdf-total {
+            width: 280px;
+            margin: 26px 28px 0 auto;
+            border: 1px solid #dbe3ec;
+        }
+
+        .pdf-total div {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border-bottom: 1px solid #e4eaf1;
+        }
+
+        .pdf-total div:last-child {
+            border-bottom: 0;
+            color: #fff;
+            background: #26384f;
+            font-weight: 950;
+        }
+
+        .side-panel {
+            padding: 18px;
+            background: #fff;
+        }
+
+        .section-card {
+            margin-bottom: 12px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #fff;
+        }
+
+        .section-card header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--line);
+            padding: 11px 14px;
+        }
+
+        .section-body {
+            padding: 12px 14px;
+        }
+
+        .summary-card {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1px;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: var(--line);
+        }
+
+        .summary-card div {
+            padding: 12px;
+            background: #fff;
+        }
+
+        .match-row {
+            display: grid;
+            grid-template-columns: 24px 1fr auto;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid #e7edf4;
+        }
+
+        .match-row:last-child {
+            border-bottom: 0;
+        }
+
+        .match-row b {
+            color: #071326;
+            font-size: 13px;
+        }
+
+        .match-row small {
+            display: block;
+            margin-top: 2px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 650;
+        }
+
+        .check {
+            display: grid;
+            width: 24px;
+            height: 24px;
+            place-items: center;
+            border-radius: 50%;
+            color: #fff;
+            background: var(--green);
+            font-size: 12px;
+            font-weight: 950;
+        }
+
+        .check.warn {
+            background: var(--amber);
+        }
+
+        .timeline {
+            display: grid;
+            gap: 10px;
+        }
+
+        .timeline div {
+            position: relative;
+            padding-left: 22px;
+            color: #334761;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .timeline div::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 4px;
+            width: 9px;
+            height: 9px;
+            border-radius: 999px;
+            background: var(--blue);
+        }
+
+        .studio {
+            display: grid;
+            grid-template-columns: minmax(560px, .98fr) minmax(560px, 1.02fr);
+            height: 850px;
+            min-height: 0;
+        }
+
+        .studio-left,
+        .studio-right {
+            min-height: 0;
+            overflow: auto;
+            border-right: 1px solid var(--line);
+            background: #f6f9fc;
+        }
+
+        .studio-right {
+            border-right: 0;
+            background: #dfe8f1;
+        }
+
+        .studio-hero {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 18px;
+            border-bottom: 1px solid var(--line);
+            padding: 22px;
+            background: #fff;
+        }
+
+        .step-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .step-card {
+            min-height: 78px;
+            border: 1px solid #bed7f2;
+            border-radius: 10px;
+            padding: 12px;
+            background: #eff7ff;
+        }
+
+        .step-card.off {
+            border-color: var(--line);
+            background: #f8fafc;
+        }
+
+        .step-card span {
+            display: block;
+            color: var(--blue);
+            font-size: 10px;
+            font-weight: 950;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+        }
+
+        .step-card strong {
+            display: block;
+            margin-top: 7px;
+            color: #12253c;
+            font-size: 12px;
+            line-height: 1.25;
+            font-weight: 950;
+        }
+
+        .form-section {
+            margin: 16px 22px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #fff;
+        }
+
+        .form-section header {
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .form-section h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 950;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            padding: 18px;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 6px;
+            color: #31445f;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .field .control {
+            display: flex;
+            align-items: center;
+            min-height: 42px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            padding: 0 12px;
+            color: #071326;
+            background: #fff;
+            font-weight: 800;
+        }
+
+        .field.full {
+            grid-column: 1 / -1;
+        }
+
+        .line-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 4px;
+        }
+
+        .line-table th {
+            padding: 10px 12px;
+            color: #6f7f94;
+            font-size: 10px;
+            text-align: left;
+            text-transform: uppercase;
+            background: #f3f7fb;
+        }
+
+        .line-table td {
+            padding: 12px;
+            border-top: 1px solid #e6edf4;
+            font-weight: 760;
+        }
+
+        .quote-sheet {
+            width: min(94%, 720px);
+            min-height: 740px;
+            margin: 24px auto;
+            background: #fff;
+            border: 1px solid #cfd9e5;
+            box-shadow: 0 18px 44px rgba(22, 46, 75, .16);
+        }
+
+        .quote-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 104px;
+            padding: 24px 34px;
+            color: #fff;
+            background: #0c3764;
+        }
+
+        .quote-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .quote-brand .company-mark {
+            width: 54px;
+            height: 54px;
+        }
+
+        .quote-head h3 {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.1;
+            text-transform: uppercase;
+        }
+
+        .quote-head p {
+            margin: 3px 0 0;
+            color: #d8ecff;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .quote-title {
+            text-align: right;
+        }
+
+        .quote-title strong {
+            display: block;
+            font-size: 28px;
+            letter-spacing: .08em;
+        }
+
+        .quote-body {
+            padding: 22px 34px;
+        }
+
+        .quote-info {
+            display: grid;
+            grid-template-columns: 1.1fr .9fr;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .quote-box {
+            border: 1px solid #d8e2ed;
+            border-left: 4px solid #2e7dda;
+            padding: 14px;
+            background: #f9fbfd;
+        }
+
+        .quote-box h4 {
+            margin: 0 0 8px;
+            font-size: 10px;
+            color: #607086;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        .quote-strip {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 14px 0;
+        }
+
+        .quote-strip div {
+            border: 1px solid #d8e2ed;
+            padding: 12px;
+            background: #fff;
+        }
+
+        .dir-screen {
+            padding: 22px;
+        }
+
+        .register {
+            display: grid;
+            grid-template-columns: minmax(640px, 1fr) 380px;
+            gap: 18px;
+            height: 672px;
+        }
+
+        .register-main,
+        .register-detail {
+            overflow: auto;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: #fff;
+        }
+
+        .register-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            border-bottom: 1px solid var(--line);
+            padding: 14px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            height: 42px;
+            padding: 0 15px;
+            color: #738398;
+            font-size: 11px;
+            text-align: left;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            background: #f7fafc;
+        }
+
+        .data-table td {
+            height: 62px;
+            border-top: 1px solid #e7edf4;
+            padding: 0 15px;
+            font-weight: 750;
+            vertical-align: middle;
+        }
+
+        .data-table tr.selected td {
+            background: #f0f7ff;
+        }
+
+        .detail-head {
+            padding: 18px;
+            color: #fff;
+            background: #0c3764;
+        }
+
+        .detail-head h3 {
+            margin: 0;
+            font-size: 21px;
+            line-height: 1.1;
+        }
+
+        .detail-head p {
+            margin: 6px 0 0;
+            color: #d6eaff;
+            font-weight: 750;
+        }
+
+        .detail-section {
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .detail-section h4 {
+            margin: 0 0 12px;
+            font-size: 13px;
+            font-weight: 950;
+        }
+
+        .review {
+            margin-top: 10px;
+            border: 1px solid #c8d7e6;
+            border-radius: 14px;
+            background: #fff;
+        }
+
+        .review header {
+            padding: 18px 22px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .review h2 {
+            font-size: 22px;
+        }
+
+        .review-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            background: var(--line);
+        }
+
+        .review-card {
+            min-height: 136px;
+            padding: 18px;
+            background: #fff;
+        }
+
+        .review-card strong {
+            display: block;
+            margin-bottom: 8px;
+            color: #071326;
+            font-size: 14px;
+            font-weight: 950;
+        }
+
+        .review-card p {
+            margin: 0;
+            color: #56677e;
+            font-size: 13px;
+            font-weight: 650;
+        }
+
+        @media (max-width: 1200px) {
+            .board {
+                min-width: 1180px;
+            }
+        }
+    </style>
+</head>
+<body>
+<main class="deck">
+    <section class="board" aria-label="Supplier invoice workbench redesign">
+        <div class="topline">
+            <div class="brand">
+                <div class="brand-mark">SQ</div>
+                <div>
+                    <h1>Suria QuoteFlow</h1>
+                    <p>Commercial operations workspace</p>
+                </div>
+            </div>
+            <div class="topbar">
+                <div class="search">Search document no., supplier, customer, item, amount...</div>
+                <div class="top-actions">
+                    <div class="company-card">
+                        <div class="company-mark">RC</div>
+                        <div><strong>RC Technology Resources</strong><span></span></div>
+                    </div>
+                    <div class="date-chip">01 May 2026 - 15 May 2026</div>
+                    <div class="user-chip">QuoteFlow Admin</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="shell">
+            <aside class="side">
+                <div class="side-group">
+                    <div class="nav-item"><span class="dot-icon">▦</span> Dashboard</div>
+                    <div class="nav-item"><span class="dot-icon">↗</span> Reports</div>
+                    <div class="nav-item"><span class="dot-icon">▭</span> Payments</div>
+                </div>
+                <div class="side-group">
+                    <p class="side-label">Outgoing Revenue</p>
+                    <div class="nav-item"><span class="dot-icon">□</span> Customer Quotations</div>
+                    <div class="nav-item"><span class="dot-icon">□</span> PO Received</div>
+                    <div class="nav-item"><span class="dot-icon">□</span> Customer Invoices</div>
+                </div>
+                <div class="side-group">
+                    <p class="side-label">Incoming Procurement</p>
+                    <div class="nav-item"><span class="dot-icon">□</span> Purchase Requests</div>
+                    <div class="nav-item"><span class="dot-icon">□</span> Supplier Quotations</div>
+                    <div class="nav-item"><span class="dot-icon">□</span> Purchase Orders</div>
+                    <div class="nav-item"><span class="dot-icon">□</span> Goods / Service Receipts</div>
+                    <div class="nav-item active"><span class="dot-icon">□</span> Supplier Invoices</div>
+                </div>
+                <div class="side-group">
+                    <p class="side-label">Directory</p>
+                    <div class="nav-item"><span class="dot-icon">◎</span> Customers</div>
+                    <div class="nav-item"><span class="dot-icon">◎</span> Suppliers</div>
+                    <div class="nav-item"><span class="dot-icon">◇</span> Products & Services</div>
+                </div>
+            </aside>
+
+            <section class="screen">
+                <div class="screen-head">
+                    <div>
+                        <p class="screen-kicker">Supplier Procurement Workflow</p>
+                        <h2>Supplier Invoice Workbench</h2>
+                        <p class="screen-sub">Review every document in the supplier invoice bundle, compare the invoice with purchase orders and receipts, resolve exceptions, approve, and track payment.</p>
+                    </div>
+                    <div class="button-row">
+                        <a class="btn" href="#">Export CSV</a>
+                        <a class="btn primary" href="#">Record Supplier Invoice</a>
+                    </div>
+                </div>
+
+                <div class="stage-strip">
+                    <div class="stage"><b>1</b> Request</div>
+                    <div class="stage"><b>2</b> Supplier Quote</div>
+                    <div class="stage"><b>3</b> Purchase Order</div>
+                    <div class="stage"><b>4</b> Receipt</div>
+                    <div class="stage active"><b>5</b> Supplier Invoice</div>
+                    <div class="stage"><b>6</b> Matching</div>
+                    <div class="stage"><b>7</b> Payment</div>
+                    <div class="stage"><b>8</b> Closed</div>
+                </div>
+
+                <div class="workbench">
+                    <aside class="pane">
+                        <div class="pane-pad">
+                            <div class="filter-grid">
+                                <div class="input">Search supplier, invoice no., PO, amount</div>
+                                <div class="seg"><span class="on">To review</span><span>Matched</span><span>Paid</span></div>
+                            </div>
+
+                            <article class="queue-card selected">
+                                <div class="queue-top">
+                                    <div>
+                                        <h3>SIN-2026-00002</h3>
+                                        <p>N2N System</p>
+                                    </div>
+                                    <span class="tag warn">Needs match</span>
+                                </div>
+                                <dl class="meta meta-grid">
+                                    <div><dt>Supplier ref</dt><dd>N2N-INV-7715</dd></div>
+                                    <div><dt>Total</dt><dd>MYR 2,430.00</dd></div>
+                                    <div><dt>Source</dt><dd>PO + Receipt</dd></div>
+                                    <div><dt>Due</dt><dd>28 May 2026</dd></div>
+                                </dl>
+                            </article>
+
+                            <article class="queue-card">
+                                <div class="queue-top">
+                                    <div>
+                                        <h3>SIN-2026-00001</h3>
+                                        <p>Best Supplies Sdn Bhd</p>
+                                    </div>
+                                    <span class="tag">Matched</span>
+                                </div>
+                                <dl class="meta meta-grid">
+                                    <div><dt>Supplier ref</dt><dd>BS-4552</dd></div>
+                                    <div><dt>Total</dt><dd>MYR 1,080.00</dd></div>
+                                    <div><dt>Source</dt><dd>PO</dd></div>
+                                    <div><dt>Due</dt><dd>21 May 2026</dd></div>
+                                </dl>
+                            </article>
+
+                            <article class="queue-card">
+                                <div class="queue-top">
+                                    <div>
+                                        <h3>SIN-2026-00003</h3>
+                                        <p>Metro Office Solutions</p>
+                                    </div>
+                                    <span class="tag danger">Dispute</span>
+                                </div>
+                                <dl class="meta meta-grid">
+                                    <div><dt>Supplier ref</dt><dd>MO-8821</dd></div>
+                                    <div><dt>Total</dt><dd>MYR 4,920.00</dd></div>
+                                    <div><dt>Source</dt><dd>Receipt</dd></div>
+                                    <div><dt>Due</dt><dd>15 May 2026</dd></div>
+                                </dl>
+                            </article>
+                        </div>
+                    </aside>
+
+                    <section class="pane preview-pane">
+                        <div class="preview-toolbar">
+                            <div>
+                                <p class="screen-kicker" style="margin-bottom: 2px;">Incoming Supplier Document Bundle</p>
+                                <h3 class="preview-title">n2n-system-invoice-7715.pdf</h3>
+                            </div>
+                            <div class="viewer-tools" aria-label="Preview controls">
+                                <span class="viewer-tool">Page 1 / 1</span>
+                                <span class="viewer-tool">Fit width</span>
+                                <span class="viewer-tool">100%</span>
+                                <span class="viewer-tool">Rotate</span>
+                            </div>
+                        </div>
+                        <div class="document-bundle" aria-label="Supplier invoice related documents">
+                            <div class="bundle-file active"><strong>Supplier invoice</strong><span>PDF · 1 page</span></div>
+                            <div class="bundle-file"><strong>UAT sign-off</strong><span>PDF · 3 pages</span></div>
+                            <div class="bundle-file"><strong>Installation report</strong><span>PDF · 8 pages</span></div>
+                            <div class="bundle-file"><strong>Site photos</strong><span>Images · 6 files</span></div>
+                            <div class="bundle-file"><strong>Delivery order</strong><span>PDF · 1 page</span></div>
+                        </div>
+                        <div class="file-stage">
+                            <article class="pdf-sheet">
+                                <div class="pdf-top">
+                                    <div style="display:flex;align-items:center;gap:14px;">
+                                        <div class="vendor-logo">N2N</div>
+                                        <div>
+                                            <strong style="font-size:18px;">N2N System</strong>
+                                            <div style="color:#637185;font-weight:700;">Supplier invoice PDF uploaded by vendor</div>
+                                        </div>
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <strong style="font-size:28px;">INVOICE</strong>
+                                        <div style="font-weight:850;">N2N-INV-7715</div>
+                                    </div>
+                                </div>
+                                <div class="pdf-grid">
+                                    <div class="pdf-box"><strong>Bill to</strong>RC Technology Resources<br>CBD Perdana, Cyberjaya</div>
+                                    <div class="pdf-box"><strong>Invoice date</strong>14 May 2026<br><strong style="margin-top:10px;">Payment term</strong>14 days</div>
+                                </div>
+                                <table class="pdf-table">
+                                    <thead><tr><th>Description</th><th>Qty</th><th>Unit</th><th style="text-align:right;">Amount</th></tr></thead>
+                                    <tbody>
+                                    <tr><td>Operations hardware kit</td><td>5</td><td>set</td><td style="text-align:right;">2,250.00</td></tr>
+                                    <tr><td>Service coordination</td><td>1</td><td>lot</td><td style="text-align:right;">180.00</td></tr>
+                                    </tbody>
+                                </table>
+                                <div class="pdf-total">
+                                    <div><span>Subtotal</span><span>MYR 2,250.00</span></div>
+                                    <div><span>Tax</span><span>MYR 180.00</span></div>
+                                    <div><span>Total</span><span>MYR 2,430.00</span></div>
+                                </div>
+                            </article>
+                        </div>
+                    </section>
+
+                    <aside class="pane side-panel">
+                        <div class="section-card">
+                            <header><h3>Invoice Summary</h3><span class="tag warn">Review</span></header>
+                            <div class="section-body">
+                                <dl class="summary-card">
+                                    <div><dt>Supplier</dt><dd>N2N System</dd></div>
+                                    <div><dt>Invoice no.</dt><dd>N2N-INV-7715</dd></div>
+                                    <div><dt>Recorded total</dt><dd>MYR 2,430.00</dd></div>
+                                    <div><dt>Balance</dt><dd>MYR 2,430.00</dd></div>
+                                </dl>
+                            </div>
+                        </div>
+
+                        <div class="section-card">
+                            <header><h3>Document Bundle</h3><span class="tag">12 files</span></header>
+                            <div class="section-body bundle-list">
+                                <div class="bundle-list-row"><div><b>Supplier invoice</b><small>invoice_copy · PDF</small></div><span class="tag">Previewing</span></div>
+                                <div class="bundle-list-row"><div><b>UAT sign-off</b><small>uat_document · PDF</small></div><span class="tag">Preview</span></div>
+                                <div class="bundle-list-row"><div><b>Installation report</b><small>installation_report · PDF</small></div><span class="tag">Preview</span></div>
+                                <div class="bundle-list-row"><div><b>Site completion photos</b><small>completion_photo · 6 images</small></div><span class="tag">Preview</span></div>
+                            </div>
+                        </div>
+
+                        <div class="section-card">
+                            <header><h3>3-Way Matching</h3><span class="tag warn">1 issue</span></header>
+                            <div class="section-body">
+                                <div class="match-row">
+                                    <span class="check">✓</span>
+                                    <div><b>Purchase order found</b><small>SPO-2026-00002, same supplier and currency</small></div>
+                                    <span class="tag">OK</span>
+                                </div>
+                                <div class="match-row">
+                                    <span class="check">✓</span>
+                                    <div><b>Receipt accepted</b><small>GSR-2026-00002 confirms service received</small></div>
+                                    <span class="tag">OK</span>
+                                </div>
+                                <div class="match-row">
+                                    <span class="check warn">!</span>
+                                    <div><b>Supplier tax differs</b><small>Supplier file tax MYR 180.00, system expected MYR 200.00</small></div>
+                                    <span class="tag warn">Check</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="section-card">
+                            <header><h3>Next Action</h3></header>
+                            <div class="section-body">
+                                <div class="button-row" style="display:grid;grid-template-columns:1fr;">
+                                    <a class="btn primary" href="#">Send for approval</a>
+                                    <a class="btn" href="#">Mark as dispute</a>
+                                    <a class="btn" href="#">Record payment</a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="section-card">
+                            <header><h3>Activity</h3></header>
+                            <div class="section-body timeline">
+                                <div>PDF uploaded by Accounts User at 09:41</div>
+                                <div>Matched to SPO-2026-00002</div>
+                                <div>Tax mismatch flagged for finance review</div>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+            </section>
+        </div>
+    </section>
+
+    <section class="board" aria-label="Quotation creation studio redesign">
+        <div class="topline">
+            <div class="brand">
+                <div class="brand-mark">SQ</div>
+                <div>
+                    <h1>Suria QuoteFlow</h1>
+                    <p>Commercial operations workspace</p>
+                </div>
+            </div>
+            <div class="topbar">
+                <div class="search">Search document no., customer, supplier, item, amount...</div>
+                <div class="top-actions">
+                    <div class="company-card">
+                        <div class="company-mark">RC</div>
+                        <div><strong>RC Technology Resources</strong><span></span></div>
+                    </div>
+                    <div class="user-chip">QuoteFlow Admin</div>
+                </div>
+            </div>
+        </div>
+        <div class="shell">
+            <aside class="side">
+                <div class="side-group">
+                    <div class="nav-item"><span class="dot-icon">▦</span> Dashboard</div>
+                    <div class="nav-item"><span class="dot-icon">↗</span> Reports</div>
+                    <div class="nav-item"><span class="dot-icon">▭</span> Payments</div>
+                </div>
+                <div class="side-group">
+                    <p class="side-label">Outgoing Revenue</p>
+                    <div class="nav-item active"><span class="dot-icon">□</span> Customer Quotations</div>
+                    <div class="nav-item"><span class="dot-icon">□</span> PO Received</div>
+                    <div class="nav-item"><span class="dot-icon">□</span> Customer Invoices</div>
+                </div>
+                <div class="side-group">
+                    <p class="side-label">Incoming Procurement</p>
+                    <div class="nav-item"><span class="dot-icon">□</span> Purchase Requests</div>
+                    <div class="nav-item"><span class="dot-icon">□</span> Supplier Quotations</div>
+                    <div class="nav-item"><span class="dot-icon">□</span> Purchase Orders</div>
+                </div>
+            </aside>
+            <section class="studio">
+                <div class="studio-left">
+                    <div class="studio-hero">
+                        <div>
+                            <p class="screen-kicker">New Customer Quotation</p>
+                            <h2>Quotation Studio</h2>
+                            <p class="screen-sub">Create the commercial offer while the customer-facing quotation stays visible beside the inputs.</p>
+                            <div class="step-cards">
+                                <div class="step-card"><span>Step 1</span><strong>Customer and project</strong></div>
+                                <div class="step-card"><span>Step 2</span><strong>Commercial terms</strong></div>
+                                <div class="step-card"><span>Step 3</span><strong>Scope and pricing</strong></div>
+                                <div class="step-card off"><span>Step 4</span><strong>Review and submit</strong></div>
+                            </div>
+                        </div>
+                        <div class="button-row" style="flex-direction:column;align-items:stretch;">
+                            <a class="btn" href="#">Cancel</a>
+                            <a class="btn primary" href="#">Save quotation</a>
+                        </div>
+                    </div>
+
+                    <section class="form-section">
+                        <header><h3>Customer and project</h3></header>
+                        <div class="form-grid">
+                            <div class="field"><label>Customer</label><div class="control">Acme Trading Sdn Bhd</div></div>
+                            <div class="field"><label>Inquiry / reference</label><div class="control">RFQ-ACME-1042</div></div>
+                            <div class="field"><label>Quotation date</label><div class="control">15 May 2026</div></div>
+                            <div class="field"><label>Valid until</label><div class="control">14 Jun 2026</div></div>
+                            <div class="field full"><label>Project / service location</label><div class="control">Cyberjaya Site, handover to Project Manager</div></div>
+                        </div>
+                    </section>
+
+                    <section class="form-section">
+                        <header><h3>Commercial terms</h3></header>
+                        <div class="form-grid">
+                            <div class="field"><label>Payment structure</label><div class="control">Milestone / progress billing</div></div>
+                            <div class="field"><label>Tax rate for total</label><div class="control">8%</div></div>
+                            <div class="field full"><label>Billing stages</label><div class="control">Deposit 40%, Progress Claim 40%, Final Claim 20%</div></div>
+                        </div>
+                    </section>
+
+                    <section class="form-section">
+                        <header><h3>Scope and pricing</h3></header>
+                        <div style="padding:14px 18px 18px;">
+                            <table class="line-table">
+                                <thead><tr><th>Item / service</th><th>Qty</th><th>Unit</th><th>Unit price</th><th>Amount</th></tr></thead>
+                                <tbody>
+                                <tr><td>Telecommunications installation and commissioning support</td><td>2</td><td>job</td><td>1,200.00</td><td>2,400.00</td></tr>
+                                <tr><td>Technical documentation pack</td><td>1</td><td>set</td><td>350.00</td><td>350.00</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="studio-right">
+                    <div class="preview-toolbar">
+                        <div>
+                            <p class="screen-kicker" style="margin-bottom: 2px;">Live Customer Document</p>
+                            <h3 class="preview-title">Quotation Preview</h3>
+                        </div>
+                        <div class="button-row">
+                            <a class="btn soft" href="#">Preview PDF</a>
+                            <a class="btn" href="#">Approve</a>
+                        </div>
+                    </div>
+                    <article class="quote-sheet">
+                        <div class="quote-head">
+                            <div class="quote-brand">
+                                <div class="company-mark">RC</div>
+                                <div>
+                                    <h3>RC Technology<br>Resources</h3>
+                                    <p>Reliable Infrastructure. Connected Future.</p>
+                                </div>
+                            </div>
+                            <div class="quote-title">
+                                <strong>QUOTATION</strong>
+                                <span>CQ-2026-00005</span>
+                            </div>
+                        </div>
+                        <div class="quote-body">
+                            <div class="quote-info">
+                                <div class="quote-box"><h4>Prepared for</h4><strong>Acme Trading Sdn Bhd</strong><br>Attn: Project Manager<br>Cyberjaya, Selangor</div>
+                                <div class="quote-box"><h4>Quotation details</h4>Quote date: <strong>15 May 2026</strong><br>Valid until: <strong>14 Jun 2026</strong><br>Reference: <strong>RFQ-ACME-1042</strong></div>
+                            </div>
+                            <div class="quote-strip">
+                                <div><small>Currency</small><br><strong>MYR</strong></div>
+                                <div><small>Payment terms</small><br><strong>Milestone-Based</strong></div>
+                                <div><small>Project / site</small><br><strong>Cyberjaya Site</strong></div>
+                            </div>
+                            <div class="quote-box" style="border-left-color:#175ea8;"><h4>Project scope summary</h4>RCTech will provide telecommunications installation and commissioning support, including coordination, cabling support, testing records, and handover documentation.</div>
+                            <table class="pdf-table" style="width:100%;margin:20px 0 0;">
+                                <thead><tr><th>Description</th><th>Qty</th><th>Unit</th><th style="text-align:right;">Amount</th></tr></thead>
+                                <tbody>
+                                <tr><td>Telecommunications installation support</td><td>2</td><td>job</td><td style="text-align:right;">2,400.00</td></tr>
+                                <tr><td>Technical documentation pack</td><td>1</td><td>set</td><td style="text-align:right;">350.00</td></tr>
+                                </tbody>
+                            </table>
+                            <div class="pdf-total">
+                                <div><span>Subtotal</span><span>MYR 2,750.00</span></div>
+                                <div><span>Tax</span><span>MYR 220.00</span></div>
+                                <div><span>Total Proposal</span><span>MYR 2,970.00</span></div>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </section>
+        </div>
+    </section>
+
+    <section class="board" aria-label="Directory register redesign">
+        <div class="topline">
+            <div class="brand">
+                <div class="brand-mark">SQ</div>
+                <div>
+                    <h1>Suria QuoteFlow</h1>
+                    <p>Commercial operations workspace</p>
+                </div>
+            </div>
+            <div class="topbar">
+                <div class="search">Search company, contact, category, term, status...</div>
+                <div class="top-actions">
+                    <div class="company-card">
+                        <div class="company-mark">RC</div>
+                        <div><strong>RC Technology Resources</strong><span></span></div>
+                    </div>
+                    <div class="user-chip">QuoteFlow Admin</div>
+                </div>
+            </div>
+        </div>
+        <div class="shell">
+            <aside class="side">
+                <div class="side-group">
+                    <div class="nav-item"><span class="dot-icon">▦</span> Dashboard</div>
+                    <div class="nav-item"><span class="dot-icon">↗</span> Reports</div>
+                    <div class="nav-item"><span class="dot-icon">▭</span> Payments</div>
+                </div>
+                <div class="side-group">
+                    <p class="side-label">Directory</p>
+                    <div class="nav-item"><span class="dot-icon">◎</span> Customers</div>
+                    <div class="nav-item active"><span class="dot-icon">◎</span> Suppliers</div>
+                    <div class="nav-item"><span class="dot-icon">◇</span> Products & Services</div>
+                </div>
+                <div class="side-group">
+                    <p class="side-label">Control</p>
+                    <div class="nav-item"><span class="dot-icon">◇</span> Users</div>
+                    <div class="nav-item"><span class="dot-icon">◇</span> Company Identity</div>
+                    <div class="nav-item"><span class="dot-icon">◇</span> Audit Trail</div>
+                </div>
+            </aside>
+
+            <section class="screen dir-screen">
+                <div class="row-between" style="margin-bottom:18px;">
+                    <div>
+                        <p class="screen-kicker">Directory Register</p>
+                        <h2>Suppliers</h2>
+                        <p class="screen-sub">Maintain supplier records by category, contact, payment terms, and procurement usage.</p>
+                    </div>
+                    <div class="button-row">
+                        <a class="btn soft" href="#">Import CSV</a>
+                        <a class="btn primary" href="#">New supplier</a>
+                    </div>
+                </div>
+
+                <div class="register">
+                    <section class="register-main">
+                        <div class="register-toolbar">
+                            <div class="input" style="flex:1;">Search supplier, category, contact, phone, email</div>
+                            <div class="seg" style="width:300px;"><span class="on">All</span><span>Active</span><span>Inactive</span></div>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                            <tr><th>Supplier</th><th>Category</th><th>Contact</th><th>Terms</th><th>Status</th><th>Last document</th></tr>
+                            </thead>
+                            <tbody>
+                            <tr class="selected"><td><strong>N2N System</strong><br><small>N2NSYS</small></td><td>ICT Equipment</td><td>sales@n2n.test</td><td>14 days</td><td><span class="tag">Active</span></td><td>SIN-2026-00002</td></tr>
+                            <tr><td><strong>Best Supplies Sdn Bhd</strong><br><small>BESTSUP</small></td><td>General Supply</td><td>sales@bestsup.test</td><td>30 days</td><td><span class="tag">Active</span></td><td>SPO-2026-00002</td></tr>
+                            <tr><td><strong>Prime Logistics Services</strong><br><small>PRIMELOG</small></td><td>Logistics</td><td>ops@primelog.test</td><td>14 days</td><td><span class="tag">Active</span></td><td>GSR-2026-00003</td></tr>
+                            <tr><td><strong>Metro Office Solutions</strong><br><small>METRO</small></td><td>Office Supplies</td><td>accounts@metro.test</td><td>30 days</td><td><span class="tag warn">Review</span></td><td>SIN-2026-00003</td></tr>
+                            <tr><td><strong>Vertex ELV Distribution</strong><br><small>VERTEX</small></td><td>ELV Materials</td><td>order@vertex.test</td><td>45 days</td><td><span class="tag">Active</span></td><td>SQ-2026-00008</td></tr>
+                            </tbody>
+                        </table>
+                    </section>
+
+                    <aside class="register-detail">
+                        <div class="detail-head">
+                            <span class="tag" style="background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.3);">Active supplier</span>
+                            <h3 style="margin-top:14px;">N2N System</h3>
+                            <p>ICT Equipment · N2NSYS</p>
+                        </div>
+                        <div class="detail-section">
+                            <h4>Primary contact</h4>
+                            <dl class="summary-card">
+                                <div><dt>Email</dt><dd>sales@n2n.test</dd></div>
+                                <div><dt>Phone</dt><dd>+60 12-445 2786</dd></div>
+                                <div><dt>Payment term</dt><dd>14 days</dd></div>
+                                <div><dt>Tax no.</dt><dd>MY-TAX-8821</dd></div>
+                            </dl>
+                        </div>
+                        <div class="detail-section">
+                            <h4>Procurement activity</h4>
+                            <div class="match-row"><span class="check">✓</span><div><b>3 open documents</b><small>PO, receipt, supplier invoice</small></div></div>
+                            <div class="match-row"><span class="check warn">!</span><div><b>1 invoice needs review</b><small>Tax amount differs from expected total</small></div></div>
+                        </div>
+                        <div class="detail-section">
+                            <h4>Actions</h4>
+                            <div class="button-row" style="display:grid;grid-template-columns:1fr;">
+                                <a class="btn primary" href="#">Open supplier</a>
+                                <a class="btn" href="#">Create purchase order</a>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+            </section>
+        </div>
+    </section>
+
+    <section class="review" aria-label="Self review">
+        <header>
+            <p class="screen-kicker">Senior Design Review</p>
+            <h2>Self-review before implementation</h2>
+            <p class="screen-sub">This review is included in the mockup because the design should pass product logic before touching the Laravel app.</p>
+        </header>
+        <div class="review-grid">
+            <div class="review-card"><strong>Workflow fit</strong><p>The workbench keeps queue, supplier file, matching, actions, and audit visible together. This solves the current problem of users jumping between pages.</p></div>
+            <div class="review-card"><strong>Supplier invoice logic</strong><p>The supplier invoice is treated as an incoming document bundle from the vendor: invoice, UAT, report, photos, delivery order, and dispute evidence.</p></div>
+            <div class="review-card"><strong>Previewer logic</strong><p>The center previewer must switch between all previewable files linked to that invoice record. PDF and image files preview inline; other formats remain listed with download/open actions.</p></div>
+            <div class="review-card"><strong>Visual system</strong><p>Palette moves to white, soft blue-grey, and navy. Status colors are reserved for actual states: matched, review, dispute.</p></div>
+            <div class="review-card"><strong>Density and spacing</strong><p>Tables and queues are denser than the current app, with fewer decorative cards and less empty space.</p></div>
+            <div class="review-card"><strong>Creation experience</strong><p>The studio layout shows the form and live document at the same time, so users do not need to scroll up and down to understand the output.</p></div>
+            <div class="review-card"><strong>Directory pages</strong><p>Registers use full-width tables and a right detail drawer, avoiding the current large blank area and weak list presentation.</p></div>
+            <div class="review-card"><strong>Risk</strong><p>The three-panel workbench needs careful responsive behavior. On smaller screens it should collapse into queue, preview, and action tabs.</p></div>
+            <div class="review-card"><strong>Verdict</strong><p>This is the direction I would implement. It is operational, document-first, and more credible for a quotation, PO, and invoicing system.</p></div>
+        </div>
+    </section>
+</main>
+</body>
+</html>
