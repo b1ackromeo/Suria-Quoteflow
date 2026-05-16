@@ -1,0 +1,163 @@
+# QuoteFlow UI/UX Audit Findings
+
+This audit is based on the current Laravel Blade and CSS implementation. It is not a pixel-perfect browser screenshot review.
+
+## Current strengths
+
+QuoteFlow already has stronger UX foundations than a normal CRUD system:
+
+- fixed sidebar and sticky header shell
+- global search
+- role-aware navigation
+- dashboard with metrics and workflow summaries
+- document list + preview workbench
+- document show command center
+- document studio form
+- status chips
+- workflow timeline
+- PDF/file preview pattern
+- context-aware source path cards
+- domain-specific copy for quotations, POs, receipts, invoices, and supplier invoices
+
+The correct direction is to harden and polish the existing architecture, not throw it away.
+
+## Current weaknesses
+
+### 1. Cognitive overload
+
+Many screens show too much at the same visual weight.
+
+The document show page currently has many cards and disclosures: next action, workflow actions, details, workflow progress, billing stages, line items, attachments, notes, payments, and approval history.
+
+Target improvement:
+
+```text
+Next action -> blockers -> primary action -> key facts -> evidence -> financials -> history
+```
+
+### 2. Dashboard is summary-first, not action-first
+
+The dashboard has useful metrics, but it should lead with what needs attention today.
+
+Target improvement:
+
+```text
+Today’s Work
+- pending approvals
+- supplier invoices to verify
+- supplier invoices to match
+- overdue receivables
+- payments due soon
+```
+
+### 3. Status chips are visually consistent but not semantically rich enough
+
+Approved, issued, received, fulfilled, and matched should not all feel like the same state.
+
+Target improvement:
+
+Use semantic groups:
+
+```text
+Draft, Waiting, Ready, External movement, Control passed, Money in progress, Money complete, Stopped, Final
+```
+
+### 4. UX writing is business-aware but too wordy
+
+The copy is often accurate but reads like internal documentation.
+
+Target improvement:
+
+Use short labels, one-line helpers, and detailed guidance only when needed.
+
+Example:
+
+```text
+Before: Choose whether the supplier invoice is matched against a receiving record, a purchase order, or an approved direct supplier invoice exception.
+After: How should this invoice be matched?
+```
+
+### 5. Accessibility needs tightening
+
+Known risk areas:
+
+- clickable document rows using `role="button"` while containing links
+- dense microcopy
+- sticky headers and scroll containers hiding focus
+- color-heavy status meaning
+- icon-only controls
+
+Target improvement:
+
+Separate preview/open actions, make blockers text-first, test keyboard/focus behavior, and avoid color-only meaning.
+
+### 6. Mobile should be task-focused
+
+The full desktop workbench is too heavy for mobile.
+
+Target improvement:
+
+Mobile should focus on task cards:
+
+```text
+approve/reject
+verify invoice
+upload evidence
+record payment
+search and view summary
+```
+
+## Best final design direction
+
+QuoteFlow should not copy Dribbble dashboards blindly and should not import a generic Figma kit.
+
+Final direction:
+
+```text
+Action-first dashboard
+Document command center
+Checklist-driven workflow panels
+Design-token-based components
+Semantic status system
+Task-focused mobile mode
+Reduced copy density
+Accessibility-aware interactions
+```
+
+## P0 UI/UX priorities
+
+1. Fix pending approval destination and make it a real global action surface.
+2. Add payment eligibility messaging and blocked-state UI.
+3. Add supplier invoice verification/matching checklist panels.
+4. Add visible blockers before submit/approve/match/pay actions.
+5. Improve document row accessibility by separating preview/open behavior.
+6. Add confirmation UX for approve, reject, issue, match, close, cancel, and payment actions.
+
+## P1 UI/UX priorities
+
+1. Redesign document show side panel hierarchy.
+2. Add role-aware My Work shortcuts.
+3. Reduce form copy by 30-40 percent.
+4. Add form progress/readiness summary.
+5. Redesign status semantics.
+6. Add linked-document workflow chain.
+
+## P2 UI/UX priorities
+
+1. Tighten spacing scale.
+2. Reduce overuse of equal-weight cards and shadows.
+3. Standardize empty states.
+4. Add consistent workflow icons.
+5. Improve table density controls.
+6. Create mobile task mode.
+
+## Design acceptance rule
+
+A UI change is acceptable only when:
+
+- next action is obvious
+- blockers are visible before the user acts
+- backend and UI rules match
+- copy is concise and business-readable
+- keyboard/focus behavior remains usable
+- shared-hosting constraints are preserved
