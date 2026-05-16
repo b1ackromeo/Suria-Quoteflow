@@ -9,7 +9,7 @@ When starting a new Codex session, ask Codex to read this file first, then read 
 Suggested first prompt:
 
 ```text
-Read docs/codex-reference/00_README_FOR_CODEX.md and the rest of docs/codex-reference. Then inspect the current code before making changes. Follow the hosting constraints and workflow objectives exactly.
+Read docs/codex-reference/00_README_FOR_CODEX.md and the rest of docs/codex-reference. Then inspect the current code before making changes. Follow the system architecture, hosting constraints, workflow objectives, and acceptance checklist exactly.
 ```
 
 ## Files in this folder
@@ -22,10 +22,21 @@ Read docs/codex-reference/00_README_FOR_CODEX.md and the rest of docs/codex-refe
 - `06_ACCEPTANCE_TEST_CHECKLIST.md` - manual and automated checks before accepting changes.
 - `07_SUGGESTED_FILE_MAP.md` - likely files to inspect and modify.
 - `08_SHARED_HOSTING_DONT_BREAK_RULES.md` - constraints that must not be violated.
+- `09_SYSTEM_ARCHITECTURE.md` - architecture reference for the Laravel monolith, document workflow, UI layers, OCR, payments, matching, reports, PDFs, and shared-hosting boundaries.
 
 ## Important rule
 
 Do not assume the intended target is a VPS. The app is designed for Exabytes/Plesk shared hosting. Keep changes compatible with synchronous Laravel requests, Blade, local storage, MariaDB/MySQL, DomPDF, and prebuilt CSS.
+
+## Architecture rule
+
+Preserve QuoteFlow as a shared-hosting-friendly Laravel monolith:
+
+```text
+Browser -> Laravel routes/controllers -> service/business-rule layer -> Eloquent models -> MySQL/MariaDB -> Blade views/downloads/redirects
+```
+
+Do not convert it into an API-first SPA, microservice architecture, Redis/Horizon queue-worker system, or VPS-only deployment.
 
 ## Current high-priority themes
 
