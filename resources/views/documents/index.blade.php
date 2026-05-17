@@ -113,6 +113,9 @@
             <span class="status-chip {{ $meta['direction'] === 'outgoing' ? 'status-approved' : 'status-pending_approval' }}">{{ $documents->total() }} records</span>
             <a class="btn btn-secondary" href="{{ route('documents.export', $meta['slug']) }}">Export CSV</a>
             @if($canWrite)
+                @if($meta['type'] === 'purchase_request')
+                    <a class="btn btn-secondary" href="{{ route('purchase-requests.quote-first.create') }}">Create from Supplier Quote</a>
+                @endif
                 <a class="btn btn-primary" href="{{ route('documents.create', $meta['slug']) }}">{{ $createActionLabel }}</a>
             @endif
         </div>
