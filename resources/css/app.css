@@ -3,11 +3,43 @@
 @tailwind utilities;
 
 @layer base {
+    :root {
+        --qf-font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --qf-type-caption: 0.75rem;
+        --qf-type-body: 0.875rem;
+        --qf-type-body-large: 0.9375rem;
+        --qf-type-section: 1rem;
+        --qf-type-title: 1.5rem;
+        --qf-leading-caption: 1rem;
+        --qf-leading-body: 1.25rem;
+        --qf-leading-body-large: 1.375rem;
+        --qf-leading-section: 1.5rem;
+        --qf-leading-title: 2rem;
+        --qf-weight-body: 400;
+        --qf-weight-medium: 500;
+        --qf-weight-strong: 700;
+        --qf-weight-title: 800;
+        --qf-text-primary: #0f172a;
+        --qf-text-secondary: #475569;
+        --qf-text-muted: #64748b;
+    }
+
     body {
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: var(--qf-font-ui);
+        font-size: var(--qf-type-body);
+        font-weight: var(--qf-weight-body);
+        line-height: var(--qf-leading-body);
         letter-spacing: 0;
         background: #f2f6fb;
+        color: var(--qf-text-primary);
+        font-feature-settings: "tnum" 1, "cv02" 1, "cv03" 1, "cv04" 1;
+        text-rendering: optimizeLegibility;
         overflow-x: hidden;
+    }
+
+    strong,
+    b {
+        font-weight: var(--qf-weight-strong);
     }
 }
 
@@ -18,7 +50,7 @@
     }
 
     .app-sidebar {
-        @apply border-b border-slate-200 bg-white text-slate-950 shadow-sm xl:fixed xl:inset-y-0 xl:flex xl:w-72 xl:flex-col xl:overflow-hidden xl:border-b-0 xl:border-r xl:shadow-none;
+        @apply border-b border-slate-200 bg-white text-slate-950 shadow-sm lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col lg:overflow-hidden lg:border-b-0 lg:border-r lg:shadow-none;
     }
 
     .sidebar-brand {
@@ -29,12 +61,36 @@
         @apply flex items-center gap-3 text-slate-950;
     }
 
+    .brand-lockup-horizontal {
+        @apply flex min-w-0 items-center text-slate-950;
+    }
+
+    .brand-horizontal-logo {
+        @apply h-12 w-44 max-w-full object-contain object-left;
+    }
+
+    .sidebar-workspace {
+        @apply flex min-w-0 shrink-0 items-center gap-2.5 border-b border-slate-200 px-4 py-2.5;
+    }
+
+    .sidebar-workspace img {
+        @apply h-8 w-8 shrink-0 rounded-lg bg-white object-contain shadow-sm ring-1 ring-blue-100;
+    }
+
+    .sidebar-workspace-name {
+        @apply block truncate text-xs font-bold leading-tight text-slate-950;
+    }
+
+    .sidebar-workspace-label {
+        @apply mt-0.5 block text-[11px] font-semibold leading-tight text-slate-500;
+    }
+
     .brand-mark {
-        @apply grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#0a4f93] text-xs font-black text-white shadow-sm;
+        @apply grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-blue-100;
     }
 
     .brand-logo {
-        @apply h-full w-full object-cover;
+        @apply h-full w-full object-contain;
     }
 
     .business-letterhead {
@@ -61,12 +117,12 @@
 
     .business-letterhead-name {
         color: var(--doc-primary);
-        @apply text-[22px] font-black uppercase leading-[1.05] tracking-wide;
+        @apply text-[22px] font-bold uppercase leading-[1.05] tracking-wide;
     }
 
     .business-letterhead-tagline {
         color: var(--doc-accent);
-        @apply mt-1 text-[10px] font-black leading-tight;
+        @apply mt-1 text-[10px] font-bold leading-tight;
     }
 
     .business-letterhead-contact {
@@ -78,12 +134,12 @@
     }
 
     .business-letterhead-kicker {
-        @apply text-[8px] font-black uppercase leading-none tracking-[0.14em] text-slate-500;
+        @apply text-[8px] font-bold uppercase leading-none tracking-[0.14em] text-slate-500;
     }
 
     .business-letterhead-document h3 {
         color: var(--doc-primary);
-        @apply mt-1 text-[14px] font-black uppercase leading-tight tracking-[0.08em];
+        @apply mt-1 text-[14px] font-bold uppercase leading-tight tracking-[0.08em];
     }
 
     .business-letterhead-number {
@@ -92,15 +148,15 @@
     }
 
     .business-letterhead-number span {
-        @apply block text-[7px] font-black uppercase leading-none tracking-[0.14em] text-slate-500;
+        @apply block text-[7px] font-bold uppercase leading-none tracking-[0.14em] text-slate-500;
     }
 
     .business-letterhead-number strong {
-        @apply mt-1 block text-[10px] font-black text-slate-950;
+        @apply mt-1 block text-[10px] font-bold text-slate-950;
     }
 
     .business-letterhead-status {
-        @apply mt-2 inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-blue-700;
+        @apply mt-2 inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-blue-700;
     }
 
     .business-letterhead-rule {
@@ -139,20 +195,8 @@
         }
     }
 
-    .company-identity-card {
-        @apply mt-3 rounded-lg border border-blue-100 bg-blue-50/70 p-2.5 xl:hidden;
-    }
-
-    .company-identity-card > div {
-        @apply gap-2.5;
-    }
-
-    .company-identity-card img {
-        @apply h-7 w-7;
-    }
-
     .mobile-nav-menu {
-        @apply border-b border-slate-200 px-4 py-3 xl:hidden;
+        @apply border-b border-slate-200 px-4 py-3 lg:hidden;
     }
 
     .mobile-nav-menu > summary {
@@ -177,7 +221,7 @@
     }
 
     .sidebar-nav-desktop {
-        @apply hidden min-h-0 px-4 py-3 xl:block xl:flex-1 xl:space-y-2 xl:overflow-visible;
+        @apply hidden min-h-0 px-4 py-3 lg:block lg:flex-1 lg:space-y-2 lg:overflow-y-auto;
     }
 
     .sidebar-nav-desktop .nav-section {
@@ -194,6 +238,26 @@
 
     .sidebar-nav-mobile {
         @apply mt-3 grid max-h-[calc(100vh-15rem)] grid-cols-1 gap-3 overflow-y-auto px-0 pb-1;
+    }
+
+    .sidebar-account-desktop {
+        @apply hidden shrink-0 border-t border-slate-200 p-4 lg:block;
+    }
+
+    .sidebar-account-panel {
+        @apply mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 shadow-sm lg:mt-0;
+    }
+
+    .sidebar-account-user {
+        @apply flex min-w-0 items-center gap-3;
+    }
+
+    .sidebar-account-avatar {
+        @apply grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#0a345f] text-xs font-bold text-white;
+    }
+
+    .sidebar-account-logout {
+        @apply mt-3 flex min-h-10 w-full items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2;
     }
 
     .nav-section {
@@ -269,31 +333,11 @@
     }
 
     .notification-button span {
-        @apply absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[11px] font-black text-white;
-    }
-
-    .user-chip {
-        @apply hidden h-11 items-center gap-3 rounded-lg border border-slate-200 bg-white px-2.5 shadow-sm lg:flex;
-    }
-
-    .user-avatar {
-        @apply grid h-8 w-8 place-items-center rounded-lg bg-[#0a345f] text-xs font-black text-white;
-    }
-
-    .company-identity-pill {
-        @apply hidden h-11 min-w-0 items-center gap-3 rounded-lg border border-slate-200 bg-[#f8fafc] px-3 text-sm shadow-sm xl:flex;
-    }
-
-    .company-identity-pill img {
-        @apply h-7 w-7 shrink-0 rounded-none bg-white object-contain shadow-none;
-    }
-
-    .company-identity-pill-name {
-        @apply block max-w-44 truncate text-xs font-black text-slate-950;
+        @apply absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white;
     }
 
     .issuer-mini {
-        @apply inline-flex min-h-9 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-black text-slate-700;
+        @apply inline-flex min-h-9 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-slate-700;
     }
 
     .btn-secondary {
@@ -373,7 +417,7 @@
     }
 
     .reports-hero h1 {
-        @apply mt-1 text-3xl font-black tracking-tight text-slate-950;
+        @apply mt-1 text-3xl font-bold tracking-tight text-slate-950;
     }
 
     .reports-hero p:not(.reports-eyebrow) {
@@ -381,7 +425,7 @@
     }
 
     .reports-eyebrow {
-        @apply text-xs font-black uppercase tracking-wide text-[#0a4f93];
+        @apply text-xs font-bold uppercase tracking-wide text-[#0a4f93];
     }
 
     .reports-actions {
@@ -409,11 +453,11 @@
     }
 
     .reports-risk-card span {
-        @apply text-xs font-black uppercase tracking-wide text-slate-400;
+        @apply text-xs font-bold uppercase tracking-wide text-slate-400;
     }
 
     .reports-risk-card strong {
-        @apply mt-2 block text-2xl font-black tracking-tight text-slate-950;
+        @apply mt-2 block text-2xl font-bold tracking-tight text-slate-950;
     }
 
     .reports-risk-card p {
@@ -445,11 +489,11 @@
     }
 
     .reports-metric-card span {
-        @apply text-xs font-black uppercase tracking-wide text-slate-400;
+        @apply text-xs font-bold uppercase tracking-wide text-slate-400;
     }
 
     .reports-metric-card strong {
-        @apply mt-2 block text-2xl font-black tracking-tight text-slate-950;
+        @apply mt-2 block text-2xl font-bold tracking-tight text-slate-950;
     }
 
     .reports-metric-card p {
@@ -482,7 +526,7 @@
     }
 
     .reports-aging-row strong {
-        @apply text-sm font-black text-slate-950;
+        @apply text-sm font-bold text-slate-950;
     }
 
     .reports-aging-row > div:first-child span {
@@ -490,7 +534,7 @@
     }
 
     .reports-aging-row em {
-        @apply text-sm font-black not-italic text-slate-800;
+        @apply text-sm font-bold not-italic text-slate-800;
     }
 
     .reports-aging-bar {
@@ -502,7 +546,7 @@
     }
 
     .reports-cash-card h2 {
-        @apply mt-2 text-3xl font-black tracking-tight text-slate-950;
+        @apply mt-2 text-3xl font-bold tracking-tight text-slate-950;
     }
 
     .reports-cash-card p:not(.reports-eyebrow) {
@@ -518,11 +562,11 @@
     }
 
     .reports-cash-card dt {
-        @apply text-[11px] font-black uppercase tracking-wide text-slate-400;
+        @apply text-[11px] font-bold uppercase tracking-wide text-slate-400;
     }
 
     .reports-cash-card dd {
-        @apply mt-1 text-sm font-black text-slate-950;
+        @apply mt-1 text-sm font-bold text-slate-950;
     }
 
     .reports-table-note {
@@ -554,7 +598,7 @@
     }
 
     .workflow-node-count {
-        @apply mx-auto grid h-10 w-10 place-items-center rounded-full text-base font-black;
+        @apply mx-auto grid h-10 w-10 place-items-center rounded-full text-base font-bold;
     }
 
     .workflow-node-primary {
@@ -599,7 +643,7 @@
     }
 
     .workflow-timeline-step {
-        @apply flex min-w-0 items-center gap-2 rounded-md px-2 py-2 text-xs font-black text-slate-500 transition hover:bg-white hover:text-[#0a4f93];
+        @apply flex min-w-0 items-center gap-2 rounded-md px-2 py-2 text-xs font-bold text-slate-500 transition hover:bg-white hover:text-[#0a4f93];
     }
 
     .workflow-timeline-dot {
@@ -639,7 +683,7 @@
     }
 
     .data-table th {
-        @apply bg-slate-50 px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500;
+        @apply bg-slate-50 px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-500;
     }
 
     .data-table td {
@@ -659,7 +703,7 @@
     }
 
     .status-chip {
-        @apply inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-black;
+        @apply inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold;
     }
 
     .status-draft {
@@ -766,7 +810,7 @@
     }
 
     .studio-step-number {
-        @apply text-[10px] font-black uppercase tracking-wide text-slate-400;
+        @apply text-[10px] font-bold uppercase tracking-wide text-slate-400;
     }
 
     .studio-step-active .studio-step-number {
@@ -774,7 +818,7 @@
     }
 
     .studio-step-label {
-        @apply mt-1 block text-xs font-black text-slate-800;
+        @apply mt-1 block text-xs font-bold text-slate-800;
     }
 
     .studio-section {
@@ -831,11 +875,11 @@
     }
 
     .receiving-line-readonly span {
-        @apply block text-[10px] font-black uppercase tracking-wide text-slate-500;
+        @apply block text-[10px] font-bold uppercase tracking-wide text-slate-500;
     }
 
     .receiving-line-readonly strong {
-        @apply mt-1 block text-sm font-black text-slate-950;
+        @apply mt-1 block text-sm font-bold text-slate-950;
     }
 
     .source-choice-grid {
@@ -855,7 +899,7 @@
     }
 
     .source-choice-title {
-        @apply block text-sm font-black text-slate-950;
+        @apply block text-sm font-bold text-slate-950;
     }
 
     .source-choice-copy {
@@ -867,11 +911,11 @@
     }
 
     .studio-section-kicker {
-        @apply text-[11px] font-black uppercase tracking-wide text-[#0a4f93];
+        @apply text-[11px] font-bold uppercase tracking-wide text-[#0a4f93];
     }
 
     .studio-section-title {
-        @apply mt-1 text-lg font-black tracking-tight text-slate-950;
+        @apply mt-1 text-lg font-bold tracking-tight text-slate-950;
     }
 
     .studio-section-copy {
@@ -911,11 +955,11 @@
     }
 
     .document-pane-title {
-        @apply text-[1.45rem] font-black leading-7 tracking-tight text-slate-950;
+        @apply text-[1.45rem] font-bold leading-7 tracking-tight text-slate-950;
     }
 
     .document-pane-kicker {
-        @apply text-[11px] font-black uppercase tracking-wide text-[#0a4f93];
+        @apply text-[11px] font-bold uppercase tracking-wide text-[#0a4f93];
     }
 
     .document-browser-subtitle {
@@ -963,7 +1007,7 @@
     }
 
     .document-row-title {
-        @apply block truncate text-sm font-black tracking-tight text-[#0a4f93];
+        @apply block truncate text-sm font-bold tracking-tight text-[#0a4f93];
     }
 
     .document-list-row-main {
@@ -991,7 +1035,7 @@
     }
 
     .document-row-details b {
-        @apply mr-1 font-black text-slate-400;
+        @apply mr-1 font-bold text-slate-400;
     }
 
     .document-row-total-action {
@@ -999,7 +1043,7 @@
     }
 
     .document-row-total-action strong {
-        @apply text-xs font-black text-slate-950;
+        @apply text-xs font-bold text-slate-950;
     }
 
     .document-row-actions {
@@ -1007,7 +1051,7 @@
     }
 
     .document-row-preview-button {
-        @apply inline-flex min-h-7 items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-black text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2;
+        @apply inline-flex min-h-7 items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-bold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2;
     }
 
     .document-row-open-link {
@@ -1019,7 +1063,7 @@
     }
 
     .document-row-meta {
-        @apply text-[11px] font-black uppercase tracking-wide text-slate-400;
+        @apply text-[11px] font-bold uppercase tracking-wide text-slate-400;
     }
 
     .document-preview-toolbar {
@@ -1047,7 +1091,7 @@
     }
 
     .document-list-empty h3 {
-        @apply text-base font-black text-slate-950;
+        @apply text-base font-bold text-slate-950;
     }
 
     .document-list-empty p {
@@ -1095,11 +1139,11 @@
     }
 
     .directory-stat-card span {
-        @apply block text-[11px] font-black uppercase tracking-wide text-slate-400;
+        @apply block text-[11px] font-bold uppercase tracking-wide text-slate-400;
     }
 
     .directory-stat-card strong {
-        @apply mt-2 block text-2xl font-black tracking-tight text-slate-950;
+        @apply mt-2 block text-2xl font-bold tracking-tight text-slate-950;
     }
 
     .directory-table-pane {
@@ -1147,7 +1191,7 @@
     }
 
     .directory-toggle-card strong {
-        @apply block text-sm font-black text-slate-950;
+        @apply block text-sm font-bold text-slate-950;
     }
 
     .directory-toggle-card small {
@@ -1159,7 +1203,7 @@
     }
 
     .directory-default-card h3 {
-        @apply mt-1 text-base font-black tracking-tight text-slate-950;
+        @apply mt-1 text-base font-bold tracking-tight text-slate-950;
     }
 
     .directory-default-card p:not(.studio-section-kicker) {
@@ -1175,7 +1219,7 @@
     }
 
     .address-entry-title {
-        @apply block text-sm font-black text-slate-950;
+        @apply block text-sm font-bold text-slate-950;
     }
 
     .address-entry-copy {
@@ -1199,7 +1243,7 @@
     }
 
     .address-builder-heading h3 {
-        @apply text-base font-black tracking-tight text-slate-950;
+        @apply text-base font-bold tracking-tight text-slate-950;
     }
 
     .address-builder-heading p {
@@ -1207,7 +1251,7 @@
     }
 
     .address-builder-heading > span {
-        @apply inline-flex min-h-8 shrink-0 items-center rounded-full border border-blue-100 bg-blue-50 px-3 text-xs font-black uppercase tracking-wide text-[#0a4f93];
+        @apply inline-flex min-h-8 shrink-0 items-center rounded-full border border-blue-100 bg-blue-50 px-3 text-xs font-bold uppercase tracking-wide text-[#0a4f93];
     }
 
     .address-field-grid {
@@ -1215,7 +1259,7 @@
     }
 
     .address-line-field {
-        @apply block text-xs font-black uppercase tracking-wide text-slate-500;
+        @apply block text-xs font-bold uppercase tracking-wide text-slate-500;
     }
 
     .address-line-field .form-input {
@@ -1223,7 +1267,7 @@
     }
 
     .same-address-toggle {
-        @apply inline-flex min-h-9 shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 shadow-sm;
+        @apply inline-flex min-h-9 shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm;
     }
 
     .same-address-toggle input {
@@ -1279,11 +1323,11 @@
     }
 
     .product-library-tab span {
-        @apply text-[11px] font-black uppercase tracking-wide text-slate-500;
+        @apply text-[11px] font-bold uppercase tracking-wide text-slate-500;
     }
 
     .product-library-tab strong {
-        @apply text-base font-black tracking-tight text-slate-950;
+        @apply text-base font-bold tracking-tight text-slate-950;
     }
 
     .product-library-tab.is-active {
@@ -1308,7 +1352,7 @@
     }
 
     .product-library-panel-header h2 {
-        @apply text-base font-black tracking-tight text-slate-950;
+        @apply text-base font-bold tracking-tight text-slate-950;
     }
 
     .product-library-panel-header p {
@@ -1336,15 +1380,15 @@
     }
 
     .product-library-type {
-        @apply inline-flex min-h-6 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[11px] font-black text-[#0a4f93];
+        @apply inline-flex min-h-6 items-center rounded-md border border-blue-200 bg-blue-50 px-2 text-[11px] font-bold text-[#0a4f93];
     }
 
     .product-library-code {
-        @apply inline-flex min-h-6 items-center rounded-md border border-slate-200 bg-slate-50 px-2 text-[11px] font-black uppercase tracking-wide text-slate-500;
+        @apply inline-flex min-h-6 items-center rounded-md border border-slate-200 bg-slate-50 px-2 text-[11px] font-bold uppercase tracking-wide text-slate-500;
     }
 
     .product-library-main h3 {
-        @apply mt-2 text-base font-black leading-5 tracking-tight text-slate-950;
+        @apply mt-2 text-base font-bold leading-5 tracking-tight text-slate-950;
     }
 
     .product-library-description {
@@ -1352,7 +1396,7 @@
     }
 
     .product-library-description-label {
-        @apply text-[11px] font-black uppercase tracking-wide text-slate-400;
+        @apply text-[11px] font-bold uppercase tracking-wide text-slate-400;
     }
 
     .product-library-description p:not(.product-library-description-label) {
@@ -1372,11 +1416,11 @@
     }
 
     .product-library-facts dt {
-        @apply text-[11px] font-black uppercase tracking-wide text-slate-400;
+        @apply text-[11px] font-bold uppercase tracking-wide text-slate-400;
     }
 
     .product-library-facts dd {
-        @apply mt-0.5 text-sm font-black text-slate-950;
+        @apply mt-0.5 text-sm font-bold text-slate-950;
     }
 
     .product-library-actions {
@@ -1417,7 +1461,7 @@
     }
 
     .supplier-directory-panel-header h2 {
-        @apply text-base font-black tracking-tight text-slate-950;
+        @apply text-base font-bold tracking-tight text-slate-950;
     }
 
     .supplier-directory-panel-header p {
@@ -1437,7 +1481,7 @@
     }
 
     .supplier-directory-avatar {
-        @apply grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#0a4f93] text-sm font-black uppercase text-white shadow-sm;
+        @apply grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#0a4f93] text-sm font-bold uppercase text-white shadow-sm;
     }
 
     .supplier-directory-tags {
@@ -1445,15 +1489,15 @@
     }
 
     .supplier-directory-code {
-        @apply inline-flex min-h-6 items-center rounded-md border border-slate-200 bg-slate-50 px-2 text-[11px] font-black uppercase tracking-wide text-slate-500;
+        @apply inline-flex min-h-6 items-center rounded-md border border-slate-200 bg-slate-50 px-2 text-[11px] font-bold uppercase tracking-wide text-slate-500;
     }
 
     .supplier-directory-category {
-        @apply inline-flex min-h-6 items-center rounded-md border border-blue-100 bg-blue-50 px-2 text-[11px] font-black text-[#0a4f93];
+        @apply inline-flex min-h-6 items-center rounded-md border border-blue-100 bg-blue-50 px-2 text-[11px] font-bold text-[#0a4f93];
     }
 
     .supplier-directory-identity h3 {
-        @apply mt-2 text-base font-black leading-5 tracking-tight text-slate-950;
+        @apply mt-2 text-base font-bold leading-5 tracking-tight text-slate-950;
     }
 
     .supplier-directory-address {
@@ -1467,12 +1511,12 @@
 
     .supplier-directory-contact span,
     .supplier-directory-term span {
-        @apply text-[11px] font-black uppercase tracking-wide text-slate-400;
+        @apply text-[11px] font-bold uppercase tracking-wide text-slate-400;
     }
 
     .supplier-directory-contact strong,
     .supplier-directory-term strong {
-        @apply mt-1 block text-sm font-black text-slate-950;
+        @apply mt-1 block text-sm font-bold text-slate-950;
     }
 
     .supplier-directory-contact p,
@@ -1513,7 +1557,7 @@
     }
 
     .supplier-address-heading h3 {
-        @apply text-base font-black tracking-tight text-slate-950;
+        @apply text-base font-bold tracking-tight text-slate-950;
     }
 
     .supplier-address-heading p {
@@ -1521,7 +1565,7 @@
     }
 
     .supplier-address-heading > span {
-        @apply inline-flex min-h-8 shrink-0 items-center rounded-full border border-blue-100 bg-blue-50 px-3 text-xs font-black uppercase tracking-wide text-[#0a4f93];
+        @apply inline-flex min-h-8 shrink-0 items-center rounded-full border border-blue-100 bg-blue-50 px-3 text-xs font-bold uppercase tracking-wide text-[#0a4f93];
     }
 
     .supplier-preview-card {
@@ -1529,7 +1573,7 @@
     }
 
     .supplier-preview-card h2 {
-        @apply mt-1 text-lg font-black tracking-tight text-slate-950;
+        @apply mt-1 text-lg font-bold tracking-tight text-slate-950;
     }
 
     .supplier-preview-block {
@@ -1541,11 +1585,11 @@
     }
 
     .supplier-preview-heading strong {
-        @apply block text-base font-black leading-5 text-slate-950;
+        @apply block text-base font-bold leading-5 text-slate-950;
     }
 
     .supplier-preview-heading span {
-        @apply mt-1 block text-[11px] font-black uppercase tracking-wide text-slate-400;
+        @apply mt-1 block text-[11px] font-bold uppercase tracking-wide text-slate-400;
     }
 
     .supplier-preview-details {
@@ -1558,11 +1602,11 @@
 
     .supplier-preview-details dt,
     .supplier-preview-address span {
-        @apply text-[11px] font-black uppercase tracking-wide text-slate-400;
+        @apply text-[11px] font-bold uppercase tracking-wide text-slate-400;
     }
 
     .supplier-preview-details dd {
-        @apply mt-1 break-words text-sm font-black text-slate-950;
+        @apply mt-1 break-words text-sm font-bold text-slate-950;
     }
 
     .supplier-preview-address {
@@ -1598,7 +1642,7 @@
     }
 
     .access-filter-chip {
-        @apply inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-black uppercase tracking-wide text-slate-600 transition hover:border-blue-200 hover:bg-blue-50;
+        @apply inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-bold uppercase tracking-wide text-slate-600 transition hover:border-blue-200 hover:bg-blue-50;
     }
 
     .access-filter-chip.is-active {
@@ -1614,7 +1658,7 @@
     }
 
     .access-panel-header h2 {
-        @apply text-base font-black tracking-tight text-slate-950;
+        @apply text-base font-bold tracking-tight text-slate-950;
     }
 
     .access-panel-header p {
@@ -1634,11 +1678,11 @@
     }
 
     .access-avatar {
-        @apply grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#0a4f93] text-xs font-black uppercase text-white shadow-sm;
+        @apply grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#0a4f93] text-xs font-bold uppercase text-white shadow-sm;
     }
 
     .access-person h3 {
-        @apply truncate text-base font-black tracking-tight text-slate-950;
+        @apply truncate text-base font-bold tracking-tight text-slate-950;
     }
 
     .access-person a {
@@ -1650,7 +1694,7 @@
     }
 
     .access-role span {
-        @apply text-sm font-black text-slate-950;
+        @apply text-sm font-bold text-slate-950;
     }
 
     .access-role p {
@@ -1686,7 +1730,7 @@
     }
 
     .access-role-guide h2 {
-        @apply text-base font-black tracking-tight text-slate-950;
+        @apply text-base font-bold tracking-tight text-slate-950;
     }
 
     .access-role-guide-list {
@@ -1698,7 +1742,7 @@
     }
 
     .access-role-guide-list strong {
-        @apply block text-sm font-black text-slate-950;
+        @apply block text-sm font-bold text-slate-950;
     }
 
     .access-role-guide-list p {
@@ -1722,11 +1766,11 @@
     }
 
     .product-list-commercials span {
-        @apply block text-[11px] font-black uppercase tracking-wide text-slate-400;
+        @apply block text-[11px] font-bold uppercase tracking-wide text-slate-400;
     }
 
     .product-list-commercials strong {
-        @apply mt-1 block text-base font-black text-slate-950;
+        @apply mt-1 block text-base font-bold text-slate-950;
     }
 
     .document-show-workspace {
@@ -1746,7 +1790,7 @@
     }
 
     .document-open-heading h1 {
-        @apply truncate text-2xl font-black tracking-tight text-slate-950;
+        @apply truncate text-2xl font-bold tracking-tight text-slate-950;
     }
 
     .document-open-heading p:not(.document-pane-kicker) {
@@ -1758,7 +1802,7 @@
     }
 
     .document-open-summary strong {
-        @apply inline-flex min-h-9 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-black text-slate-950;
+        @apply inline-flex min-h-9 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-950;
     }
 
     .document-open-preview-body {
@@ -1801,11 +1845,11 @@
     }
 
     .document-side-card-heading span {
-        @apply rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-black text-slate-600;
+        @apply rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-600;
     }
 
     .document-next-step-card h2 {
-        @apply mt-2 text-base font-black leading-6 text-slate-950;
+        @apply mt-2 text-base font-bold leading-6 text-slate-950;
     }
 
     .document-action-stack {
@@ -1821,7 +1865,7 @@
     }
 
     .document-readiness-item strong {
-        @apply block text-sm font-black text-slate-950;
+        @apply block text-sm font-bold text-slate-950;
     }
 
     .document-readiness-item p {
@@ -1849,7 +1893,7 @@
     }
 
     .document-checklist-summary h3 {
-        @apply text-sm font-black text-slate-950;
+        @apply text-sm font-bold text-slate-950;
     }
 
     .document-checklist-row {
@@ -1857,11 +1901,11 @@
     }
 
     .document-checklist-row span {
-        @apply text-[10px] font-black uppercase tracking-wide;
+        @apply text-[10px] font-bold uppercase tracking-wide;
     }
 
     .document-checklist-row strong {
-        @apply mt-1 block font-black text-slate-950;
+        @apply mt-1 block font-bold text-slate-950;
     }
 
     .document-checklist-row p {
@@ -1893,7 +1937,7 @@
     }
 
     .document-side-section-heading span {
-        @apply rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-slate-500;
+        @apply rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-500;
     }
 
     .document-detail-list {
@@ -1905,7 +1949,7 @@
     }
 
     .document-detail-list dt {
-        @apply text-xs font-black uppercase tracking-wide text-slate-400;
+        @apply text-xs font-bold uppercase tracking-wide text-slate-400;
     }
 
     .document-detail-list dd {
@@ -1917,7 +1961,7 @@
     }
 
     .document-side-notes strong {
-        @apply block text-xs font-black uppercase tracking-wide text-slate-500;
+        @apply block text-xs font-bold uppercase tracking-wide text-slate-500;
     }
 
     .document-side-notes p {
@@ -1929,7 +1973,7 @@
     }
 
     .document-side-disclosure summary {
-        @apply flex cursor-pointer list-none items-start justify-between gap-3 px-3 py-3 text-sm font-black text-slate-950;
+        @apply flex cursor-pointer list-none items-start justify-between gap-3 px-3 py-3 text-sm font-bold text-slate-950;
     }
 
     .document-side-disclosure summary::-webkit-details-marker {
@@ -1941,7 +1985,7 @@
     }
 
     .document-side-disclosure summary strong {
-        @apply max-w-[11rem] shrink-0 truncate rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-slate-500;
+        @apply max-w-[11rem] shrink-0 truncate rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-500;
     }
 
     .document-side-disclosure[open] summary {
@@ -1961,7 +2005,7 @@
     }
 
     .document-compact-table th {
-        @apply bg-slate-50 px-3 py-2 text-[11px] font-black uppercase tracking-wide text-slate-400;
+        @apply bg-slate-50 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400;
     }
 
     .document-compact-table td {
@@ -1969,7 +2013,7 @@
     }
 
     .document-compact-table td strong {
-        @apply block font-black text-slate-950;
+        @apply block font-bold text-slate-950;
     }
 
     .document-compact-table td span {
@@ -1978,7 +2022,7 @@
 
     .document-compact-table tfoot th,
     .document-compact-table tfoot td {
-        @apply border-t border-slate-200 bg-slate-50 font-black;
+        @apply border-t border-slate-200 bg-slate-50 font-bold;
     }
 
     .document-compact-table .is-current td {
@@ -1994,7 +2038,7 @@
     }
 
     .document-attachment-list span {
-        @apply block truncate text-sm font-black text-slate-950;
+        @apply block truncate text-sm font-bold text-slate-950;
     }
 
     .document-attachment-list strong {
@@ -2019,7 +2063,7 @@
     }
 
     .document-approval-list strong {
-        @apply block text-sm font-black text-slate-950;
+        @apply block text-sm font-bold text-slate-950;
     }
 
     .document-approval-list span {
@@ -2035,7 +2079,7 @@
     }
 
     .document-preview-empty h2 {
-        @apply mt-2 text-xl font-black tracking-tight text-slate-950;
+        @apply mt-2 text-xl font-bold tracking-tight text-slate-950;
     }
 
     .document-preview-empty p:not(.document-pane-kicker) {
@@ -2051,7 +2095,7 @@
     }
 
     .generated-pdf-preview-header h3 {
-        @apply mt-1 text-lg font-black tracking-tight text-slate-950;
+        @apply mt-1 text-lg font-bold tracking-tight text-slate-950;
     }
 
     .generated-pdf-preview-header p:not(.document-pane-kicker) {
@@ -2063,7 +2107,7 @@
     }
 
     .generated-pdf-loading {
-        @apply absolute inset-2 z-10 grid place-items-center rounded-md border border-slate-200 bg-white text-sm font-black text-slate-500;
+        @apply absolute inset-2 z-10 grid place-items-center rounded-md border border-slate-200 bg-white text-sm font-bold text-slate-500;
     }
 
     .generated-pdf-viewer {
@@ -2083,7 +2127,7 @@
     }
 
     .external-document-preview-header h3 {
-        @apply mt-1 text-lg font-black tracking-tight text-slate-950;
+        @apply mt-1 text-lg font-bold tracking-tight text-slate-950;
     }
 
     .external-document-summary-strip {
@@ -2097,11 +2141,11 @@
     .external-document-summary-strip span,
     .external-document-lines-heading span,
     .external-document-supporting-files p {
-        @apply block text-[11px] font-black uppercase tracking-wide text-slate-400;
+        @apply block text-[11px] font-bold uppercase tracking-wide text-slate-400;
     }
 
     .external-document-summary-strip strong {
-        @apply mt-1 block truncate text-sm font-black text-slate-950;
+        @apply mt-1 block truncate text-sm font-bold text-slate-950;
     }
 
     .external-document-file-frame {
@@ -2113,7 +2157,7 @@
     }
 
     .external-document-file-toolbar strong {
-        @apply block truncate text-sm font-black text-slate-950;
+        @apply block truncate text-sm font-bold text-slate-950;
     }
 
     .external-document-file-toolbar span:not(.external-document-file-count) {
@@ -2121,7 +2165,7 @@
     }
 
     .external-document-file-count {
-        @apply inline-flex rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700;
+        @apply inline-flex rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700;
     }
 
     .external-document-pdf-viewer {
@@ -2141,7 +2185,7 @@
     }
 
     .external-document-record-only h4 {
-        @apply text-base font-black text-slate-950;
+        @apply text-base font-bold text-slate-950;
     }
 
     .external-document-record-only p {
@@ -2157,7 +2201,7 @@
     }
 
     .external-document-lines-heading strong {
-        @apply text-sm font-black text-slate-950;
+        @apply text-sm font-bold text-slate-950;
     }
 
     .external-document-lines table {
@@ -2198,7 +2242,7 @@
     }
 
     .supplier-invoice-preview-strip strong {
-        @apply block truncate text-sm font-black tracking-tight text-slate-950;
+        @apply block truncate text-sm font-bold tracking-tight text-slate-950;
     }
 
     .supplier-invoice-preview-strip span:not(.status-chip) {
@@ -2210,7 +2254,7 @@
     }
 
     .supplier-invoice-preview-header h3 {
-        @apply mt-1 text-lg font-black tracking-tight text-slate-950;
+        @apply mt-1 text-lg font-bold tracking-tight text-slate-950;
     }
 
     .supplier-invoice-preview-header p:not(.document-pane-kicker) {
@@ -2226,11 +2270,11 @@
     }
 
     .supplier-invoice-summary-strip span {
-        @apply block text-[11px] font-black uppercase tracking-wide text-slate-400;
+        @apply block text-[11px] font-bold uppercase tracking-wide text-slate-400;
     }
 
     .supplier-invoice-summary-strip strong {
-        @apply mt-1 block text-sm font-black text-slate-950;
+        @apply mt-1 block text-sm font-bold text-slate-950;
     }
 
     .supplier-invoice-file-frame {
@@ -2250,7 +2294,7 @@
     }
 
     .supplier-invoice-file-toolbar strong {
-        @apply block truncate text-sm font-black text-slate-950;
+        @apply block truncate text-sm font-bold text-slate-950;
     }
 
     .supplier-invoice-file-toolbar span {
@@ -2262,7 +2306,7 @@
     }
 
     .supplier-invoice-extraction-state {
-        @apply inline-flex min-h-9 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-black uppercase tracking-wide text-slate-500;
+        @apply inline-flex min-h-9 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-bold uppercase tracking-wide text-slate-500;
     }
 
     .supplier-invoice-extraction-state.is-ready {
@@ -2302,7 +2346,7 @@
     }
 
     .supplier-invoice-empty-preview h4 {
-        @apply text-base font-black text-slate-950;
+        @apply text-base font-bold text-slate-950;
     }
 
     .supplier-invoice-empty-preview p {
@@ -2322,11 +2366,11 @@
     }
 
     .supplier-invoice-extraction-heading h4 {
-        @apply mt-1 text-base font-black text-slate-950;
+        @apply mt-1 text-base font-bold text-slate-950;
     }
 
     .supplier-invoice-extraction-heading span {
-        @apply text-xs font-black text-emerald-700;
+        @apply text-xs font-bold text-emerald-700;
     }
 
     .supplier-invoice-extraction-note {
@@ -2338,7 +2382,7 @@
     }
 
     .supplier-invoice-extraction-error strong {
-        @apply block text-sm font-black text-rose-800;
+        @apply block text-sm font-bold text-rose-800;
     }
 
     .supplier-invoice-extraction-error span {
@@ -2354,7 +2398,7 @@
     }
 
     .supplier-invoice-extraction-form label span {
-        @apply mb-1 block text-[11px] font-black uppercase tracking-wide text-slate-400;
+        @apply mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-400;
     }
 
     .supplier-invoice-verify-button {
@@ -2366,7 +2410,7 @@
     }
 
     .supplier-invoice-ocr-text summary {
-        @apply cursor-pointer text-sm font-black text-slate-700;
+        @apply cursor-pointer text-sm font-bold text-slate-700;
     }
 
     .supplier-invoice-ocr-text pre {
@@ -2374,7 +2418,7 @@
     }
 
     .supplier-invoice-attachment-list p {
-        @apply text-[11px] font-black uppercase tracking-wide text-slate-400;
+        @apply text-[11px] font-bold uppercase tracking-wide text-slate-400;
     }
 
     .supplier-invoice-attachment-list div {
@@ -2382,7 +2426,7 @@
     }
 
     .supplier-invoice-attachment-list a {
-        @apply rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-black text-[#0a4f93] hover:border-blue-200 hover:bg-blue-50;
+        @apply rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-[#0a4f93] hover:border-blue-200 hover:bg-blue-50;
     }
 
     .supplier-invoice-match-summary {
@@ -2390,7 +2434,7 @@
     }
 
     .supplier-invoice-match-summary h4 {
-        @apply text-sm font-black text-slate-950;
+        @apply text-sm font-bold text-slate-950;
     }
 
     .supplier-invoice-match-summary dl {
@@ -2402,11 +2446,11 @@
     }
 
     .supplier-invoice-match-summary dt {
-        @apply text-[11px] font-black uppercase tracking-wide text-slate-400;
+        @apply text-[11px] font-bold uppercase tracking-wide text-slate-400;
     }
 
     .supplier-invoice-match-summary dd {
-        @apply mt-1 text-sm font-black text-slate-950;
+        @apply mt-1 text-sm font-bold text-slate-950;
     }
 
     .supplier-invoice-intake-preview {
@@ -2414,7 +2458,7 @@
     }
 
     .supplier-invoice-intake-preview h3 {
-        @apply mt-1 text-xl font-black tracking-tight text-slate-950;
+        @apply mt-1 text-xl font-bold tracking-tight text-slate-950;
     }
 
     .supplier-invoice-intake-preview p:not(.document-pane-kicker) {
@@ -2430,11 +2474,11 @@
     }
 
     .supplier-invoice-intake-preview dt {
-        @apply text-[11px] font-black uppercase tracking-wide text-slate-400;
+        @apply text-[11px] font-bold uppercase tracking-wide text-slate-400;
     }
 
     .supplier-invoice-intake-preview dd {
-        @apply mt-1 text-sm font-black text-slate-950;
+        @apply mt-1 text-sm font-bold text-slate-950;
     }
 
     .document-show-main {
@@ -2465,163 +2509,753 @@
         @apply mt-1 text-sm font-medium text-slate-500;
     }
 
-    .dashboard-hero {
-        @apply rounded-lg border border-blue-900 bg-[#0a345f] p-5 text-white shadow-sm;
+    .dashboard-screen {
+        @apply grid h-full min-h-0 gap-3;
+        grid-template-rows: auto minmax(0, 1fr);
     }
 
-    .today-work-panel {
-        @apply rounded-lg border border-blue-900 bg-[#0a345f] p-4 text-white shadow-sm sm:p-5;
+    .dashboard-titlebar {
+        @apply flex min-w-0 items-center justify-between gap-4 rounded-xl border border-blue-100 bg-white px-4 py-2.5 shadow-sm;
     }
 
-    .dashboard-section-heading {
-        @apply flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between;
+    .dashboard-titlebar h1 {
+        @apply text-2xl font-bold leading-tight tracking-tight text-slate-950;
     }
 
-    .dashboard-section-heading h1,
-    .dashboard-section-heading h2 {
-        @apply mt-1 text-2xl font-black tracking-tight text-white;
+    .dashboard-titlebar p {
+        @apply mt-1 max-w-3xl text-sm font-semibold leading-5 text-slate-500;
     }
 
-    .dashboard-section-heading p:not(.dashboard-hero-eyebrow) {
-        @apply mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-300;
+    .dashboard-title-snapshot {
+        @apply hidden shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-right sm:block;
     }
 
-    .dashboard-section-heading-light {
-        @apply rounded-lg border border-slate-200 bg-white p-4 text-slate-950 shadow-sm;
+    .dashboard-title-snapshot span {
+        @apply block text-[10px] font-bold uppercase tracking-wide text-slate-400;
     }
 
-    .dashboard-section-heading-light .dashboard-hero-eyebrow {
-        @apply text-[#0a4f93];
+    .dashboard-title-snapshot strong {
+        @apply block text-sm font-bold text-slate-950;
     }
 
-    .dashboard-section-heading-light h1,
-    .dashboard-section-heading-light h2 {
-        @apply text-slate-950;
+    .dashboard-command-grid {
+        @apply grid min-h-0 grid-cols-1 gap-3;
+        align-content: start;
     }
 
-    .dashboard-section-heading-light p:not(.dashboard-hero-eyebrow) {
-        @apply text-slate-500;
+    .dashboard-main-stack,
+    .dashboard-side-stack {
+        @apply grid min-h-0 gap-3;
+        align-content: start;
     }
 
-    .today-work-grid {
-        @apply mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5;
+    .dashboard-command-panel {
+        @apply min-w-0 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm;
     }
 
-    .today-work-card {
-        @apply flex min-h-36 flex-col rounded-lg border border-white/15 bg-white/10 p-3 text-white transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#0a345f];
+    .dashboard-panel-heading {
+        @apply flex items-start justify-between gap-3 border-b border-slate-100 pb-2.5;
     }
 
-    .today-work-card-kicker {
-        @apply text-xs font-black uppercase tracking-wide text-blue-100;
+    .dashboard-panel-heading h2 {
+        @apply text-base font-bold tracking-tight text-slate-950;
     }
 
-    .today-work-count {
-        @apply mt-3 text-3xl font-black leading-none;
+    .dashboard-panel-heading p {
+        @apply mt-1 text-xs font-semibold leading-5 text-slate-500;
     }
 
-    .today-work-note {
-        @apply mt-2 min-h-10 text-sm font-semibold leading-5 text-blue-50;
+    .dashboard-needs-attention {
+        @apply min-h-0 overflow-hidden;
     }
 
-    .today-work-action {
-        @apply mt-auto inline-flex items-center gap-2 text-sm font-black;
+    .needs-attention-card-grid {
+        @apply mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3;
     }
 
-    .today-work-waiting {
-        @apply border-amber-200/50;
+    .needs-attention-card {
+        @apply relative grid min-h-32 min-w-0 content-start gap-2 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-3 text-left transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2;
     }
 
-    .today-work-warning {
-        @apply border-orange-200/50;
+    .needs-attention-marker {
+        @apply absolute inset-x-0 top-0 h-1 bg-slate-300;
     }
 
-    .today-work-ready {
-        @apply border-sky-200/50;
+    .needs-attention-card-top {
+        @apply flex min-w-0 items-start justify-between gap-2;
     }
 
-    .today-work-danger {
-        @apply border-red-200/60;
+    .needs-attention-count {
+        @apply text-3xl font-bold leading-10 text-slate-950;
     }
 
-    .today-work-money {
-        @apply border-cyan-200/60;
+    .needs-attention-title {
+        @apply block text-sm font-bold leading-5 text-slate-950;
     }
 
-    .dashboard-hero-eyebrow {
-        @apply text-[11px] font-black uppercase tracking-wide text-blue-100;
+    .needs-attention-note {
+        @apply block text-xs font-semibold leading-4 text-slate-500;
     }
 
-    .dashboard-hero h1 {
-        @apply mt-2 text-3xl font-black tracking-tight;
+    .needs-attention-action {
+        @apply inline-flex max-w-32 items-center justify-end gap-1 text-right text-[11px] font-bold leading-4 text-[#0a4f93];
     }
 
-    .dashboard-hero p {
-        @apply mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-300;
+    .needs-attention-meter,
+    .financial-exposure-bar,
+    .invoice-aging-bar,
+    .dashboard-pipeline-bar {
+        @apply block h-2 overflow-hidden rounded-full bg-slate-200;
     }
 
-    .dashboard-hero-actions {
-        @apply mt-5 flex flex-wrap gap-2;
+    .needs-attention-meter span,
+    .financial-exposure-bar span,
+    .invoice-aging-bar span,
+    .dashboard-pipeline-bar span {
+        @apply block h-full rounded-full bg-[#0a4f93];
     }
 
-    .dashboard-hero-secondary {
-        @apply inline-flex min-h-10 items-center justify-center rounded-lg border border-white/15 bg-white/10 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-white/15;
-    }
-
-    .quick-action-link {
-        @apply flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950;
-    }
-
-    .dashboard-queue-item {
-        @apply flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 transition hover:border-blue-200 hover:bg-blue-50;
-    }
-
-    .dashboard-queue-item strong {
-        @apply block text-sm font-black text-slate-950;
-    }
-
-    .dashboard-queue-item small {
-        @apply mt-1 block text-xs font-semibold leading-4 text-slate-500;
-    }
-
-    .donut {
-        @apply relative mx-auto grid h-32 w-32 place-items-center rounded-full;
-    }
-
-    .donut::before {
-        content: "";
-        @apply absolute inset-4 rounded-full bg-white shadow-inner;
-    }
-
-    .donut > div {
-        @apply relative z-10 text-center;
-    }
-
-    .donut span {
-        @apply block text-xs font-semibold text-slate-500;
-    }
-
-    .donut strong {
-        @apply mt-1 block text-sm font-black text-slate-950;
-    }
-
-    .legend-dot {
-        @apply h-2.5 w-2.5 rounded-full;
-    }
-
-    .legend-primary {
-        @apply bg-blue-500;
-    }
-
-    .legend-blue {
-        @apply bg-blue-500;
-    }
-
-    .legend-amber {
+    .needs-attention-waiting .needs-attention-marker {
         @apply bg-amber-500;
     }
 
-    .legend-red {
+    .needs-attention-warning .needs-attention-marker {
+        @apply bg-blue-600;
+    }
+
+    .needs-attention-ready .needs-attention-marker {
+        @apply bg-teal-500;
+    }
+
+    .needs-attention-danger .needs-attention-marker {
         @apply bg-red-500;
+    }
+
+    .needs-attention-money .needs-attention-marker {
+        @apply bg-cyan-500;
+    }
+
+    .needs-attention-waiting .needs-attention-meter span {
+        @apply bg-amber-500;
+    }
+
+    .needs-attention-warning .needs-attention-meter span {
+        @apply bg-blue-600;
+    }
+
+    .needs-attention-ready .needs-attention-meter span {
+        @apply bg-teal-500;
+    }
+
+    .needs-attention-danger .needs-attention-meter span {
+        @apply bg-red-500;
+    }
+
+    .needs-attention-money .needs-attention-meter span {
+        @apply bg-cyan-500;
+    }
+
+    .quick-create-list {
+        @apply mt-3 grid gap-1;
+    }
+
+    .quick-action-link {
+        @apply grid min-h-8 items-center gap-2 rounded-lg px-2.5 py-1 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+
+    .quick-action-link span {
+        @apply min-w-0 truncate;
+    }
+
+    .financial-chart-stack {
+        @apply mt-3 grid gap-3;
+    }
+
+    .financial-exposure-list {
+        @apply grid gap-2;
+    }
+
+    .financial-exposure-row {
+        @apply grid min-h-14 min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 transition hover:border-blue-200 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2;
+        grid-template-columns: 2rem minmax(0, 1fr);
+    }
+
+    .financial-exposure-icon {
+        @apply grid h-7 w-7 place-items-center rounded-lg bg-white text-[#0a4f93] shadow-sm ring-1 ring-slate-200;
+    }
+
+    .financial-exposure-label {
+        @apply text-sm font-bold text-slate-950;
+    }
+
+    .financial-exposure-note {
+        @apply mt-0.5 block text-xs font-semibold leading-4 text-slate-500;
+    }
+
+    .financial-exposure-row strong {
+        @apply whitespace-nowrap text-sm font-bold text-slate-950;
+    }
+
+    .financial-exposure-copy {
+        @apply grid min-w-0 gap-1.5;
+    }
+
+    .financial-exposure-main {
+        @apply flex min-w-0 items-baseline justify-between gap-3;
+    }
+
+    .financial-exposure-receivable .financial-exposure-bar span {
+        @apply bg-[#0a4f93];
+    }
+
+    .financial-exposure-payable .financial-exposure-bar span {
+        @apply bg-amber-500;
+    }
+
+    .financial-exposure-aging .financial-exposure-bar span {
+        @apply bg-cyan-500;
+    }
+
+    .financial-exposure-payable .financial-exposure-icon,
+    .financial-exposure-aging .financial-exposure-icon {
+        @apply text-amber-600;
+    }
+
+    .financial-exposure-money .financial-exposure-icon {
+        @apply text-cyan-600;
+    }
+
+    .invoice-aging-chart {
+        @apply rounded-lg border border-slate-200 bg-white p-2.5;
+    }
+
+    .invoice-aging-chart h3 {
+        @apply text-sm font-bold text-slate-950;
+    }
+
+    .invoice-aging-bars {
+        @apply mt-1.5 grid gap-1.5;
+    }
+
+    .invoice-aging-row {
+        @apply grid min-w-0 items-center gap-2 text-xs font-bold text-slate-600;
+        grid-template-columns: 4.75rem minmax(0, 1fr) auto;
+    }
+
+    .invoice-aging-row strong {
+        @apply whitespace-nowrap text-xs font-bold text-slate-950;
+    }
+
+    .invoice-aging-primary .invoice-aging-bar span {
+        @apply bg-[#0a4f93];
+    }
+
+    .invoice-aging-blue .invoice-aging-bar span {
+        @apply bg-blue-500;
+    }
+
+    .invoice-aging-amber .invoice-aging-bar span {
+        @apply bg-amber-500;
+    }
+
+    .invoice-aging-red .invoice-aging-bar span {
+        @apply bg-red-500;
+    }
+
+    .dashboard-workflow-panel {
+        @apply min-h-0;
+    }
+
+    .dashboard-workflow-grid {
+        @apply mt-3 grid gap-3 lg:grid-cols-2;
+    }
+
+    .dashboard-workflow-lane {
+        @apply rounded-lg border border-slate-200 bg-slate-50 p-3;
+    }
+
+    .dashboard-workflow-lane-header {
+        @apply flex items-start justify-between gap-3;
+    }
+
+    .dashboard-workflow-lane-header h3 {
+        @apply text-sm font-bold text-slate-950;
+    }
+
+    .dashboard-workflow-lane-header p {
+        @apply mt-0.5 text-xs font-semibold text-slate-500;
+    }
+
+    .dashboard-workflow-link {
+        @apply whitespace-nowrap text-xs font-bold text-[#0a4f93] hover:text-[#073d72];
+    }
+
+    .dashboard-pipeline-chart {
+        @apply mt-3 grid gap-2;
+    }
+
+    .dashboard-pipeline-step {
+        @apply grid min-h-11 min-w-0 items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2;
+        grid-template-columns: 2.75rem minmax(0, 1fr);
+    }
+
+    .dashboard-pipeline-count {
+        @apply grid h-9 min-w-9 place-items-center rounded-lg bg-blue-50 px-2 text-sm font-bold text-[#0a4f93];
+    }
+
+    .dashboard-pipeline-copy {
+        @apply grid min-w-0 gap-1;
+    }
+
+    .dashboard-pipeline-copy > span:first-child {
+        @apply text-xs font-bold leading-4 text-slate-700;
+    }
+
+    .dashboard-movement-chart {
+        @apply mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2;
+    }
+
+    .dashboard-movement-header {
+        @apply flex items-start justify-between gap-3;
+    }
+
+    .dashboard-movement-header h3 {
+        @apply text-sm font-bold text-slate-950;
+    }
+
+    .dashboard-movement-header p {
+        @apply mt-0.5 text-xs font-semibold text-slate-500;
+    }
+
+    .dashboard-movement-header a {
+        @apply whitespace-nowrap text-xs font-bold text-[#0a4f93] hover:text-[#073d72] focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2;
+    }
+
+    .dashboard-movement-grid {
+        @apply mt-2 grid grid-cols-6 gap-1.5;
+    }
+
+    .dashboard-movement-month {
+        @apply grid min-w-0 justify-items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-slate-500;
+    }
+
+    .dashboard-movement-bars {
+        @apply flex h-12 w-full min-w-0 items-end justify-center gap-1 rounded-lg border border-slate-200 bg-white px-1.5 py-1.5;
+    }
+
+    .movement-bar {
+        @apply block min-h-0 w-2 rounded-t-full bg-slate-300;
+    }
+
+    .movement-customer {
+        @apply bg-[#0a4f93];
+    }
+
+    .movement-supplier {
+        @apply bg-amber-500;
+    }
+
+    .movement-incoming {
+        @apply bg-emerald-500;
+    }
+
+    .movement-outgoing {
+        @apply bg-cyan-500;
+    }
+
+    .dashboard-movement-legend {
+        @apply mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-slate-500;
+    }
+
+    .dashboard-movement-legend span {
+        @apply inline-flex items-center gap-1.5;
+    }
+
+    .dashboard-movement-legend i {
+        @apply h-2.5 w-2.5 rounded-full;
+    }
+
+    /*
+     * QuoteFlow typography system
+     *
+     * Operational pages need calm hierarchy: strong numbers, readable labels,
+     * and lighter helper text. These role rules keep app typography explicit
+     * after removing old one-off heavy-weight utilities.
+     */
+    body .tracking-tight {
+        letter-spacing: 0;
+    }
+
+    .app-sidebar,
+    .app-header,
+    .panel,
+    .dashboard-screen,
+    .reports-page,
+    .document-workbench,
+    .document-open-workspace,
+    .directory-workspace,
+    .supplier-directory-workspace,
+    .access-form-workspace,
+    .product-form-workspace,
+    .quotation-form-workspace,
+    .receiving-form-workspace {
+        color: var(--qf-text-primary);
+        font-family: var(--qf-font-ui);
+        font-size: var(--qf-type-body);
+        line-height: var(--qf-leading-body);
+    }
+
+    main h1 {
+        font-weight: var(--qf-weight-title);
+        line-height: var(--qf-leading-title);
+        letter-spacing: 0;
+    }
+
+    main h2,
+    main h3,
+    main h4 {
+        font-weight: var(--qf-weight-strong);
+        letter-spacing: 0;
+    }
+
+    main p,
+    main li,
+    main dd,
+    main td {
+        letter-spacing: 0;
+    }
+
+    .dashboard-titlebar h1,
+    .reports-hero h1,
+    .document-open-heading h1,
+    .document-pane-title,
+    .document-record-hero h1,
+    .directory-page-header h1,
+    .supplier-form-compact-header h1,
+    .access-form-workspace h1,
+    .product-form-workspace h1,
+    .quotation-form-workspace h1,
+    .receiving-form-workspace h1 {
+        font-size: var(--qf-type-title);
+        font-weight: var(--qf-weight-title);
+        line-height: var(--qf-leading-title);
+        letter-spacing: 0;
+    }
+
+    .panel-title,
+    .dashboard-panel-heading h2,
+    .dashboard-workflow-lane-header h3,
+    .dashboard-movement-header h3,
+    .invoice-aging-chart h3,
+    .reports-cash-card h2,
+    .document-side-card-heading,
+    .document-next-step-card h2,
+    .document-checklist-summary h3,
+    .document-list-empty h3,
+    .document-preview-empty h2,
+    .external-document-preview-header h3,
+    .external-document-record-only h4,
+    .studio-section-title,
+    .supplier-directory-panel-header h2,
+    .directory-form-section-header h2,
+    .directory-default-card h3,
+    .reports-aging-row strong {
+        font-size: var(--qf-type-section);
+        font-weight: var(--qf-weight-strong);
+        line-height: var(--qf-leading-section);
+        letter-spacing: 0;
+    }
+
+    .sidebar-workspace-name,
+    .sidebar-account-user span:first-child,
+    .nav-link,
+    .btn,
+    .sidebar-account-logout,
+    .quick-action-link,
+    .document-row-title,
+    .document-row-party,
+    .document-row-total-action strong,
+    .document-row-preview-button,
+    .document-side-disclosure summary,
+    .document-attachment-list span,
+    .document-approval-list strong,
+    .financial-exposure-label,
+    .dashboard-pipeline-copy > span:first-child,
+    .dashboard-workflow-link,
+    .dashboard-movement-header a,
+    .link,
+    .form-label,
+    .studio-step-label,
+    .source-choice-title,
+    .receiving-line-readonly strong,
+    .status-chip {
+        font-weight: var(--qf-weight-strong);
+        letter-spacing: 0;
+    }
+
+    .panel-subtitle,
+    .dashboard-titlebar p,
+    .dashboard-panel-heading p,
+    .reports-hero p:not(.reports-eyebrow),
+    .reports-risk-card p,
+    .reports-metric-card p,
+    .reports-cash-card p:not(.reports-eyebrow),
+    .document-browser-subtitle,
+    .document-preview-toolbar .document-preview-copy,
+    .document-open-heading p:not(.document-pane-kicker),
+    .document-list-empty p,
+    .document-preview-empty p:not(.document-pane-kicker),
+    .document-readiness-item p,
+    .document-checklist-row p,
+    .document-side-notes p,
+    .document-approval-list p,
+    .financial-exposure-note,
+    .dashboard-workflow-lane-header p,
+    .dashboard-movement-header p,
+    .needs-attention-note,
+    .studio-section-copy,
+    .source-choice-copy,
+    .dashboard-pipeline-copy > span:last-child {
+        color: var(--qf-text-secondary);
+        font-size: var(--qf-type-body);
+        font-weight: var(--qf-weight-medium);
+        line-height: var(--qf-leading-body);
+        letter-spacing: 0;
+    }
+
+    .nav-heading,
+    .reports-eyebrow,
+    .reports-risk-card span,
+    .reports-metric-card span,
+    .reports-cash-card dt,
+    .metric-label,
+    .document-pane-kicker,
+    .document-row-meta,
+    .document-detail-list dt,
+    .document-side-section-heading span,
+    .document-side-notes strong,
+    .document-side-disclosure summary strong,
+    .document-checklist-row span,
+    .document-compact-table th,
+    .data-table th,
+    .external-document-summary-strip span,
+    .external-document-lines-heading span,
+    .external-document-supporting-files p,
+    .studio-section-kicker,
+    .studio-step-number,
+    .receiving-line-readonly span,
+    .dashboard-title-snapshot span,
+    .dashboard-movement-month,
+    .dashboard-movement-legend {
+        font-size: var(--qf-type-caption);
+        font-weight: var(--qf-weight-strong);
+        line-height: var(--qf-leading-caption);
+        letter-spacing: 0.04em;
+    }
+
+    .data-table,
+    .document-compact-table table,
+    .external-document-lines table {
+        font-size: var(--qf-type-body);
+        line-height: var(--qf-leading-body);
+    }
+
+    .data-table td,
+    .document-compact-table td,
+    .external-document-lines td {
+        font-weight: var(--qf-weight-body);
+        line-height: var(--qf-leading-body);
+    }
+
+    .needs-attention-count,
+    .metric-value,
+    .reports-risk-card strong,
+    .reports-metric-card strong,
+    .reports-cash-card h2,
+    .workflow-node-count,
+    .dashboard-pipeline-count,
+    .dashboard-title-snapshot strong,
+    .financial-exposure-row strong,
+    .invoice-aging-row strong {
+        font-weight: var(--qf-weight-title);
+        letter-spacing: 0;
+    }
+
+    .needs-attention-title {
+        font-size: var(--qf-type-body);
+        font-weight: var(--qf-weight-strong);
+        line-height: var(--qf-leading-body);
+        letter-spacing: 0;
+    }
+
+    .needs-attention-action,
+    .document-row-open-link,
+    .issuer-mini,
+    .workflow-timeline-step,
+    .dashboard-workflow-link,
+    .dashboard-movement-header a {
+        font-size: var(--qf-type-caption);
+        line-height: var(--qf-leading-caption);
+    }
+
+    .form-input,
+    .global-search,
+    .date-control {
+        font-size: var(--qf-type-body);
+        line-height: var(--qf-leading-body);
+    }
+
+    body .dashboard-titlebar h1,
+    body .reports-hero h1,
+    body .document-open-heading h1,
+    body .document-pane-title,
+    body .document-record-hero h1,
+    body .directory-page-header h1,
+    body .supplier-form-compact-header h1,
+    body .access-form-workspace h1,
+    body .product-form-workspace h1,
+    body .quotation-form-workspace h1,
+    body .receiving-form-workspace h1 {
+        font-weight: var(--qf-weight-title);
+    }
+
+    body .needs-attention-count,
+    body .metric-value,
+    body .reports-risk-card strong,
+    body .reports-metric-card strong,
+    body .reports-cash-card h2,
+    body .workflow-node-count,
+    body .dashboard-pipeline-count,
+    body .dashboard-title-snapshot strong,
+    body .financial-exposure-row strong,
+    body .invoice-aging-row strong {
+        font-weight: var(--qf-weight-title);
+    }
+
+    body .form-input {
+        font-weight: var(--qf-weight-body);
+    }
+
+    body .studio-hero h2 {
+        font-size: var(--qf-type-title);
+        font-weight: var(--qf-weight-title);
+        line-height: var(--qf-leading-title);
+        letter-spacing: 0;
+    }
+
+    .reports-page,
+    .reports-page > *,
+    .reports-table-grid > *,
+    .reports-insight-grid > *,
+    .reports-page .panel,
+    .reports-page .table-wrap {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    @media (min-width: 1024px) {
+        .dashboard-command-grid {
+            grid-template-columns: minmax(0, 1fr) minmax(19rem, 0.38fr);
+            align-items: start;
+            align-content: start;
+        }
+    }
+
+    @media (min-width: 1280px) {
+        .dashboard-command-grid {
+            grid-template-columns: minmax(0, 1fr) minmax(20rem, 0.35fr);
+        }
+    }
+
+    @media (min-width: 1800px) {
+        .needs-attention-card-grid {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+
+        .needs-attention-action {
+            @apply max-w-none whitespace-nowrap;
+        }
+    }
+
+    @media (min-width: 1024px) and (max-height: 720px) {
+        .dashboard-screen {
+            @apply gap-2;
+        }
+
+        .dashboard-titlebar h1 {
+            @apply text-xl;
+        }
+
+        .dashboard-titlebar p,
+        .dashboard-panel-heading p,
+        .needs-attention-note,
+        .financial-exposure-note,
+        .dashboard-workflow-lane-header p,
+        .dashboard-pipeline-copy > span:first-child {
+            @apply hidden;
+        }
+
+        .dashboard-command-grid,
+        .dashboard-workflow-grid {
+            @apply gap-2;
+        }
+
+        .dashboard-command-panel {
+            @apply p-2;
+        }
+
+        .dashboard-panel-heading {
+            @apply pb-2;
+        }
+
+        .needs-attention-card-grid,
+        .quick-create-list,
+        .financial-exposure-list,
+        .dashboard-workflow-grid {
+            @apply mt-2;
+        }
+
+        .needs-attention-card {
+            @apply min-h-24 p-2.5;
+        }
+
+        .needs-attention-count {
+            @apply text-2xl;
+        }
+
+        .quick-action-link {
+            @apply min-h-8 py-1 text-xs;
+        }
+
+        .financial-exposure-row {
+            @apply min-h-12 py-1.5;
+        }
+
+        .financial-exposure-icon {
+            @apply h-7 w-7;
+        }
+
+        .dashboard-pipeline-count {
+            @apply h-8 min-w-8;
+        }
+
+        .dashboard-pipeline-step {
+            @apply min-h-9 py-0.5;
+        }
+
+        .dashboard-movement-header p,
+        .dashboard-movement-legend {
+            @apply hidden;
+        }
+
+        .dashboard-movement-grid {
+            @apply mt-2;
+        }
+
+        .dashboard-movement-bars {
+            @apply h-10;
+        }
     }
 
     @media (max-width: 1279px) {
@@ -2665,6 +3299,12 @@
         }
     }
 
+    @media (max-width: 1023px) {
+        .dashboard-screen {
+            @apply h-auto;
+        }
+    }
+
     @media (max-width: 640px) {
         .app-header {
             @apply px-3 py-2;
@@ -2674,19 +3314,36 @@
             @apply gap-2;
         }
 
-        .dashboard-hero-actions,
         .document-browser-actions {
             @apply w-full;
         }
 
-        .dashboard-hero-actions .btn,
-        .dashboard-hero-actions .dashboard-hero-secondary,
         .document-browser-actions .btn {
             @apply w-full;
         }
 
-        .today-work-grid {
+        .dashboard-titlebar {
+            @apply items-start;
+        }
+
+        .needs-attention-card-grid {
             @apply grid-cols-1;
+        }
+
+        .needs-attention-card {
+            @apply min-h-0;
+        }
+
+        .dashboard-movement-grid {
+            @apply gap-1.5;
+        }
+
+        .dashboard-movement-bars {
+            @apply h-16 px-1;
+        }
+
+        .movement-bar {
+            @apply w-1.5;
         }
 
         .document-filterbar {

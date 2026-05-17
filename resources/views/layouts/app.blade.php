@@ -8,13 +8,15 @@
         $layoutCompanyProfile = \App\Models\CompanyProfile::active();
     @endphp
     <title>{{ $title ?? 'Suria QuoteFlow' }} | Suria QuoteFlow</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('brand/favicon.svg') }}">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 </head>
 <body class="text-slate-950 antialiased">
 @auth
     @php
         $contentMode = $contentMode ?? 'default';
-        $showDateControl = $showDateControl ?? request()->routeIs('dashboard', 'documents.*', 'reports.*', 'payments.*');
+        $showDateControl = $showDateControl ?? request()->routeIs('documents.*', 'reports.*', 'payments.*');
+        $showApprovalShortcut = $showApprovalShortcut ?? ! request()->routeIs('dashboard');
         $companyProfile = $layoutCompanyProfile;
         $moduleRoute = request()->route('module');
         $isModule = fn ($module) => request()->routeIs('documents.*') && $moduleRoute === $module;
@@ -50,28 +52,14 @@
     <div class="min-h-screen xl:flex">
         <aside class="app-sidebar" aria-label="Application navigation">
             <div class="sidebar-brand">
-                <div class="flex items-start justify-between gap-4">
-                <a href="{{ route('dashboard') }}" class="brand-lockup" aria-label="Suria QuoteFlow dashboard">
-                    <span class="brand-mark">SQ</span>
-                    <span>
-                        <span class="block text-base font-black leading-tight tracking-tight">Suria QuoteFlow</span>
-                        <span class="block text-xs font-semibold text-slate-500">Commercial operations workspace</span>
-                    </span>
+                <a href="{{ route('dashboard') }}" class="brand-lockup-horizontal" aria-label="Suria QuoteFlow dashboard">
+                    <img class="brand-horizontal-logo" src="{{ asset('brand/suria-quoteflow-horizontal-lockup.svg') }}" alt="" aria-hidden="true">
                 </a>
-                <form method="post" action="{{ route('logout') }}">
-                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="inline-flex min-h-9 items-center rounded-md px-2 text-xs font-semibold uppercase tracking-wide text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2">Logout</button>
-                </form>
-                </div>
-                <div class="company-identity-card">
-                    <div class="flex items-center gap-3">
-                        <img class="h-9 w-9 rounded-lg object-cover shadow-sm" src="{{ $companyProfile->logoUrl() }}" alt="{{ $companyProfile->displayName() }}">
-                        <div class="min-w-0">
-                            <p class="text-sm font-black leading-tight text-slate-950">{{ $companyProfile->displayName() }}</p>
-                        </div>
-                    </div>
-                </div>
             </div>
+
+            @include('layouts.partials.sidebar-workspace', [
+                'companyProfile' => $companyProfile,
+            ])
 
             <details class="mobile-nav-menu">
                 <summary>
@@ -86,6 +74,7 @@
                     'isModule' => $isModule,
                     'mobile' => true,
                 ])
+                @include('layouts.partials.sidebar-account')
             </details>
 
             @include('layouts.partials.navigation', [
@@ -96,9 +85,14 @@
                 'isModule' => $isModule,
                 'mobile' => false,
             ])
+            <div class="sidebar-account-desktop">
+                @include('layouts.partials.sidebar-account', [
+                    'companyProfile' => $companyProfile,
+                ])
+            </div>
         </aside>
 
-        <main class="flex min-h-screen min-w-0 flex-1 flex-col xl:h-screen xl:min-h-0 xl:pl-72">
+        <main class="flex min-h-screen min-w-0 flex-1 flex-col lg:h-screen lg:min-h-0 lg:pl-72">
             <header class="app-header">
                 <div class="header-tools">
                     <form class="global-search" method="get" action="{{ route('search.index') }}" role="search" aria-label="Global search">
@@ -106,12 +100,6 @@
                         <input type="search" name="q" value="{{ request('q') }}" placeholder="Search document no., customer, supplier, item, amount..." aria-label="Search Suria QuoteFlow">
                         <button type="submit" class="sr-only">Search</button>
                     </form>
-                    <div class="company-identity-pill">
-                        <img src="{{ $companyProfile->logoUrl() }}" alt="{{ $companyProfile->displayName() }}">
-                        <span class="min-w-0">
-                            <strong class="company-identity-pill-name">{{ $companyProfile->displayName() }}</strong>
-                        </span>
-                    </div>
                     @if($showDateControl)
                         <div class="date-control">
                             <x-icon name="calendar" class="h-4 w-4 text-slate-500" aria-hidden="true" />
@@ -119,27 +107,24 @@
                             <x-icon name="chevron" class="h-4 w-4 text-slate-400" aria-hidden="true" />
                         </div>
                     @endif
-                    <a class="icon-button notification-button" href="{{ route('approvals.pending') }}" aria-label="Pending approvals">
-                        <x-icon name="bell" class="h-5 w-5" aria-hidden="true" />
-                        <span>{{ \App\Models\Approval::where('status', 'pending')->count() }}</span>
-                    </a>
-                    <div class="user-chip">
-                        <span class="user-avatar">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
-                        <span class="hidden min-w-0 lg:block">
-                            <span class="block truncate text-sm font-bold text-slate-900">{{ auth()->user()->name }}</span>
-                            <span class="block text-xs font-semibold text-slate-500">{{ \App\Models\User::ROLES[auth()->user()->role] ?? auth()->user()->role }}</span>
-                        </span>
-                    </div>
+                    @if($showApprovalShortcut)
+                        <a class="icon-button notification-button" href="{{ route('approvals.pending') }}" aria-label="Pending approvals">
+                            <x-icon name="bell" class="h-5 w-5" aria-hidden="true" />
+                            <span>{{ \App\Models\Approval::where('status', 'pending')->count() }}</span>
+                        </a>
+                    @endif
                     @yield('header_actions')
                 </div>
             </header>
 
             @php
-                $contentClass = $contentMode === 'fullscreen'
-                    ? 'min-h-0 min-w-0 flex-1 overflow-hidden'
-                    : 'w-full px-4 py-5 sm:px-6 lg:px-8';
-                $noticeClass = $contentMode === 'fullscreen'
-                    ? 'mx-4 mt-4'
+                $contentClass = match ($contentMode) {
+                    'fullscreen' => 'min-h-0 min-w-0 flex-1 overflow-hidden',
+                    'dashboard' => 'min-h-0 min-w-0 flex-1 overflow-auto px-4 py-3 sm:px-5 lg:overflow-hidden lg:px-6',
+                    default => 'w-full px-4 py-5 sm:px-6 lg:px-8',
+                };
+                $noticeClass = in_array($contentMode, ['fullscreen', 'dashboard'], true)
+                    ? 'mb-3'
                     : 'mb-5';
             @endphp
 

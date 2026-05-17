@@ -273,8 +273,8 @@
             <div class="studio-hero">
                 <div class="flex min-w-0 flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-start lg:justify-between">
                     <div class="min-w-0">
-                        <p class="text-xs font-black uppercase tracking-wide text-[#0a4f93]">{{ $studioAction }}</p>
-                        <h2 class="mt-1 text-2xl font-black tracking-tight text-slate-950">{{ $meta['singular'] }}</h2>
+                        <p class="text-xs font-bold uppercase tracking-wide text-[#0a4f93]">{{ $studioAction }}</p>
+                        <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950">{{ $meta['singular'] }}</h2>
                         <p class="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-500">{{ $studioHeroCopy }}</p>
                     </div>
                     <div class="flex shrink-0 flex-wrap gap-2">
@@ -712,7 +712,7 @@
     >
         <div class="workspace-pane-header !bg-slate-50/95">
             <p class="document-pane-kicker">{{ $livePreviewKicker }}</p>
-            <h2 class="text-base font-black text-slate-950" @if($isGoodsReceipt) data-receipt-label="paneTitle" @endif>{{ $livePreviewTitle }}</h2>
+            <h2 class="text-base font-bold text-slate-950" @if($isGoodsReceipt) data-receipt-label="paneTitle" @endif>{{ $livePreviewTitle }}</h2>
             <p class="mt-1 text-sm font-semibold text-slate-500" @if($isGoodsReceipt) data-receipt-label="paneCopy" @endif>{{ $livePreviewCopy }}</p>
         </div>
         <div class="mx-auto max-w-[46rem]">
@@ -1189,11 +1189,11 @@ function syncQuotationPreview() {
                 return `
                     <tr>
                         <td class="px-3 py-3 align-top">${index + 1}</td>
-                        <td class="px-3 py-3 align-top"><p class="font-black">${escapeHtml(description || 'Line item')}</p></td>
+                        <td class="px-3 py-3 align-top"><p class="font-bold">${escapeHtml(description || 'Line item')}</p></td>
                         <td class="px-3 py-3 text-right align-top">${formatNumber(quantity, 3)}</td>
                         <td class="px-3 py-3 align-top">${escapeHtml(unit)}</td>
                         <td class="px-3 py-3 text-right align-top">${formatNumber(unitPrice)}</td>
-                        <td class="px-3 py-3 text-right align-top font-black">${formatNumber(amount)}</td>
+                        <td class="px-3 py-3 text-right align-top font-bold">${formatNumber(amount)}</td>
                     </tr>
                 `;
             })
@@ -1313,10 +1313,10 @@ function syncReceiptPreview() {
             return `
                 <tr>
                     <td class="px-3 py-3 align-top">${previewLineNumber}</td>
-                    <td class="px-3 py-3 align-top"><p class="font-black">${escapeHtml(description || labels.lineFallback)}</p></td>
+                    <td class="px-3 py-3 align-top"><p class="font-bold">${escapeHtml(description || labels.lineFallback)}</p></td>
                     <td class="px-3 py-3 text-right align-top">${formatQuantity(ordered)}</td>
                     <td class="px-3 py-3 text-right align-top">${formatQuantity(received)}</td>
-                    <td class="px-3 py-3 text-right align-top ${exception > 0 ? 'font-black text-amber-800' : ''}">${formatQuantity(exception)}</td>
+                    <td class="px-3 py-3 text-right align-top ${exception > 0 ? 'font-bold text-amber-800' : ''}">${formatQuantity(exception)}</td>
                     <td class="px-3 py-3 align-top">${escapeHtml(unit)}</td>
                 </tr>
             `;

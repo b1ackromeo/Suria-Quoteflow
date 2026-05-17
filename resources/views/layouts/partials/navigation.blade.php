@@ -21,7 +21,7 @@
     </div>
 
     <div class="nav-section">
-        <p class="nav-heading">Outgoing revenue</p>
+        <p class="nav-heading">Customer sales</p>
         @foreach($salesLinks as $link)
             <a class="nav-link {{ $isModule($link['module']) ? 'nav-link-active' : '' }}" href="{{ route('documents.index', $link['module']) }}">
                 <x-icon :name="$link['icon']" class="nav-icon" aria-hidden="true" />
@@ -31,7 +31,7 @@
     </div>
 
     <div class="nav-section">
-        <p class="nav-heading">Incoming procurement</p>
+        <p class="nav-heading">Supplier purchasing</p>
         @foreach($procurementLinks as $link)
             <a class="nav-link {{ $isModule($link['module']) ? 'nav-link-active' : '' }}" href="{{ route('documents.index', $link['module']) }}">
                 <x-icon :name="$link['icon']" class="nav-icon" aria-hidden="true" />

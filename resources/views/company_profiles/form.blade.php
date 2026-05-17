@@ -9,8 +9,8 @@
 
     <section class="panel space-y-5">
         <div>
-            <p class="text-xs font-black uppercase tracking-wide text-[#0a4f93]">Company identity setup</p>
-            <h1 class="mt-2 text-xl font-black tracking-tight text-slate-950">Edit Company Identity</h1>
+            <p class="text-xs font-bold uppercase tracking-wide text-[#0a4f93]">Company identity setup</p>
+            <h1 class="mt-2 text-xl font-bold tracking-tight text-slate-950">Edit Company Identity</h1>
             <p class="panel-subtitle">This company name, logo, and contact details appear in the app context, document previews, and generated PDF documents.</p>
         </div>
 
@@ -43,11 +43,11 @@
             </div>
 
             <aside class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p class="text-xs font-black uppercase tracking-wide text-slate-500">Logo</p>
+                <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Logo</p>
                 @if($company->exists || $company->logo_path)
                     <img class="mt-3 aspect-square w-28 rounded-2xl object-cover shadow-sm" src="{{ $company->logoUrl() }}" alt="{{ $company->displayName() }}">
                 @else
-                    <div class="mt-3 grid aspect-square w-28 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white text-center text-xs font-black uppercase tracking-wide text-slate-400 shadow-sm">
+                    <div class="mt-3 grid aspect-square w-28 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white text-center text-xs font-bold uppercase tracking-wide text-slate-400 shadow-sm">
                         Logo preview
                     </div>
                 @endif

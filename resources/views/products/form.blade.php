@@ -110,35 +110,35 @@
         <aside class="product-preview-pane">
             <section class="product-preview-card">
                 <p class="document-pane-kicker">Document preview</p>
-                <h2 class="mt-1 text-lg font-black text-slate-950">How this item will appear</h2>
+                <h2 class="mt-1 text-lg font-bold text-slate-950">How this item will appear</h2>
                 <p class="mt-1 text-sm font-semibold leading-6 text-slate-500">Preview the line-item text before saving this item.</p>
 
                 <div class="mt-5 rounded-lg border border-slate-200 bg-white p-4">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <span class="status-chip status-approved" data-preview-type>{{ ucfirst($selectedType) }}</span>
-                            <h3 class="mt-3 text-base font-black text-slate-950" data-preview-name>{{ old('name', $product->name) ?: 'Item name' }}</h3>
-                            <p class="mt-1 text-xs font-black uppercase tracking-wide text-slate-400" data-preview-sku>{{ old('sku', $product->sku) ?: 'SKU / item code' }}</p>
+                            <h3 class="mt-3 text-base font-bold text-slate-950" data-preview-name>{{ old('name', $product->name) ?: 'Item name' }}</h3>
+                            <p class="mt-1 text-xs font-bold uppercase tracking-wide text-slate-400" data-preview-sku>{{ old('sku', $product->sku) ?: 'SKU / item code' }}</p>
                         </div>
                         <div class="text-right">
-                            <p class="text-[11px] font-black uppercase tracking-wide text-slate-400">Unit</p>
-                            <p class="mt-1 text-sm font-black text-slate-950" data-preview-unit>{{ old('unit', $product->unit) ?: 'unit' }}</p>
+                            <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Unit</p>
+                            <p class="mt-1 text-sm font-bold text-slate-950" data-preview-unit>{{ old('unit', $product->unit) ?: 'unit' }}</p>
                         </div>
                     </div>
 
                     <div class="mt-4 border-t border-slate-100 pt-4">
-                        <p class="text-[11px] font-black uppercase tracking-wide text-slate-400">Description</p>
+                        <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Description</p>
                         <p class="mt-2 min-h-20 whitespace-pre-line text-sm font-semibold leading-6 text-slate-700" data-preview-description>{{ old('description', $product->description) ?: 'Add a reusable description so this item is clear on quotations, purchase orders, and invoices.' }}</p>
                     </div>
 
                     <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
                         <div class="rounded-lg bg-slate-50 p-3">
-                            <dt class="text-[11px] font-black uppercase tracking-wide text-slate-400">Default document price</dt>
-                            <dd class="mt-1 font-black text-slate-950" data-preview-sell>{{ number_format((float) old('selling_price', $product->selling_price), 2) }}</dd>
+                            <dt class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Default document price</dt>
+                            <dd class="mt-1 font-bold text-slate-950" data-preview-sell>{{ number_format((float) old('selling_price', $product->selling_price), 2) }}</dd>
                         </div>
                         <div class="rounded-lg bg-slate-50 p-3">
-                            <dt class="text-[11px] font-black uppercase tracking-wide text-slate-400">Unit</dt>
-                            <dd class="mt-1 font-black text-slate-950" data-preview-unit-summary>{{ old('unit', $product->unit) ?: 'unit' }}</dd>
+                            <dt class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Unit</dt>
+                            <dd class="mt-1 font-bold text-slate-950" data-preview-unit-summary>{{ old('unit', $product->unit) ?: 'unit' }}</dd>
                         </div>
                     </dl>
                 </div>

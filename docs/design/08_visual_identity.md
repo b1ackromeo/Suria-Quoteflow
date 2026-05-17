@@ -73,18 +73,32 @@ Rules:
 - page titles should be visually clear and not tiny
 - section titles should be concise
 - important instructions should not use micro text
-- uppercase tiny labels are allowed only for low-priority metadata/kickers
-- avoid excessive bold weight in large paragraphs
+- uppercase tiny labels are allowed only for low-priority metadata/kickers, with restrained tracking
+- avoid excessive bold weight in labels, cards, navigation, and large paragraphs
+- use sentence case for product UI labels unless a metadata caption truly needs uppercase
+- keep letter spacing at `0` for normal text and headings; do not use negative tracking
+- use tabular numerals for money, counts, and chart labels
 
 Recommended type roles:
 
 ```text
-Page title: strong, 24-32px depending layout
-Section title: 16-20px
-Body/help: 14px-15px
-Metadata/kicker: 10px-12px uppercase
-Table text: 13px-14px
+Page title: 24px / 32px, 800 weight
+Section title: 16px / 24px, 700 weight
+Card/list title: 14px / 20px, 700 weight
+Body/help: 14px / 20px, 400-500 weight
+Metadata/kicker: 12px / 16px, 700 weight, uppercase only when low priority
+Table text: 14px / 20px, 400-500 weight
+Table header/status: 12px / 16px, 700 weight
+KPI/count: 24px-30px, 800 weight
 ```
+
+Typography implementation:
+
+- `resources/css/app.css` defines QuoteFlow typography tokens under `--qf-*`
+- component rules should map to these roles instead of scattering arbitrary sizes
+- use `font-bold`/700 for most UI emphasis; reserve heavier 800 weight for page titles and numeric KPIs
+- do not make body/helper text semibold by default just to make a panel feel important
+- do not use `font-black` in app UI source; it makes the product look loud and bypasses the role-based type system
 
 ## Spacing
 
@@ -149,17 +163,22 @@ Optional illustration can be added later, but do not block implementation on cus
 
 ## Dashboard visual direction
 
-Dashboard should lead with a polished action area:
+Dashboard should lead with a polished full-screen operations area:
 
 ```text
-Today’s Work
+Needs Attention
 Pending approvals
 Supplier invoices to verify
+Supplier invoices to match
 Invoices overdue
 Payments due
+
+Quick Create
+Financial Exposure
+Sales and Purchasing
 ```
 
-Metrics should support action, not dominate the page.
+Metrics should support action, not dominate the page. Use lightweight charts for real dashboard comparisons such as workload distribution, receivables versus payables, invoice aging, sales/purchasing stage counts, and fixed-window trend movement. Avoid fake analytics decoration and avoid open-ended historical charts. Avoid duplicate dashboard surfaces for the same action; create actions belong in Quick Create, and approval/payment work belongs in Needs Attention.
 
 ## Document preview visual direction
 

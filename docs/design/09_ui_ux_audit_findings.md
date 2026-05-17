@@ -35,20 +35,35 @@ Target improvement:
 Next action -> blockers -> primary action -> key facts -> evidence -> financials -> history
 ```
 
-### 2. Dashboard is summary-first, not action-first
+### 2. Dashboard is redundant and summary-first
 
-The dashboard has useful metrics, but it should lead with what needs attention today.
+The dashboard has useful metrics, but it can drift into duplicate action surfaces: create buttons in more than one place, approval queue plus approval overview plus header notification, and recent records that belong in document lists.
 
 Target improvement:
 
 ```text
-Today’s Work
+Needs Attention
 - pending approvals
 - supplier invoices to verify
 - supplier invoices to match
 - overdue receivables
 - payments due soon
+
+Quick Create
+- the single home for create actions
+
+Financial Exposure
+- open receivables
+- open payables
+- due aging
+
+Sales and Purchasing
+- compact customer sales and supplier purchasing continuation links
 ```
+
+The dashboard should be a full-screen operations workspace on desktop. It is not a recent-record feed and should not require scrolling just to understand the primary work state.
+
+Dashboard labels should be written for the end user. Avoid internal direction terms such as "outgoing workflow", "incoming workflow", or "workflow lanes" in the visible UI.
 
 ### 3. Status chips are visually consistent but not semantically rich enough
 
@@ -161,3 +176,7 @@ A UI change is acceptable only when:
 - copy is concise and business-readable
 - keyboard/focus behavior remains usable
 - shared-hosting constraints are preserved
+
+Additional dashboard rule:
+
+- one action should have one obvious home; do not create duplicate dashboard controls for the same user job

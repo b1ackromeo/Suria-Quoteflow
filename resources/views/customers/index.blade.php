@@ -78,7 +78,7 @@
                         @forelse($customers as $customer)
                             <tr>
                                 <td>
-                                    <p class="font-black text-slate-950">{{ $customer->name }}</p>
+                                    <p class="font-bold text-slate-950">{{ $customer->name }}</p>
                                     @if($customer->billing_address)
                                         <p class="mt-1 max-w-md truncate text-xs font-semibold text-slate-500">{{ $customer->billing_address }}</p>
                                     @endif

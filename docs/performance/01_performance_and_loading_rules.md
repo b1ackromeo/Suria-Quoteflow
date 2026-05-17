@@ -79,6 +79,7 @@ Rules:
 - limit recent records
 - avoid unbounded all-time calculations unless indexed and cheap
 - use aggregate queries for counts/sums
+- use fixed reporting windows for trend charts, such as the last 6 or 12 months
 - avoid loading full document collections to calculate totals in PHP
 - avoid nested loops over documents and relations
 

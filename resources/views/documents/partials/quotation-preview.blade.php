@@ -68,8 +68,8 @@
     <div class="space-y-4 p-5 text-sm text-slate-900">
         <div class="grid gap-3 md:grid-cols-2">
             <div class="border-l-4 border-blue-600 bg-slate-50 p-3">
-                <p class="text-[11px] font-black uppercase tracking-wide text-slate-500">{{ $partyLabel }}</p>
-                <p class="mt-2 font-black">{{ $party?->name ?? 'Not selected' }}</p>
+                <p class="text-[11px] font-bold uppercase tracking-wide text-slate-500">{{ $partyLabel }}</p>
+                <p class="mt-2 font-bold">{{ $party?->name ?? 'Not selected' }}</p>
                 @if($party?->email)
                     <p class="mt-1 text-xs font-semibold text-slate-600">{{ $party->email }}</p>
                 @endif
@@ -80,37 +80,37 @@
             <div class="divide-y divide-slate-200 border border-slate-200 bg-slate-50">
                 <div class="flex justify-between gap-3 px-3 py-2">
                     <span class="font-semibold text-slate-500">{{ $primaryDateLabel }}</span>
-                    <span class="font-black">{{ optional($document->issue_date)->format('d M Y') ?? '-' }}</span>
+                    <span class="font-bold">{{ optional($document->issue_date)->format('d M Y') ?? '-' }}</span>
                 </div>
                 <div class="flex justify-between gap-3 px-3 py-2">
                     <span class="font-semibold text-slate-500">{{ $secondaryDateLabel }}</span>
-                    <span class="font-black">{{ optional($document->due_date)->format('d M Y') ?? '-' }}</span>
+                    <span class="font-bold">{{ optional($document->due_date)->format('d M Y') ?? '-' }}</span>
                 </div>
                 <div class="flex justify-between gap-3 px-3 py-2">
                     <span class="font-semibold text-slate-500">Reference</span>
-                    <span class="text-right font-black">{{ $document->external_reference ?: '-' }}</span>
+                    <span class="text-right font-bold">{{ $document->external_reference ?: '-' }}</span>
                 </div>
             </div>
         </div>
 
         <div class="grid gap-2 sm:grid-cols-3">
             <div class="border border-slate-200 bg-white p-3">
-                <p class="text-[10px] font-black uppercase tracking-wide text-slate-500">Currency</p>
-                <p class="mt-1 font-black">{{ $currency }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Currency</p>
+                <p class="mt-1 font-bold">{{ $currency }}</p>
             </div>
             <div class="border border-slate-200 bg-white p-3">
-                <p class="text-[10px] font-black uppercase tracking-wide text-slate-500">Payment terms</p>
-                <p class="mt-1 font-black">{{ $paymentLabel }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Payment terms</p>
+                <p class="mt-1 font-bold">{{ $paymentLabel }}</p>
             </div>
             <div class="border border-slate-200 bg-white p-3">
-                <p class="text-[10px] font-black uppercase tracking-wide text-slate-500">Project / site</p>
-                <p class="mt-1 font-black">{{ $document->project_name ?: '-' }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Project / site</p>
+                <p class="mt-1 font-bold">{{ $document->project_name ?: '-' }}</p>
             </div>
         </div>
 
         @if($document->notes)
             <section class="border-t-4 border-blue-600 bg-slate-50 p-3">
-                <p class="text-[11px] font-black uppercase tracking-wide text-slate-700">{{ $scopeLabel }}</p>
+                <p class="text-[11px] font-bold uppercase tracking-wide text-slate-700">{{ $scopeLabel }}</p>
                 <p class="mt-2 whitespace-pre-line text-xs font-medium leading-5 text-slate-700">{{ $document->notes }}</p>
             </section>
         @endif
@@ -119,12 +119,12 @@
             <table class="min-w-full text-left text-xs">
                 <thead class="bg-[#0a345f] text-white">
                     <tr>
-                        <th class="px-3 py-2 font-black">No.</th>
-                        <th class="px-3 py-2 font-black">{{ $lineDescriptionLabel }}</th>
-                        <th class="px-3 py-2 text-right font-black">Qty</th>
-                        <th class="px-3 py-2 font-black">Unit</th>
-                        <th class="px-3 py-2 text-right font-black">Unit Price</th>
-                        <th class="px-3 py-2 text-right font-black">Amount</th>
+                        <th class="px-3 py-2 font-bold">No.</th>
+                        <th class="px-3 py-2 font-bold">{{ $lineDescriptionLabel }}</th>
+                        <th class="px-3 py-2 text-right font-bold">Qty</th>
+                        <th class="px-3 py-2 font-bold">Unit</th>
+                        <th class="px-3 py-2 text-right font-bold">Unit Price</th>
+                        <th class="px-3 py-2 text-right font-bold">Amount</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200">
@@ -132,7 +132,7 @@
                         <tr>
                             <td class="px-3 py-3 align-top">{{ $loop->iteration }}</td>
                             <td class="px-3 py-3 align-top">
-                                <p class="font-black">{{ $item->description }}</p>
+                                <p class="font-bold">{{ $item->description }}</p>
                                 @if($item->product?->name && $item->product->name !== $item->description)
                                     <p class="mt-1 text-[11px] font-medium text-slate-500">{{ $item->product->name }}</p>
                                 @endif
@@ -140,7 +140,7 @@
                             <td class="px-3 py-3 text-right align-top">{{ number_format((float) $item->quantity, 3) }}</td>
                             <td class="px-3 py-3 align-top">{{ $item->unit }}</td>
                             <td class="px-3 py-3 text-right align-top">{{ number_format((float) $item->unit_price, 2) }}</td>
-                            <td class="px-3 py-3 text-right align-top font-black">{{ number_format((float) $item->line_total, 2) }}</td>
+                            <td class="px-3 py-3 text-right align-top font-bold">{{ number_format((float) $item->line_total, 2) }}</td>
                         </tr>
                     @empty
                         <tr>
@@ -154,23 +154,23 @@
         @if($billingStages->isNotEmpty())
             <section class="overflow-hidden border border-slate-200">
                 <div class="bg-slate-50 px-3 py-2">
-                    <p class="text-[11px] font-black uppercase tracking-wide text-slate-700">{{ $isInvoice ? 'Progress Billing Summary' : 'Payment Schedule' }}</p>
+                    <p class="text-[11px] font-bold uppercase tracking-wide text-slate-700">{{ $isInvoice ? 'Progress Billing Summary' : 'Payment Schedule' }}</p>
                 </div>
                 <table class="min-w-full text-left text-xs">
                     <thead class="bg-slate-100 text-slate-700">
                         <tr>
-                            <th class="px-3 py-2 font-black">Billing stage</th>
+                            <th class="px-3 py-2 font-bold">Billing stage</th>
                             @unless($isInvoice)
-                                <th class="px-3 py-2 font-black">{{ $document->type === 'supplier_po' ? 'Supplier may invoice when' : ($document->type === 'customer_po' ? 'Customer may be invoiced when' : 'Billing condition') }}</th>
+                                <th class="px-3 py-2 font-bold">{{ $document->type === 'supplier_po' ? 'Supplier may invoice when' : ($document->type === 'customer_po' ? 'Customer may be invoiced when' : 'Billing condition') }}</th>
                             @endunless
-                            <th class="px-3 py-2 text-right font-black">%</th>
-                            <th class="px-3 py-2 text-right font-black">Amount</th>
+                            <th class="px-3 py-2 text-right font-bold">%</th>
+                            <th class="px-3 py-2 text-right font-bold">Amount</th>
                             @unless($isInvoice)
-                                <th class="px-3 py-2 font-black">Payment term</th>
+                                <th class="px-3 py-2 font-bold">Payment term</th>
                             @else
-                                <th class="px-3 py-2 text-right font-black">Previously invoiced</th>
-                                <th class="px-3 py-2 text-right font-black">This invoice</th>
-                                <th class="px-3 py-2 text-right font-black">Remaining</th>
+                                <th class="px-3 py-2 text-right font-bold">Previously invoiced</th>
+                                <th class="px-3 py-2 text-right font-bold">This invoice</th>
+                                <th class="px-3 py-2 text-right font-bold">Remaining</th>
                             @endunless
                         </tr>
                     </thead>
@@ -199,21 +199,21 @@
 
         <div class="grid gap-4 md:grid-cols-[1fr_20rem]">
             <section class="border-t-4 border-blue-600 bg-slate-50 p-3">
-                <p class="text-[11px] font-black uppercase tracking-wide text-slate-700">Terms</p>
+                <p class="text-[11px] font-bold uppercase tracking-wide text-slate-700">Terms</p>
                 <p class="mt-2 whitespace-pre-line text-xs font-medium leading-5 text-slate-700">{{ $document->terms ?: 'Terms will be confirmed in the issued document.' }}</p>
             </section>
             <div class="divide-y divide-slate-200 border border-slate-200">
                 <div class="flex justify-between gap-3 px-3 py-2">
                     <span class="font-semibold">Subtotal</span>
-                    <span class="font-black">{{ $currency }} {{ number_format((float) $document->subtotal, 2) }}</span>
+                    <span class="font-bold">{{ $currency }} {{ number_format((float) $document->subtotal, 2) }}</span>
                 </div>
                 <div class="flex justify-between gap-3 px-3 py-2">
                     <span class="font-semibold">Tax</span>
-                    <span class="font-black">{{ $currency }} {{ number_format((float) $document->tax_total, 2) }}</span>
+                    <span class="font-bold">{{ $currency }} {{ number_format((float) $document->tax_total, 2) }}</span>
                 </div>
                 <div class="flex justify-between gap-3 bg-[#0a345f] px-3 py-3 text-white">
-                    <span class="font-black">{{ $totalLabel }}</span>
-                    <span class="font-black">{{ $currency }} {{ number_format((float) $document->total, 2) }}</span>
+                    <span class="font-bold">{{ $totalLabel }}</span>
+                    <span class="font-bold">{{ $currency }} {{ number_format((float) $document->total, 2) }}</span>
                 </div>
             </div>
         </div>

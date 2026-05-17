@@ -12,7 +12,7 @@
     <div class="panel-header">
         <div>
             <p class="document-pane-kicker">Global search</p>
-            <h1 class="text-2xl font-black tracking-tight text-slate-950">Search Suria QuoteFlow</h1>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-950">Search Suria QuoteFlow</h1>
             <p class="mt-1 text-sm font-semibold text-slate-500">Find documents, customers, suppliers, products, services, payment stages, dates, and amounts.</p>
         </div>
         @if($q !== '')
@@ -56,8 +56,8 @@
                     <article class="py-4 first:pt-0 last:pb-0">
                         <div class="flex flex-wrap items-start justify-between gap-3">
                             <div class="min-w-0">
-                                <p class="text-xs font-black uppercase tracking-wide text-slate-400">{{ $meta['singular'] }}</p>
-                                <a class="mt-1 block text-base font-black text-[#0a4f93]" href="{{ route('documents.show', $document) }}">{{ $document->document_number }}</a>
+                                <p class="text-xs font-bold uppercase tracking-wide text-slate-400">{{ $meta['singular'] }}</p>
+                                <a class="mt-1 block text-base font-bold text-[#0a4f93]" href="{{ route('documents.show', $document) }}">{{ $document->document_number }}</a>
                                 <p class="mt-1 truncate text-sm font-bold text-slate-900">{{ $document->partyName() }}</p>
                             </div>
                             <span class="status-chip status-{{ $document->status }}">{{ $document->statusDisplay() }}</span>
@@ -73,7 +73,7 @@
                             </div>
                             <div>
                                 <dt class="document-row-meta">Total</dt>
-                                <dd class="mt-1 font-black text-slate-950">{{ $document->currency }} {{ number_format($document->total, 2) }}</dd>
+                                <dd class="mt-1 font-bold text-slate-950">{{ $document->currency }} {{ number_format($document->total, 2) }}</dd>
                             </div>
                             @if($document->project_name)
                                 <div>
@@ -139,7 +139,7 @@
                         <div class="rounded-lg border border-slate-200 bg-white p-3">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
-                                    <p class="truncate text-sm font-black text-slate-950">{{ $customer->name }}</p>
+                                    <p class="truncate text-sm font-bold text-slate-950">{{ $customer->name }}</p>
                                     <p class="mt-1 text-xs font-semibold text-slate-500">{{ $customer->code ?: 'No code' }} · {{ $customer->email ?: 'No email' }}</p>
                                     <p class="mt-1 text-xs font-semibold text-slate-500">Default term: {{ $customer->payment_terms_days }} days</p>
                                 </div>
@@ -167,7 +167,7 @@
                         <div class="rounded-lg border border-slate-200 bg-white p-3">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
-                                    <p class="truncate text-sm font-black text-slate-950">{{ $supplier->name }}</p>
+                                    <p class="truncate text-sm font-bold text-slate-950">{{ $supplier->name }}</p>
                                     <p class="mt-1 text-xs font-semibold text-slate-500">{{ $supplier->code ?: 'No code' }} · {{ $supplier->category ?: 'Uncategorised' }} · {{ $supplier->email ?: 'No email' }}</p>
                                     <p class="mt-1 text-xs font-semibold text-slate-500">Default term: {{ $supplier->payment_terms_days }} days</p>
                                 </div>
@@ -195,7 +195,7 @@
                         <div class="rounded-lg border border-slate-200 bg-white p-3">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
-                                    <p class="truncate text-sm font-black text-slate-950">{{ $product->name }}</p>
+                                    <p class="truncate text-sm font-bold text-slate-950">{{ $product->name }}</p>
                                     <p class="mt-1 text-xs font-semibold text-slate-500">{{ $product->sku ?: 'No SKU' }} · {{ ucfirst($product->type) }} · {{ $product->unit }}</p>
                                     <p class="mt-1 text-xs font-semibold text-slate-500">Sell: {{ number_format($product->selling_price, 2) }} · Cost: {{ number_format($product->cost_price, 2) }}</p>
                                 </div>

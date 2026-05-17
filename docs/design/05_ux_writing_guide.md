@@ -18,6 +18,7 @@ Avoid:
 - generic system messages
 - long policy paragraphs
 - developer/internal terms
+- internal direction terms such as "Outgoing workflow", "Incoming workflow", "Workflow lanes", "Outgoing revenue", or "Incoming procurement"
 - vague success copy
 - decorative marketing language
 
@@ -152,7 +153,7 @@ Page titles should describe the workspace.
 Good:
 
 ```text
-Today’s Work
+Operations today
 Customer Invoices
 Supplier Invoice SIN-2026-00008
 New Purchase Order

@@ -353,7 +353,7 @@ class DocumentWorkflowTest extends TestCase
         ]);
         $this->submitForApproval($quotation);
 
-        $response = $this->get(route('dashboard'));
+        $response = $this->get(route('reports.index'));
 
         $response->assertOk();
         $response->assertSee('href="'.route('approvals.pending').'"', false);
@@ -361,7 +361,7 @@ class DocumentWorkflowTest extends TestCase
         $response->assertSee('<span>1</span>', false);
     }
 
-    public function test_dashboard_starts_with_today_work_and_global_task_links(): void
+    public function test_dashboard_starts_with_operations_today_and_global_task_links(): void
     {
         $quotation = $this->createDocument('customer-quotations', [
             'customer_id' => $this->customer->id,
@@ -385,14 +385,75 @@ class DocumentWorkflowTest extends TestCase
         $response = $this->get(route('dashboard'));
 
         $response->assertOk();
-        $response->assertSee("Today's Work", false);
+        $response->assertSee('Operations today');
+        $response->assertSee('Open work');
+        $response->assertSee('Needs attention');
+        $response->assertSee('Each card opens the records behind it.');
         $response->assertSee('Pending approvals');
         $response->assertSee('Verify supplier invoices');
         $response->assertSee('Match supplier invoices');
         $response->assertSee('Overdue receivables');
+        $response->assertSee('Quick create');
+        $response->assertSee('Create quotation');
+        $response->assertSee('Financial exposure');
+        $response->assertSee('Invoice aging');
+        $response->assertSee('Sales and purchasing');
+        $response->assertSee('Customer sales');
+        $response->assertSee('Quotation to customer payment');
+        $response->assertSee('Open sales records');
+        $response->assertSee('Customer POs');
+        $response->assertSee('Customer invoices');
+        $response->assertSee('Supplier purchasing');
+        $response->assertSee('Request to supplier payment');
+        $response->assertSee('Open purchasing records');
+        $response->assertSee('Purchase orders');
+        $response->assertSee('6-month movement');
+        $response->assertSee('Invoices issued and payments recorded.');
+        $response->assertSee('Customer invoices');
+        $response->assertSee('Supplier invoices');
+        $response->assertSee('Incoming paid');
+        $response->assertSee('Outgoing paid');
+        $response->assertSee('Open reports');
         $response->assertSee('href="'.route('approvals.pending').'"', false);
+        $response->assertSee('brand/suria-quoteflow-horizontal-lockup.svg', false);
+        $response->assertSee('brand/favicon.svg', false);
+        $response->assertSee('sidebar-workspace', false);
+        $response->assertSee('Current company');
+        $response->assertSee('sidebar-account-panel', false);
+        $response->assertSee($this->admin->name);
+        $response->assertSee('Logout');
+        $response->assertDontSee('date-control', false);
+        $response->assertDontSee('notification-button', false);
+        $response->assertDontSee('New quotation');
+        $response->assertDontSee('Recent activity');
+        $response->assertDontSee('Approval queue');
+        $response->assertDontSee('Approval overview');
+        $response->assertDontSee('Top customers');
+        $response->assertDontSee('company-identity-card', false);
+        $response->assertDontSee('company-identity-pill', false);
+        $response->assertDontSee('user-chip', false);
         $response->assertDontSee('Operations dashboard');
+        $response->assertDontSee('Workflow lanes');
+        $response->assertDontSee('Outgoing workflow');
+        $response->assertDontSee('Incoming workflow');
+        $response->assertDontSee('View outgoing');
+        $response->assertDontSee('View incoming');
+        $response->assertDontSee('Outgoing revenue');
+        $response->assertDontSee('Incoming procurement');
+        $response->assertDontSee('Active workspace');
         $response->assertDontSee('>Exports</span>', false);
+    }
+
+    public function test_login_uses_approved_product_logo(): void
+    {
+        auth()->logout();
+
+        $response = $this->get(route('login'));
+
+        $response->assertOk();
+        $response->assertSee('Suria QuoteFlow');
+        $response->assertSee('brand/suria-quoteflow-app-icon.svg', false);
+        $response->assertSee('brand/favicon.svg', false);
     }
 
     public function test_non_approver_cannot_approve_pending_document_through_direct_post(): void

@@ -22,12 +22,20 @@ Sticky top header
 Main content canvas
 Role-aware navigation
 Global search
-Company identity
-Notification entry point
-User chip
+Primary system logo
+Subordinate workspace identity
+Contextual notification entry point
+User/logout panel
 ```
 
 The existing shell is suitable for QuoteFlow. Do not replace it with a top-nav-only layout.
+
+Shell identity rules:
+
+- the Suria QuoteFlow system logo sits at the top of the sidebar
+- the active company/workspace badge sits directly below it, smaller and subordinate
+- user identity and logout live at the bottom of the sidebar
+- dashboard pages should not show duplicate header date ranges or notification shortcuts when the same work is already surfaced in Needs Attention
 
 ## Dashboard layout
 
@@ -36,40 +44,53 @@ The dashboard should be action-first, not metric-first.
 Recommended order:
 
 ```text
-1. Today's Work / Needs Attention
-2. Workflow Health
-3. Financial Snapshot
-4. Recent Activity
-5. Secondary summaries
+1. Needs Attention
+2. Quick Create
+3. Financial Exposure
+4. Sales and Purchasing
 ```
 
 Target structure:
 
 ```text
-Dashboard
-  Today’s Work
-    Pending approvals
-    Supplier invoices to verify
-    Supplier invoices to match
-    Customer invoices overdue
-    Payments due soon
+Dashboard full-screen workspace
+  Needs Attention
+    pending approvals
+    supplier invoices to verify
+    supplier invoices to match
+    overdue receivables
+    supplier payments due
+    compact clickable cards with visible workload bars
 
-  Workflow Health
-    Outgoing: quotation -> PO -> invoice -> payment
-    Incoming: PR -> PO -> receipt -> supplier invoice -> payment
+  Quick Create
+    one home for create actions
 
-  Financial Snapshot
-    Open receivables
-    Open payables
-    Aging
-    Cash movement
+  Financial Exposure
+    open receivables
+    open payables
+    due aging
+    lightweight chart bars for exposure and invoice aging
 
-  Recent Activity
-    Latest documents
-    Recent approvals/payments
+  Sales and Purchasing
+    Customer sales: quotation -> customer PO -> customer invoice -> payment
+    Supplier purchasing: purchase request -> purchase order -> receipt -> supplier invoice -> payment
+    compact stage bars so bottlenecks are visible
+    fixed 6-month movement chart for invoices issued and payments recorded
 ```
 
 Avoid making the dashboard a collection of unrelated KPI cards.
+
+Dashboard copy must use customer, supplier, sales, purchasing, invoice, and payment language. Do not expose internal direction labels such as "outgoing workflow", "incoming workflow", or "workflow lanes" to end users.
+
+Dashboard anti-redundancy rules:
+
+- do not duplicate create actions in both the header/hero and Quick Create
+- do not duplicate pending approvals as header bell, queue card, overview card, and Needs Attention at the same time
+- do not duplicate supplier payments due in both Needs Attention and Financial Exposure
+- do not show a system-generated date range as if it is a user-selected dashboard filter
+- do not use Recent Records as dashboard filler; document lists handle browsing, and audit/activity pages handle history
+- desktop dashboard should fit the app viewport with internal panels instead of forcing page scroll for core dashboard content
+- trend charts must use fixed reporting windows and aggregate queries; do not render open-ended historical charts on the dashboard
 
 ## Document index workbench
 

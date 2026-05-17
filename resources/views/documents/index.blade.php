@@ -203,7 +203,7 @@
             <div class="document-preview-toolbar">
                 <div>
                     <p class="document-pane-kicker">{{ $previewKicker }}</p>
-                    <h2 class="text-base font-black text-slate-950">{{ $previewTitle }}</h2>
+                    <h2 class="text-base font-bold text-slate-950">{{ $previewTitle }}</h2>
                     <p class="document-preview-copy">{{ $previewCaption }}</p>
                 </div>
             </div>

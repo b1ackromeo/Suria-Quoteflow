@@ -7,9 +7,11 @@
 
 <div class="w-full max-w-md rounded-xl border border-zinc-200 bg-white p-8 shadow-sm">
     <div class="flex items-center gap-3">
-        <span class="brand-mark">SQ</span>
+        <span class="brand-mark">
+            <img class="brand-logo" src="{{ asset('brand/suria-quoteflow-app-icon.svg') }}" alt="" aria-hidden="true">
+        </span>
         <div>
-            <h1 class="text-2xl font-black tracking-tight">Suria QuoteFlow</h1>
+            <h1 class="text-2xl font-bold tracking-tight">Suria QuoteFlow</h1>
             <p class="mt-1 text-sm font-semibold text-zinc-600">Commercial document system</p>
         </div>
     </div>
@@ -17,7 +19,7 @@
         <div class="flex items-center gap-3">
             <img class="h-10 w-10 rounded-lg object-cover shadow-sm" src="{{ $companyProfile->logoUrl() }}" alt="{{ $companyProfile->displayName() }}">
             <div class="min-w-0">
-                <p class="text-sm font-black leading-tight text-slate-950">{{ $companyProfile->displayName() }}</p>
+                <p class="text-sm font-bold leading-tight text-slate-950">{{ $companyProfile->displayName() }}</p>
             </div>
         </div>
     </div>

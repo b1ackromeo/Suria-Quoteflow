@@ -136,7 +136,7 @@
                             <td>{{ $item->description }}</td>
                             <td class="text-right">{{ number_format((float) $item->quantity, 3) }}</td>
                             <td>{{ $item->unit }}</td>
-                            <td class="text-right font-black">{{ $currency }} {{ number_format((float) $item->line_total, 2) }}</td>
+                            <td class="text-right font-bold">{{ $currency }} {{ number_format((float) $item->line_total, 2) }}</td>
                         </tr>
                     @endforeach
                 </tbody>

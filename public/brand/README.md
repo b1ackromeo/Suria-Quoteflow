@@ -1,21 +1,42 @@
-# Suria QuoteFlow Approved Logo Assets
+# Suria QuoteFlow Approved Verified SVG Assets
 
-This folder contains the approved Suria QuoteFlow Option A product-brand assets.
+Source image: `ChatGPT Image May 17, 2026, 09_35_08 AM.png`
+Source size: 1448 x 1086
 
-## Assets
+## What this pack is
 
-- `suria-quoteflow-app-icon.svg` — app icon / compact product mark for sidebar and login usage.
-- `suria-quoteflow-hero-logo.svg` — hero logo crop from the approved brand board.
-- `suria-quoteflow-horizontal-lockup.svg` — horizontal lockup for wider product-brand placement.
-- `suria-quoteflow-monochrome-mark.svg` — monochrome navy mark variant.
-- `suria-quoteflow-reversed-lockup.svg` — reversed lockup for dark backgrounds.
+This pack contains SVG files that visually match the approved Option A artwork by embedding exact crops from the approved source image.
 
-The root favicon asset is stored at:
+This is the correct output for matching the agreed design.
 
-- `public/favicon.svg`
+## What this pack is not
 
-## Notes
+These are not manually redrawn path-vector logos.
+The earlier manually redrawn SVGs were wrong because they drifted from the approved visual.
 
-- These are visual-match SVG wrappers generated from the approved logo board, not editable path-vector redraws.
-- Keep `companyProfile->logoUrl()` unchanged; that belongs to customer/company logos and should not be replaced by the product logo.
-- These files have been added as brand assets only. UI integration should be handled in a separate change.
+## Files
+
+- `suria-quoteflow-hero-logo.svg`
+- `suria-quoteflow-horizontal-lockup.svg`
+- `suria-quoteflow-app-icon.svg`
+- `suria-quoteflow-monochrome-mark.svg`
+- `suria-quoteflow-reversed-lockup.svg`
+- `favicon.svg`
+
+PNG versions are included only so you can visually verify the embedded artwork.
+
+## Recommended development usage
+
+- Sidebar / login icon: `suria-quoteflow-app-icon.svg`
+- Wider product brand placement: `suria-quoteflow-horizontal-lockup.svg`
+- Browser favicon: `favicon.svg`
+
+## Important
+
+Do not use the previous asset packs:
+- `suria-quoteflow-brand-assets.zip`
+- `suria-quoteflow-option-a-corrected-assets.zip`
+- `suria-quoteflow-approved-reference-extracts.zip`
+- `suria-quoteflow-approved-clean-extracts.zip`
+
+Those were not the final verified package.
