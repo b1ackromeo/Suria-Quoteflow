@@ -180,6 +180,12 @@
                     <form method="post" action="{{ route('attachment-extractions.verify', $extraction) }}" class="supplier-invoice-extraction-form">
                         @csrf
                         @method('PUT')
+                        @if($canVerifyExtraction && $extraction->status !== 'verified')
+                            <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
+                                <span class="text-sm font-semibold text-blue-900">Review the fields below, then verify this supplier quote evidence.</span>
+                                <button type="submit" class="btn btn-primary">Verify supplier quote evidence</button>
+                            </div>
+                        @endif
                         @foreach($quoteFieldLabels as $key => $label)
                             <label>
                                 <span>{{ $label }}</span>
