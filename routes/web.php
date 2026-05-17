@@ -9,6 +9,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\PurchaseRequestQuoteController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SupplierController;
@@ -34,6 +35,13 @@ Route::middleware(['auth', 'role:admin,manager,sales,procurement,accounts,viewer
     Route::resource('customers', CustomerController::class)->middleware('role:admin,manager,sales')->except(['show', 'destroy']);
     Route::resource('suppliers', SupplierController::class)->middleware('role:admin,manager,procurement')->except(['show', 'destroy']);
     Route::resource('products', ProductController::class)->middleware('role:admin,manager,sales,procurement')->except(['show', 'destroy']);
+
+    Route::get('/documents/purchase-requests/from-supplier-quote', [PurchaseRequestQuoteController::class, 'create'])
+        ->middleware('role:admin,manager,procurement,accounts')
+        ->name('purchase-requests.quote-first.create');
+    Route::post('/documents/purchase-requests/from-supplier-quote', [PurchaseRequestQuoteController::class, 'store'])
+        ->middleware('role:admin,manager,procurement,accounts')
+        ->name('purchase-requests.quote-first.store');
 
     Route::get('/documents/{module}', [DocumentController::class, 'index'])->name('documents.index');
     Route::get('/documents/{module}/export', [DocumentController::class, 'exportCsv'])->name('documents.export');
