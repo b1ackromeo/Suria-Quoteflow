@@ -1,1 +1,0 @@
-Document show layout needs workspace in panel 2 and source capture in panel 3.
