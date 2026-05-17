@@ -1,13 +1,21 @@
 # Suria QuoteFlow Approved Logo Assets
 
-This folder contains the approved Suria QuoteFlow Option A logo asset uploaded for product branding.
+This folder contains the approved Suria QuoteFlow Option A product-brand assets.
 
-Current asset:
+## Assets
 
-- `suria-quoteflow-app-icon.svg` — approved app icon crop wrapped in SVG format for sidebar/login/favicon style usage.
+- `suria-quoteflow-app-icon.svg` — app icon / compact product mark for sidebar and login usage.
+- `suria-quoteflow-hero-logo.svg` — hero logo crop from the approved brand board.
+- `suria-quoteflow-horizontal-lockup.svg` — horizontal lockup for wider product-brand placement.
+- `suria-quoteflow-monochrome-mark.svg` — monochrome navy mark variant.
+- `suria-quoteflow-reversed-lockup.svg` — reversed lockup for dark backgrounds.
 
-Notes:
+The root favicon asset is stored at:
 
-- This is a visual-match SVG wrapper from the approved logo board, not an editable path-vector redraw.
+- `public/favicon.svg`
+
+## Notes
+
+- These are visual-match SVG wrappers generated from the approved logo board, not editable path-vector redraws.
 - Keep `companyProfile->logoUrl()` unchanged; that belongs to customer/company logos and should not be replaced by the product logo.
-- The app icon should replace the text-only `SQ` product mark only after the UI integration step is requested.
+- These files have been added as brand assets only. UI integration should be handled in a separate change.
