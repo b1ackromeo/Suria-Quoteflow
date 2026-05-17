@@ -14,7 +14,7 @@ class ExternalDocumentExtractionService
 
     public function supportsAssistedCapture(Document $document): bool
     {
-        return in_array($document->type, ['supplier_invoice', 'supplier_quotation'], true);
+        return in_array($document->type, ['purchase_request', 'supplier_invoice', 'supplier_quotation'], true);
     }
 
     public function shouldAutoExtract(Attachment $attachment): bool
@@ -26,6 +26,7 @@ class ExternalDocumentExtractionService
         }
 
         return match ($attachment->document->type) {
+            'purchase_request' => $attachment->category === 'supplier_quote',
             'supplier_invoice' => true,
             'supplier_quotation' => in_array($attachment->category, ['supplier_quote', 'supporting_document'], true),
             default => false,
@@ -35,7 +36,7 @@ class ExternalDocumentExtractionService
     public function uploadProcessedMessage(Document $document): string
     {
         return match ($document->type) {
-            'supplier_quotation' => 'Attachment uploaded. Quote OCR draft is ready for verification.',
+            'purchase_request', 'supplier_quotation' => 'Attachment uploaded. Quote OCR draft is ready for verification.',
             default => 'Attachment uploaded. OCR extraction draft is ready for verification.',
         };
     }
@@ -43,7 +44,7 @@ class ExternalDocumentExtractionService
     public function uploadFailedMessage(Document $document): string
     {
         return match ($document->type) {
-            'supplier_quotation' => 'Attachment uploaded. OCR could not read the supplier quotation; verify the quote details manually from the source file.',
+            'purchase_request', 'supplier_quotation' => 'Attachment uploaded. OCR could not read the supplier quotation; verify the quote details manually from the source file.',
             default => 'Attachment uploaded. OCR extraction could not run yet; check the extraction message on the invoice page.',
         };
     }
@@ -51,7 +52,7 @@ class ExternalDocumentExtractionService
     public function readyMessage(Document $document): string
     {
         return match ($document->type) {
-            'supplier_quotation' => 'Quote OCR draft is ready. Verify the fields before using the quote for purchasing.',
+            'purchase_request', 'supplier_quotation' => 'Quote OCR draft is ready. Verify the fields before using the quote for purchasing.',
             default => 'OCR extraction draft is ready. Verify the fields before approval.',
         };
     }
@@ -59,6 +60,7 @@ class ExternalDocumentExtractionService
     public function verificationSuccessMessage(Document $document): string
     {
         return match ($document->type) {
+            'purchase_request' => 'Supplier quote evidence verified.',
             'supplier_quotation' => 'Supplier quotation details verified.',
             default => 'Supplier invoice extraction verified.',
         };
@@ -72,7 +74,7 @@ class ExternalDocumentExtractionService
     public function fieldLabels(Document $document): array
     {
         return match ($document->type) {
-            'supplier_quotation' => [
+            'purchase_request', 'supplier_quotation' => [
                 'supplier_name' => 'Supplier name',
                 'quote_number' => 'Supplier quote no.',
                 'quote_date' => 'Quote date',
@@ -89,7 +91,7 @@ class ExternalDocumentExtractionService
     public function manualFields(Document $document): array
     {
         return match ($document->type) {
-            'supplier_quotation' => [
+            'purchase_request', 'supplier_quotation' => [
                 'supplier_name' => $document->supplier?->name,
                 'quote_number' => $document->external_reference,
                 'quote_date' => optional($document->issue_date)->format('Y-m-d'),

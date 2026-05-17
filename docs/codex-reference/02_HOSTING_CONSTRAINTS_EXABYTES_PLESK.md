@@ -175,6 +175,6 @@ Unsafe for this target if mandatory:
 
 Keep OCR as a useful feature, but do not make OCR success the only possible path to approval. OCR can fail due to poor scans even when hosting supports it.
 
-Approval should depend on verified invoice data, not strictly successful OCR.
+Approval should depend on verified business data, not strictly successful OCR. Supplier invoices require verified invoice data. Purchase requests that need supplier pricing require verified supplier quote evidence, or an explicit quote exception reason approved with an approver comment.
 
 The product guarantee is not "OCR reads every layout perfectly." The guarantee is that uploaded supplier/customer documents remain reviewable, QuoteFlow attempts bounded assisted extraction when local capabilities exist, and the user can verify or correct the structured draft before downstream workflow trusts it.

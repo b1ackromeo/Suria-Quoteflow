@@ -30,7 +30,21 @@
     $supplierInvoiceCanMatch = (bool) ($supplierInvoiceMatching['passes'] ?? false);
     $supplierInvoiceMatchingBlockers = $supplierInvoiceMatching['blocking_messages'] ?? [];
     $canSubmitForApproval = in_array($document->status, ['draft', 'rejected'], true);
-    $canApproveDocument = auth()->user()->canApprove() && $document->status === 'pending_approval';
+    $supplierQuoteAttachment = $document->attachments->firstWhere('category', 'supplier_quote');
+    $supplierQuoteExtraction = $supplierQuoteAttachment?->extraction;
+    $hasSupplierQuoteException = $document->type === 'purchase_request'
+        && $document->source_type === 'quote_exception'
+        && filled($document->source_note);
+    $hasVerifiedSupplierQuoteEvidence = $document->type === 'purchase_request'
+        && $document->attachments
+            ->where('category', 'supplier_quote')
+            ->contains(fn ($attachment) => $attachment->extraction?->status === 'verified');
+    $purchaseRequestApprovalReady = $document->type !== 'purchase_request'
+        || $hasSupplierQuoteException
+        || $hasVerifiedSupplierQuoteEvidence;
+    $canDecideDocument = auth()->user()->canApprove() && $document->status === 'pending_approval';
+    $canApproveDocument = $canDecideDocument && $purchaseRequestApprovalReady;
+    $canRejectDocument = $canDecideDocument;
     $canMarkIssued = $document->status === 'approved'
         && in_array($document->type, ['customer_quotation', 'customer_po', 'customer_invoice', 'supplier_po'], true);
     $canMarkReceived = in_array($document->status, ['issued', 'approved'], true) && $document->type === 'goods_receipt';
@@ -40,6 +54,7 @@
     $hasWorkflowActions = $canWrite && (
         $canSubmitForApproval
         || $canApproveDocument
+        || $canRejectDocument
         || $canMarkIssued
         || $canRecordDeliveryComplete
         || $canMarkReceived
@@ -109,6 +124,9 @@
     $paidAmount = (float) $document->payments->sum('amount');
     $balanceDue = max(0, (float) $document->total - $paidAmount);
     $nextAction = match (true) {
+        $document->type === 'purchase_request' && in_array($document->status, ['draft', 'rejected'], true) => 'Upload and verify supplier quote evidence, or record a quote exception reason, before requesting approval.',
+        $document->type === 'purchase_request' && $document->status === 'pending_approval' && $hasSupplierQuoteException => 'Manager must confirm this quote exception before approving the purchase request.',
+        $document->type === 'purchase_request' && $document->status === 'pending_approval' && ! $hasVerifiedSupplierQuoteEvidence => 'Verify the supplier quote evidence before approving this purchase request.',
         in_array($document->status, ['draft', 'rejected'], true) => 'Submit this '.$meta['singular'].' for approval when details and attachments are ready.',
         $document->status === 'pending_approval' => 'Manager approval is required before this document can move forward.',
         $document->type === 'customer_po' && $document->status === 'approved' => 'Accept the PO received when the team has confirmed scope, price, delivery, and required attachments.',
@@ -144,6 +162,23 @@
     $readinessItems = [];
     if ($document->status === 'pending_approval') {
         $readinessItems[] = ['state' => 'waiting', 'label' => 'Approval waiting', 'message' => 'Manager approval is required before this record can move forward.'];
+    }
+    if ($document->type === 'purchase_request') {
+        if ($supplierQuoteAttachment) {
+            if ($supplierQuoteExtraction?->status === 'verified') {
+                $readinessItems[] = ['state' => 'ready', 'label' => 'Supplier quote verified', 'message' => 'The uploaded supplier quote has been checked and can support approval.'];
+            } elseif ($supplierQuoteExtraction?->status === 'processed') {
+                $readinessItems[] = ['state' => 'waiting', 'label' => 'Quote OCR ready', 'message' => 'Verify the extracted supplier quote details before approval.'];
+            } elseif ($supplierQuoteExtraction?->status === 'failed') {
+                $readinessItems[] = ['state' => 'blocked', 'label' => 'Manual quote verification needed', 'message' => 'OCR could not read the quote. Check the uploaded file and verify the quote details manually.'];
+            } else {
+                $readinessItems[] = ['state' => 'waiting', 'label' => 'Supplier quote uploaded', 'message' => 'Run OCR or verify the quote evidence before approval.'];
+            }
+        } elseif ($hasSupplierQuoteException) {
+            $readinessItems[] = ['state' => 'waiting', 'label' => 'Quote exception recorded', 'message' => 'Approver must confirm the exception reason in the approval comment.'];
+        } else {
+            $readinessItems[] = ['state' => 'blocked', 'label' => 'Supplier quote missing', 'message' => 'Upload supplier quote evidence, or record a quote exception reason, before approval.'];
+        }
     }
     if ($document->type === 'supplier_invoice' && $supplierInvoiceVerification) {
         if ($supplierInvoiceVerification['verified'] ?? false) {
@@ -256,7 +291,14 @@
                     <form method="post" action="{{ route('documents.submit', $document) }}"><input type="hidden" name="_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-primary w-full">Submit for approval</button></form>
                 @endif
                 @if($canApproveDocument)
-                    <form method="post" action="{{ route('documents.approve', $document) }}" class="space-y-2"><input type="hidden" name="_token" value="{{ csrf_token() }}"><textarea class="form-input" name="comment" placeholder="Approval comment"></textarea><button type="submit" class="btn btn-primary w-full">Approve</button></form>
+                    <form method="post" action="{{ route('documents.approve', $document) }}" class="space-y-2"><input type="hidden" name="_token" value="{{ csrf_token() }}"><textarea class="form-input" name="comment" placeholder="{{ $hasSupplierQuoteException ? 'Approval comment required for quote exception' : 'Approval comment' }}" @if($hasSupplierQuoteException) required @endif></textarea><button type="submit" class="btn btn-primary w-full">Approve</button></form>
+                @elseif($canDecideDocument && $document->type === 'purchase_request' && ! $purchaseRequestApprovalReady)
+                    <div class="document-readiness-item readiness-state-blocked">
+                        <strong>Approval locked</strong>
+                        <p>Verify supplier quote evidence before approving this purchase request.</p>
+                    </div>
+                @endif
+                @if($canRejectDocument)
                     <form method="post" action="{{ route('documents.reject', $document) }}" class="space-y-2"><input type="hidden" name="_token" value="{{ csrf_token() }}"><textarea class="form-input" name="comment" placeholder="Rejection reason"></textarea><button type="submit" class="btn btn-danger w-full">Reject</button></form>
                 @endif
                 @if($canMarkIssued)
@@ -357,7 +399,7 @@
                         <select class="form-input" name="category">
                             <option value="supporting_document">Supporting document</option>
                             <option value="customer_po">PO received</option>
-                            <option value="supplier_quote">Supplier quotation</option>
+                            <option value="supplier_quote" @selected(in_array($document->type, ['purchase_request', 'supplier_quotation'], true))>Supplier quotation</option>
                             <option value="delivery_evidence">Delivery / service evidence</option>
                             <option value="invoice_copy" @selected($document->type === 'supplier_invoice')>Invoice copy</option>
                             <option value="delivery_order">Delivery order</option>

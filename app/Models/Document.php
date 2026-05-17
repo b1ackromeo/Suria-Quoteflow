@@ -273,6 +273,7 @@ class Document extends Model
             'progress_claim' => 'Progress claim',
             'purchase_request' => 'From purchase request',
             'supplier_quote' => 'From supplier quotation',
+            'quote_exception' => 'Quote exception',
             'direct_supplier_po' => 'Direct purchase order',
             'supplier_po' => 'From purchase order',
             'goods_receipt' => 'From receiving record',

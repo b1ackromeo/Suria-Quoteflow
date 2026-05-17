@@ -59,6 +59,10 @@
             'progress_claim' => ['title' => 'Progress claim', 'copy' => 'Use for the current billing stage.'],
             'direct_invoice' => ['title' => 'Direct invoice', 'copy' => 'Use only when billing is allowed without a recorded PO. Add a reason.'],
         ],
+        'purchase_request' => [
+            'supplier_quote' => ['title' => 'Supplier quote attached', 'copy' => 'Normal approval path. Upload the supplier quote for review.'],
+            'quote_exception' => ['title' => 'Quote exception', 'copy' => 'Use only when approval can proceed without a supplier quote. Add a reason.'],
+        ],
         'supplier_po' => [
             'supplier_quote' => ['title' => 'From supplier quotation', 'copy' => 'Order from an accepted supplier quote.'],
             'purchase_request' => ['title' => 'From purchase request', 'copy' => 'Order from an approved internal request.'],
@@ -80,6 +84,8 @@
         default => [],
     };
     $selectedSourceType = old('source_type', $document->source_type ?: array_key_first($sourceOptions));
+    $acceptsSupplierQuoteUpload = in_array($meta['type'], ['purchase_request', 'supplier_quotation'], true) && ! $document->exists;
+    $usesPurchaseRequestQuoteCapture = $meta['type'] === 'purchase_request' && ! $document->exists;
     $conditionHeading = $isPoDocument
         ? ($isSupplierPo ? 'Supplier may invoice when' : 'Customer may be invoiced when')
         : ($isQuotationDocument ? 'Billing condition' : 'Invoice condition');
@@ -153,6 +159,7 @@
     $studioHeroCopy = match (true) {
         $isQuotationDocument => 'Enter the quote, terms, items, and scope. The preview updates as you work.',
         $meta['type'] === 'customer_po' => 'Record the customer PO, source, dates, site, and billing condition.',
+        $meta['type'] === 'purchase_request' => 'Attach the supplier quote evidence before approval, or record a quote exception reason.',
         $meta['type'] === 'supplier_po' => 'Prepare the PO from an approved source or a direct exception with a reason.',
         $isGoodsReceipt => 'Start from the issued PO, then record received goods or accepted services.',
         $meta['type'] === 'supplier_invoice' => 'Record invoice details now. Upload the supplier file after saving.',
@@ -192,16 +199,23 @@
     $livePreviewTitle = match (true) {
         $isQuotationDocument => 'Quotation Preview',
         $meta['type'] === 'customer_po' => 'PO Received Preview',
+        $usesPurchaseRequestQuoteCapture => 'Supplier Quote OCR',
         $meta['type'] === 'supplier_po' => 'Purchase Order Preview',
         $isGoodsReceipt => 'Goods Receipt Preview',
         $meta['type'] === 'supplier_invoice' => 'Supplier Invoice File',
         $isInvoiceDocument => 'Invoice Preview',
         default => 'Document Preview',
     };
-    $livePreviewKicker = $meta['type'] === 'supplier_invoice' ? 'Incoming file preview' : ($isGoodsReceipt ? 'Receiving record preview' : 'Live document preview');
+    $livePreviewKicker = match (true) {
+        $usesPurchaseRequestQuoteCapture => 'Quote evidence capture',
+        $meta['type'] === 'supplier_invoice' => 'Incoming file preview',
+        $isGoodsReceipt => 'Receiving record preview',
+        default => 'Live document preview',
+    };
     $livePreviewCopy = match (true) {
         $isQuotationDocument => 'This is what the customer will review after the quotation is saved or exported to PDF.',
         $meta['type'] === 'customer_po' => 'This is the PO received record the team can use for delivery, invoicing, attachments, and workflow follow-up.',
+        $usesPurchaseRequestQuoteCapture => 'Select the supplier quotation PDF or image on this page. Save the request to run OCR, then verify the draft before approval.',
         $meta['type'] === 'supplier_po' => 'This is the purchase order preview the team will approve and issue to the supplier.',
         $isGoodsReceipt => 'This is the receiving record used later for supplier invoice matching. It does not show pricing, tax, or payment terms.',
         $meta['type'] === 'supplier_invoice' => 'Save the supplier invoice record, then upload the supplier PDF or invoice image for preview, matching, and payment tracking.',
@@ -231,6 +245,7 @@
         'customer_po' => 'How was this PO received?',
         'supplier_po' => 'How is this purchase order created?',
         'customer_invoice' => 'How is this invoice created?',
+        'purchase_request' => 'What supports this purchase request?',
         'goods_receipt' => 'What is this receipt recorded against?',
         'supplier_invoice' => 'How should this invoice be matched?',
         default => 'How is this '.$documentNoun.' created?',
@@ -238,6 +253,7 @@
     $sourceNotePlaceholder = match ($meta['type']) {
         'customer_po' => 'Example: Customer sent PO directly under existing rate card; quotation not required.',
         'supplier_po' => 'Example: Urgent replacement part approved by manager before supplier quotation was received.',
+        'purchase_request' => 'Example: emergency repair approved before supplier quotation; quote to follow after approval.',
         'customer_invoice' => 'Example: Customer approved billing by email; no PO is required for this job.',
         'goods_receipt' => 'Example: Delivery arrived before PO was available; manager approved direct receipt.',
         'supplier_invoice' => 'Example: Utility bill does not require PO or receipt matching; approved by finance lead.',
@@ -246,6 +262,7 @@
     $sourceNoteHelper = match ($meta['type']) {
         'customer_po' => 'Required for direct PO received. Explain why no quotation is used.',
         'supplier_po' => 'Required for direct purchase order. Explain why no supplier quotation or purchase request is used.',
+        'purchase_request' => 'Required for quote exceptions. Explain why approval can proceed without supplier quote evidence.',
         'customer_invoice' => 'Required for direct invoice. Explain why billing is allowed without a recorded PO.',
         'goods_receipt' => 'Required for direct receipt. Normal receiving must use an issued purchase order.',
         'supplier_invoice' => 'Required for direct supplier invoice. Explain why no PO or receipt is required.',
@@ -262,7 +279,7 @@
     >
 @endif
 
-<form method="post" action="{{ $document->exists ? route('documents.update', $document) : route('documents.store', $meta['slug']) }}" class="{{ $usesDocumentStudio ? 'workspace-pane document-studio-form min-w-0 space-y-4' : 'min-w-0 space-y-6' }} @if($isGoodsReceipt) receiving-record-form @endif">
+<form method="post" enctype="multipart/form-data" action="{{ $document->exists ? route('documents.update', $document) : route('documents.store', $meta['slug']) }}" class="{{ $usesDocumentStudio ? 'workspace-pane document-studio-form min-w-0 space-y-4' : 'min-w-0 space-y-6' }} @if($isGoodsReceipt) receiving-record-form @endif">
     @csrf
     @if($document->exists)
         @method('put')
@@ -304,6 +321,8 @@
                         Normal receiving uses an issued supplier PO. Direct receipt needs a reason.
                     @elseif($meta['type'] === 'supplier_po')
                         Choose the approved source. Direct purchase order needs a reason.
+                    @elseif($meta['type'] === 'purchase_request')
+                        Attach supplier quote evidence for approval, or record a quote exception reason.
                     @elseif($meta['type'] === 'supplier_invoice')
                         Match to a receipt, match to a PO, or record an approved direct exception.
                     @elseif($meta['type'] === 'customer_po')
@@ -328,6 +347,29 @@
                     @endforeach
                 </div>
             </div>
+            @if($acceptsSupplierQuoteUpload)
+                <div class="mt-4 rounded-lg border border-blue-200 bg-blue-50/70 p-4">
+                    <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center">
+                        <div class="min-w-0">
+                            <p class="studio-section-kicker">Supplier quote evidence</p>
+                            <h3 class="text-base font-bold text-slate-950">Upload the supplier PDF or image</h3>
+                            <p class="mt-1 text-sm font-semibold leading-6 text-slate-600">
+                                @if($meta['type'] === 'purchase_request')
+                                    Approvers review this source file before approving the request.
+                                @else
+                                    QuoteFlow creates the record and opens the OCR draft for review.
+                                @endif
+                            </p>
+                        </div>
+                        <label class="form-label m-0">Supplier quote file
+                            <input class="form-input file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-bold file:text-slate-700 hover:file:bg-slate-200" type="file" name="source_attachment" accept="application/pdf,image/*">
+                        </label>
+                    </div>
+                    @error('source_attachment')
+                        <p class="mt-2 text-sm font-semibold text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+            @endif
             <label class="form-label">Source note
                 <textarea class="form-input {{ $isGoodsReceipt ? 'min-h-16' : 'min-h-24' }}" name="source_note" placeholder="{{ $sourceNotePlaceholder }}">{{ old('source_note', $document->source_note) }}</textarea>
                 <span class="mt-1 block text-xs font-semibold text-slate-500">{{ $sourceNoteHelper }}</span>
@@ -716,7 +758,47 @@
             <p class="mt-1 text-sm font-semibold text-slate-500" @if($isGoodsReceipt) data-receipt-label="paneCopy" @endif>{{ $livePreviewCopy }}</p>
         </div>
         <div class="mx-auto max-w-[46rem]">
-            @if($meta['type'] === 'supplier_invoice')
+            @if($usesPurchaseRequestQuoteCapture)
+                <article class="supplier-invoice-intake-preview" data-pr-quote-capture-preview>
+                    <p class="document-pane-kicker">Supplier quotation source</p>
+                    <h3>OCR starts from the uploaded supplier quote</h3>
+                    <p>Choose the supplier quotation PDF or image in Step 1. After you save this purchase request, QuoteFlow uploads that file, runs local OCR when available, and opens the quote draft for verification. Approval stays locked until the quote evidence is verified or an approved quote exception is recorded.</p>
+
+                    <dl>
+                        <div>
+                            <dt>File selected</dt>
+                            <dd data-pr-quote-file-name>No supplier quote selected</dd>
+                        </div>
+                        <div>
+                            <dt>OCR timing</dt>
+                            <dd>Runs after Save purchase request</dd>
+                        </div>
+                        <div>
+                            <dt>Next step</dt>
+                            <dd>Verify extracted quote fields</dd>
+                        </div>
+                        <div>
+                            <dt>Approval rule</dt>
+                            <dd>Verified quote or quote exception</dd>
+                        </div>
+                    </dl>
+
+                    <div class="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                        <p class="text-sm font-bold text-slate-950" data-pr-quote-capture-status>Upload the supplier quote file in Step 1.</p>
+                        <p class="mt-1 text-sm font-semibold leading-6 text-slate-600">OCR is assistance only. The user verifies the draft before the request is trusted for approval.</p>
+                    </div>
+
+                    <div class="mt-4 hidden overflow-hidden rounded-lg border border-slate-200 bg-white" data-pr-quote-file-preview>
+                        <div class="border-b border-slate-200 px-4 py-3">
+                            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Selected source preview</p>
+                        </div>
+                        <iframe class="hidden h-96 w-full" data-pr-quote-pdf-preview title="Selected supplier quote PDF preview"></iframe>
+                        <div class="hidden max-h-[28rem] overflow-auto bg-slate-100 p-3" data-pr-quote-image-frame>
+                            <img class="mx-auto max-h-[26rem] w-auto rounded border border-slate-200 bg-white" data-pr-quote-image-preview alt="Selected supplier quote image preview">
+                        </div>
+                    </div>
+                </article>
+            @elseif($meta['type'] === 'supplier_invoice')
                 <article class="supplier-invoice-intake-preview">
                     <p class="document-pane-kicker">Incoming supplier document</p>
                     <h3>Upload supplier PDF or image after saving</h3>
@@ -860,6 +942,8 @@
 </template>
 
 <script>
+let purchaseRequestQuotePreviewUrl = null;
+
 function wireNamedTemplate(template, index, prefix) {
     template.querySelectorAll('[data-name]').forEach((field) => {
         field.name = `${prefix}[${index}][${field.dataset.name}]`;
@@ -1327,6 +1411,66 @@ function syncReceiptPreview() {
     lineTarget.innerHTML = lineRows || `<tr><td colspan="6" class="px-3 py-6 text-center font-semibold text-slate-500">${escapeHtml(labels.emptyLineCopy)}</td></tr>`;
 }
 
+function syncPurchaseRequestQuoteCapture() {
+    const input = document.querySelector('[name="source_attachment"]');
+    const preview = document.querySelector('[data-pr-quote-capture-preview]');
+    if (!input || !preview) return;
+
+    const file = input.files?.[0] || null;
+    const fileName = preview.querySelector('[data-pr-quote-file-name]');
+    const status = preview.querySelector('[data-pr-quote-capture-status]');
+    const frame = preview.querySelector('[data-pr-quote-file-preview]');
+    const pdf = preview.querySelector('[data-pr-quote-pdf-preview]');
+    const imageFrame = preview.querySelector('[data-pr-quote-image-frame]');
+    const image = preview.querySelector('[data-pr-quote-image-preview]');
+
+    if (purchaseRequestQuotePreviewUrl) {
+        URL.revokeObjectURL(purchaseRequestQuotePreviewUrl);
+        purchaseRequestQuotePreviewUrl = null;
+    }
+
+    if (!file) {
+        if (fileName) fileName.textContent = 'No supplier quote selected';
+        if (status) status.textContent = 'Upload the supplier quote file in Step 1.';
+        frame?.classList.add('hidden');
+        pdf?.classList.add('hidden');
+        imageFrame?.classList.add('hidden');
+        if (pdf) pdf.removeAttribute('src');
+        if (image) image.removeAttribute('src');
+        return;
+    }
+
+    if (fileName) fileName.textContent = file.name;
+    if (status) status.textContent = 'Save purchase request to upload this file and run OCR.';
+
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const isImage = file.type.startsWith('image/');
+
+    if (!isPdf && !isImage) {
+        frame?.classList.add('hidden');
+        pdf?.classList.add('hidden');
+        imageFrame?.classList.add('hidden');
+        return;
+    }
+
+    purchaseRequestQuotePreviewUrl = URL.createObjectURL(file);
+    frame?.classList.remove('hidden');
+
+    if (isPdf) {
+        if (pdf) {
+            pdf.src = purchaseRequestQuotePreviewUrl;
+            pdf.classList.remove('hidden');
+        }
+        imageFrame?.classList.add('hidden');
+        if (image) image.removeAttribute('src');
+    } else {
+        if (image) image.src = purchaseRequestQuotePreviewUrl;
+        imageFrame?.classList.remove('hidden');
+        pdf?.classList.add('hidden');
+        if (pdf) pdf.removeAttribute('src');
+    }
+}
+
 function refreshDocumentPreview() {
     updateDocumentTotals();
     updateReceiptQuantities();
@@ -1353,6 +1497,7 @@ document.querySelector('#line-items')?.addEventListener('change', function (even
 document.querySelector('#line-items')?.addEventListener('input', refreshDocumentPreview);
 document.querySelector('[name="document_tax_rate"]')?.addEventListener('input', refreshDocumentPreview);
 document.querySelector('[name="currency"]')?.addEventListener('input', refreshDocumentPreview);
+document.querySelector('[name="source_attachment"]')?.addEventListener('change', syncPurchaseRequestQuoteCapture);
 document.querySelector('[data-party-select]')?.addEventListener('change', function () {
     filterRelatedDocuments();
     refreshDocumentPreview();
@@ -1445,5 +1590,6 @@ document.querySelector('form')?.addEventListener('change', refreshDocumentPrevie
 toggleBillingStages();
 filterRelatedDocuments();
 refreshDocumentPreview();
+syncPurchaseRequestQuoteCapture();
 </script>
 @endsection

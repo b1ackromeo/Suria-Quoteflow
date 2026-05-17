@@ -1666,6 +1666,208 @@ class DocumentWorkflowTest extends TestCase
         $this->assertSame('2026-05-15', $supplierQuotation->refresh()->issue_date->toDateString());
     }
 
+    public function test_purchase_request_submission_requires_supplier_quote_or_quote_exception(): void
+    {
+        $purchaseRequest = $this->createDocument('purchase-requests', [
+            'supplier_id' => $this->supplier->id,
+            'external_reference' => 'PR-QUOTE-GATE',
+            'description' => 'Purchase request without supplier quote evidence',
+            'quantity' => 1,
+            'unit_price' => 450,
+        ]);
+
+        $this->from(route('documents.show', $purchaseRequest))
+            ->post(route('documents.submit', $purchaseRequest))
+            ->assertRedirect(route('documents.show', $purchaseRequest))
+            ->assertSessionHasErrors('approval');
+
+        $this->assertSame('draft', $purchaseRequest->refresh()->status);
+
+        $payload = $this->documentPayload('purchase-requests', [
+            'supplier_id' => $this->supplier->id,
+            'source_type' => 'quote_exception',
+            'external_reference' => 'PR-EXCEPTION-NO-REASON',
+            'description' => 'Purchase request exception without reason',
+            'quantity' => 1,
+            'unit_price' => 450,
+        ]);
+
+        $this->post(route('documents.store', 'purchase-requests'), $payload)
+            ->assertSessionHasErrors('source_note');
+    }
+
+    public function test_purchase_request_supplier_quote_ocr_must_be_verified_before_approval(): void
+    {
+        Storage::fake('local');
+        $this->fakeTesseractExtractor([
+            'supplier_name' => 'Best Supplies Sdn Bhd',
+            'quote_number' => 'SQ-BEST-PR-009',
+            'quote_date' => '2026-05-14',
+            'valid_until' => '2026-06-13',
+            'subtotal' => '2430.00',
+            'tax_total' => '0.00',
+            'total' => '2430.00',
+            'payment_terms' => '30 days from invoice date',
+            'items' => [
+                [
+                    'description' => 'Operations hardware kit',
+                    'quantity' => '5',
+                    'unit' => 'set',
+                    'unit_price' => '450.00',
+                    'tax_rate' => '0',
+                ],
+                [
+                    'description' => 'Service coordination',
+                    'quantity' => '1',
+                    'unit' => 'job',
+                    'unit_price' => '180.00',
+                    'tax_rate' => '0',
+                ],
+            ],
+        ], 'Supplier quotation OCR text for purchase request approval');
+
+        $createForm = $this->get(route('documents.create', 'purchase-requests'));
+        $createForm->assertOk();
+        $createForm->assertSee('Supplier Quote OCR');
+        $createForm->assertSee('OCR starts from the uploaded supplier quote');
+        $createForm->assertSee('Runs after Save purchase request');
+        $createForm->assertSee('data-pr-quote-capture-preview', false);
+        $createForm->assertSee('name="source_attachment"', false);
+
+        $payload = $this->documentPayload('purchase-requests', [
+            'supplier_id' => $this->supplier->id,
+            'source_type' => 'supplier_quote',
+            'external_reference' => 'PR-QUOTE-OCR',
+            'description' => 'Purchase request backed by supplier quote',
+            'quantity' => 1,
+            'unit_price' => 1,
+        ]);
+        $payload['source_attachment'] = UploadedFile::fake()->image('supplier-quote-for-pr.jpg', 900, 1200);
+
+        $this->post(route('documents.store', 'purchase-requests'), $payload)
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Purchase Request created. Quote OCR draft is ready for verification.');
+
+        $purchaseRequest = Document::where('external_reference', 'PR-QUOTE-OCR')->firstOrFail();
+        $attachment = Attachment::where('document_id', $purchaseRequest->id)
+            ->where('category', 'supplier_quote')
+            ->firstOrFail();
+        $extraction = AttachmentExtraction::where('attachment_id', $attachment->id)->firstOrFail();
+
+        $this->assertSame('processed', $extraction->status);
+        $this->assertSame('SQ-BEST-PR-009', $extraction->extracted_fields['quote_number']);
+
+        $this->post(route('documents.submit', $purchaseRequest))
+            ->assertRedirect();
+        $this->assertSame('pending_approval', $purchaseRequest->refresh()->status);
+
+        $this->from(route('documents.show', $purchaseRequest))
+            ->post(route('documents.approve', $purchaseRequest), [
+                'comment' => 'Trying to approve before quote verification.',
+            ])
+            ->assertRedirect(route('documents.show', $purchaseRequest))
+            ->assertSessionHasErrors('approval');
+        $this->assertSame('pending_approval', $purchaseRequest->refresh()->status);
+
+        $show = $this->get(route('documents.show', $purchaseRequest));
+        $show->assertOk();
+        $show->assertSee('Supplier quote evidence');
+        $show->assertSee('Quote OCR ready');
+        $show->assertSee('Verify supplier quote evidence');
+
+        $this->put(route('attachment-extractions.verify', $extraction), [
+            'fields' => [
+                'supplier_name' => 'Best Supplies Sdn Bhd',
+                'quote_number' => 'SQ-BEST-PR-009',
+                'quote_date' => '2026-05-14',
+                'valid_until' => '2026-06-13',
+                'subtotal' => '2430.00',
+                'tax_total' => '0.00',
+                'total' => '2430.00',
+                'payment_terms' => '30 days from invoice date',
+            ],
+            'items' => [
+                [
+                    'description' => 'Operations hardware kit',
+                    'quantity' => '5',
+                    'unit' => 'set',
+                    'unit_price' => '450.00',
+                    'tax_rate' => '0',
+                ],
+                [
+                    'description' => 'Service coordination',
+                    'quantity' => '1',
+                    'unit' => 'job',
+                    'unit_price' => '180.00',
+                    'tax_rate' => '0',
+                ],
+            ],
+            'supplier_confirmed' => '1',
+            'recorded_total_confirmed' => '1',
+            'verification_notes' => 'Supplier quote checked before PR approval.',
+        ])->assertRedirect()
+            ->assertSessionHas('status', 'Supplier quote evidence verified.');
+
+        $this->assertSame('PR-QUOTE-OCR', $purchaseRequest->refresh()->external_reference);
+        $this->assertSame('verified', $extraction->refresh()->status);
+        $this->assertDatabaseHas('audit_trails', [
+            'action' => 'purchase_request_quote_verified',
+            'auditable_type' => AttachmentExtraction::class,
+            'auditable_id' => $extraction->id,
+        ]);
+
+        $this->post(route('documents.approve', $purchaseRequest), [
+            'comment' => 'Approved after checking verified supplier quote evidence.',
+        ])->assertRedirect();
+        $this->assertSame('approved', $purchaseRequest->refresh()->status);
+
+        $supplierQuotationForm = $this->get(route('documents.create', [
+            'module' => 'supplier-quotations',
+            'source_document_id' => $purchaseRequest->id,
+        ]));
+        $supplierQuotationForm->assertOk();
+        $supplierQuotationForm->assertSee('SQ-BEST-PR-009');
+        $supplierQuotationForm->assertSee('Operations hardware kit');
+        $supplierQuotationForm->assertSee('Service coordination');
+    }
+
+    public function test_purchase_request_quote_exception_requires_approver_comment(): void
+    {
+        $purchaseRequest = $this->createDocument('purchase-requests', [
+            'supplier_id' => $this->supplier->id,
+            'source_type' => 'quote_exception',
+            'source_note' => 'Emergency replacement approved before supplier quotation was available.',
+            'external_reference' => 'PR-QUOTE-EXCEPTION',
+            'description' => 'Emergency purchase request',
+            'quantity' => 1,
+            'unit_price' => 450,
+        ]);
+
+        $this->submitForApproval($purchaseRequest);
+
+        $show = $this->get(route('documents.show', $purchaseRequest));
+        $show->assertOk();
+        $show->assertSee('Quote exception recorded');
+        $show->assertSee('Approval comment required for quote exception');
+
+        $this->from(route('documents.show', $purchaseRequest))
+            ->post(route('documents.approve', $purchaseRequest))
+            ->assertRedirect(route('documents.show', $purchaseRequest))
+            ->assertSessionHasErrors('comment');
+        $this->assertSame('pending_approval', $purchaseRequest->refresh()->status);
+
+        $this->post(route('documents.approve', $purchaseRequest), [
+            'comment' => 'Approved exception because urgent delivery is required before formal quote arrives.',
+        ])->assertRedirect();
+
+        $this->assertSame('approved', $purchaseRequest->refresh()->status);
+        $this->assertDatabaseHas('approvals', [
+            'document_id' => $purchaseRequest->id,
+            'status' => 'approved',
+            'comment' => 'Approved exception because urgent delivery is required before formal quote arrives.',
+        ]);
+    }
+
     public function test_supplier_invoice_submission_requires_invoice_copy_and_verified_details(): void
     {
         Storage::fake('local');
@@ -2786,6 +2988,8 @@ class DocumentWorkflowTest extends TestCase
 
     private function submitForApproval(Document $document): void
     {
+        $this->ensurePurchaseRequestQuoteEvidence($document);
+
         $this->post(route('documents.submit', $document))
             ->assertRedirect();
 
@@ -2810,6 +3014,65 @@ class DocumentWorkflowTest extends TestCase
         $approval = Approval::where('document_id', $document->id)->firstOrFail();
         $this->assertSame('approved', $approval->status);
         $this->assertSame($this->admin->id, $approval->decided_by);
+    }
+
+    private function ensurePurchaseRequestQuoteEvidence(Document $document): void
+    {
+        if ($document->type !== 'purchase_request' || $document->source_type === 'quote_exception') {
+            return;
+        }
+
+        $document->loadMissing('attachments.extraction');
+
+        $hasVerifiedQuote = $document->attachments
+            ->where('category', 'supplier_quote')
+            ->contains(fn (Attachment $attachment) => $attachment->extraction?->status === 'verified');
+
+        if ($hasVerifiedQuote) {
+            return;
+        }
+
+        $attachment = $document->attachments
+            ->firstWhere('category', 'supplier_quote')
+            ?: Attachment::create([
+                'document_id' => $document->id,
+                'category' => 'supplier_quote',
+                'original_name' => 'supplier-quote-'.$document->id.'.pdf',
+                'path' => 'attachments/test/supplier-quote-'.$document->id.'.pdf',
+                'mime_type' => 'application/pdf',
+                'size' => 1024,
+                'uploaded_by' => $this->admin->id,
+            ]);
+
+        AttachmentExtraction::updateOrCreate(
+            ['attachment_id' => $attachment->id],
+            [
+                'document_id' => $document->id,
+                'status' => 'verified',
+                'engine' => 'feature-test',
+                'language' => 'eng',
+                'raw_text' => 'Feature test supplier quote evidence.',
+                'extracted_fields' => [
+                    'supplier_name' => $document->supplier?->name,
+                    'quote_number' => $document->external_reference,
+                    'quote_date' => optional($document->issue_date)->toDateString(),
+                    'total' => number_format((float) $document->total, 2, '.', ''),
+                ],
+                'verified_fields' => [
+                    'supplier_name' => $document->supplier?->name,
+                    'quote_number' => $document->external_reference,
+                    'quote_date' => optional($document->issue_date)->toDateString(),
+                    'total' => number_format((float) $document->total, 2, '.', ''),
+                ],
+                'verification_method' => 'manual',
+                'verification_notes' => 'Feature test supplier quote evidence.',
+                'supplier_confirmed' => true,
+                'recorded_total_confirmed' => true,
+                'error_message' => null,
+                'verified_by' => $this->admin->id,
+                'verified_at' => now(),
+            ]
+        );
     }
 
     private function uploadAndVerifySupplierInvoiceExtraction(Document $document, array $fields): void

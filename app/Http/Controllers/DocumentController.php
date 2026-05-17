@@ -7,6 +7,7 @@ use App\Models\AttachmentExtraction;
 use App\Models\Approval;
 use App\Models\Customer;
 use App\Models\Document;
+use App\Models\DocumentItem;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Services\Documents\BusinessDocumentCaptureService;
@@ -19,6 +20,7 @@ use App\Support\SearchFilters;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -85,7 +87,7 @@ class DocumentController extends Controller
 
         $sourceId = $request->integer('source_document_id') ?: $request->integer('related_document_id');
         if ($sourceId) {
-            $sourceDocument = Document::with(['items', 'billingStages'])->find($sourceId);
+            $sourceDocument = Document::with(['items', 'billingStages', 'attachments.extraction'])->find($sourceId);
             if ($sourceDocument) {
                 $this->prefillDocumentFromSource($document, $meta, $sourceDocument);
             }
@@ -94,11 +96,12 @@ class DocumentController extends Controller
         return view('documents.form', $this->formData($meta, $document));
     }
 
-    public function store(Request $request, string $module): RedirectResponse
+    public function store(Request $request, string $module, BusinessDocumentCaptureService $extractor): RedirectResponse
     {
         $meta = Document::metaForSlug($module);
         $this->ensureWriteAccess($meta);
         $data = $this->validated($request, $meta);
+        $sourceAttachment = $request->file('source_attachment');
 
         $document = DB::transaction(function () use ($data, $meta) {
             $document = Document::create([
@@ -134,6 +137,23 @@ class DocumentController extends Controller
 
             return $document;
         });
+
+        if ($sourceAttachment instanceof UploadedFile) {
+            $attachment = $this->storeUploadedAttachment($document, $sourceAttachment, 'supplier_quote');
+            $message = $meta['singular'].' created. Supplier quote file uploaded.';
+
+            if ($this->externalDocumentExtraction->shouldAutoExtract($attachment)) {
+                $extraction = $this->storeExtractionDraft($attachment, $extractor);
+
+                if ($extraction?->status === 'processed') {
+                    $message = $meta['singular'].' created. Quote OCR draft is ready for verification.';
+                } elseif ($extraction?->status === 'failed') {
+                    $message = $meta['singular'].' created. OCR could not read the supplier quote; verify the quote details manually from the source file.';
+                }
+            }
+
+            return redirect()->route('documents.show', $document)->with('status', $message);
+        }
 
         return redirect()->route('documents.show', $document)->with('status', $meta['singular'].' created.');
     }
@@ -215,9 +235,17 @@ class DocumentController extends Controller
         abort_unless(in_array($document->status, ['draft', 'rejected'], true), 422, 'Only draft or rejected documents can be submitted.');
 
         $blockingIssues = $this->supplierInvoiceVerification->blockingIssues($document);
+        if (
+            $document->type === 'purchase_request'
+            && ! $this->hasSupplierQuoteEvidence($document)
+            && ! $this->hasSupplierQuoteException($document)
+        ) {
+            $blockingIssues[] = 'Upload the supplier quotation file, or choose Quote exception and add a reason, before submitting this purchase request for approval.';
+        }
+
         if ($blockingIssues !== []) {
             throw ValidationException::withMessages([
-                'approval' => 'This supplier invoice cannot be submitted yet. '.implode(' ', $blockingIssues),
+                'approval' => 'This document cannot be submitted yet. '.implode(' ', $blockingIssues),
             ]);
         }
 
@@ -241,6 +269,22 @@ class DocumentController extends Controller
         abort_unless($document->status === 'pending_approval', 422, 'Only pending documents can be approved.');
 
         $comment = $request->validate(['comment' => ['nullable', 'string']])['comment'] ?? null;
+        $comment = is_string($comment) ? trim($comment) : $comment;
+
+        if ($document->type === 'purchase_request') {
+            if ($this->hasSupplierQuoteException($document)) {
+                if (! filled($comment)) {
+                    throw ValidationException::withMessages([
+                        'comment' => 'Add an approval comment confirming this quote exception.',
+                    ]);
+                }
+            } elseif (! $this->hasVerifiedSupplierQuoteEvidence($document)) {
+                throw ValidationException::withMessages([
+                    'approval' => 'Verify the supplier quote evidence before approving this purchase request.',
+                ]);
+            }
+        }
+
         $before = $document->only(['status', 'approved_by', 'approved_at']);
 
         DB::transaction(function () use ($document, $comment) {
@@ -380,21 +424,11 @@ class DocumentController extends Controller
         ]);
 
         $file = $data['attachment'];
-        $name = Str::uuid().'-'.Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME));
-        $extension = $file->getClientOriginalExtension();
-        $path = $file->storeAs('attachments/'.$document->id, $name.($extension ? '.'.$extension : ''));
-
-        $attachment = Attachment::create([
-            'document_id' => $document->id,
-            'category' => $data['category'] ?? 'supporting_document',
-            'original_name' => $file->getClientOriginalName(),
-            'path' => $path,
-            'mime_type' => $file->getMimeType(),
-            'size' => $file->getSize(),
-            'uploaded_by' => auth()->id(),
-        ]);
-
-        Audit::record('attachment_uploaded', $attachment, null, $attachment->toArray());
+        $attachment = $this->storeUploadedAttachment(
+            $document,
+            $file,
+            $data['category'] ?? 'supporting_document'
+        );
 
         $message = 'Attachment uploaded.';
 
@@ -411,6 +445,27 @@ class DocumentController extends Controller
         return back()->with('status', $message);
     }
 
+    private function storeUploadedAttachment(Document $document, UploadedFile $file, string $category): Attachment
+    {
+        $name = Str::uuid().'-'.Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME));
+        $extension = $file->getClientOriginalExtension();
+        $path = $file->storeAs('attachments/'.$document->id, $name.($extension ? '.'.$extension : ''));
+
+        $attachment = Attachment::create([
+            'document_id' => $document->id,
+            'category' => $category,
+            'original_name' => $file->getClientOriginalName(),
+            'path' => $path,
+            'mime_type' => $file->getMimeType(),
+            'size' => $file->getSize(),
+            'uploaded_by' => auth()->id(),
+        ]);
+
+        Audit::record('attachment_uploaded', $attachment, null, $attachment->toArray());
+
+        return $attachment;
+    }
+
     public function extractAttachment(Attachment $attachment, BusinessDocumentCaptureService $extractor): RedirectResponse
     {
         $attachment->load('document');
@@ -418,7 +473,7 @@ class DocumentController extends Controller
 
         $meta = Document::metaForSlug(Document::slugForType($attachment->document->type));
         $this->ensureWriteAccess($meta);
-        abort_unless($this->externalDocumentExtraction->supportsAssistedCapture($attachment->document), 422, 'OCR extraction is only available for supplier invoice and supplier quotation documents.');
+        abort_unless($this->externalDocumentExtraction->supportsAssistedCapture($attachment->document), 422, 'OCR extraction is only available for purchase request, supplier invoice, and supplier quotation documents.');
 
         $extraction = $this->storeExtractionDraft($attachment, $extractor, true);
 
@@ -439,7 +494,7 @@ class DocumentController extends Controller
 
         $meta = Document::metaForSlug(Document::slugForType($document->type));
         $this->ensureWriteAccess($meta);
-        if ($document->type === 'supplier_quotation') {
+        if (in_array($document->type, ['purchase_request', 'supplier_quotation'], true)) {
             return $this->verifySupplierQuotationExtraction($request, $extraction, $document);
         }
 
@@ -746,9 +801,11 @@ class DocumentController extends Controller
                 'verified_at' => now(),
             ]);
 
-            $this->applyVerifiedSupplierQuotationFields($document, $fields, $items);
+            if ($document->type === 'supplier_quotation') {
+                $this->applyVerifiedSupplierQuotationFields($document, $fields, $items);
+            }
 
-            Audit::record('supplier_quotation_details_verified', $extraction, $before, [
+            Audit::record($document->type === 'purchase_request' ? 'purchase_request_quote_verified' : 'supplier_quotation_details_verified', $extraction, $before, [
                 'document_id' => $document->id,
                 'status' => 'verified',
                 'verified_by' => auth()->id(),
@@ -975,6 +1032,56 @@ class DocumentController extends Controller
 
         $document->setRelation('items', $sourceDocument->items->map(fn ($item) => $item->replicate(['document_id'])));
         $document->setRelation('billingStages', $sourceDocument->billingStages->map(fn ($stage) => $stage->replicate(['document_id'])));
+
+        if ($meta['type'] === 'supplier_quotation' && $sourceDocument->type === 'purchase_request') {
+            $this->prefillSupplierQuotationFromRequestQuote($document, $sourceDocument);
+        }
+    }
+
+    private function prefillSupplierQuotationFromRequestQuote(Document $document, Document $sourceDocument): void
+    {
+        $sourceDocument->loadMissing(['attachments.extraction']);
+
+        $extraction = $sourceDocument->attachments
+            ->where('category', 'supplier_quote')
+            ->map(fn (Attachment $attachment) => $attachment->extraction)
+            ->filter()
+            ->sortByDesc(fn (AttachmentExtraction $extraction) => $extraction->verified_at ?? $extraction->updated_at)
+            ->first();
+
+        if (! $extraction || $extraction->status !== 'verified') {
+            return;
+        }
+
+        $fields = $extraction->verified_fields ?? [];
+        $payload = $this->externalDocumentExtraction->supplierQuotationPayload($fields);
+
+        if ($payload !== []) {
+            $document->forceFill($payload);
+        }
+
+        $items = $this->externalDocumentExtraction->normalizeItems($fields['items'] ?? []);
+
+        if ($items !== []) {
+            $document->setRelation('items', collect($items)->map(function (array $item) {
+                $quantity = (float) ($item['quantity'] ?? 1);
+                $unitPrice = (float) ($item['unit_price'] ?? 0);
+                $taxRate = (float) ($item['tax_rate'] ?? 0);
+                $lineSubtotal = round($quantity * $unitPrice, 2);
+                $taxAmount = round($lineSubtotal * ($taxRate / 100), 2);
+
+                return new DocumentItem([
+                    'product_id' => $item['product_id'] ?? null,
+                    'description' => $item['description'],
+                    'quantity' => $quantity,
+                    'unit' => $item['unit'] ?? 'unit',
+                    'unit_price' => $unitPrice,
+                    'tax_rate' => $taxRate,
+                    'tax_amount' => $taxAmount,
+                    'line_total' => $lineSubtotal + $taxAmount,
+                ]);
+            }));
+        }
     }
 
     private function sourceTypeForRelatedDocument(string $targetType, string $sourceType): ?string
@@ -1011,6 +1118,9 @@ class DocumentController extends Controller
     private function validated(Request $request, array $meta): array
     {
         $quantityMinRule = $meta['type'] === 'goods_receipt' ? 'min:0' : 'min:0.001';
+        $sourceAttachmentRules = in_array($meta['type'], ['purchase_request', 'supplier_quotation'], true)
+            ? ['nullable', 'file', 'max:8192', 'mimes:pdf,jpg,jpeg,png,webp,bmp,tif,tiff']
+            : ['prohibited'];
 
         $data = $request->validate([
             'external_reference' => ['nullable', 'string', 'max:255'],
@@ -1033,6 +1143,7 @@ class DocumentController extends Controller
             'billing_stage_name' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
             'terms' => ['nullable', 'string'],
+            'source_attachment' => $sourceAttachmentRules,
             'items' => ['required', 'array'],
             'items.*.product_id' => ['nullable', 'exists:products,id'],
             'items.*.description' => ['nullable', 'string', 'max:255'],
@@ -1055,6 +1166,10 @@ class DocumentController extends Controller
         $data['source_type'] = is_string($data['source_type'] ?? null) ? trim($data['source_type']) : ($data['source_type'] ?? null);
         $data['source_note'] = is_string($data['source_note'] ?? null) ? trim($data['source_note']) : ($data['source_note'] ?? null);
 
+        if ($meta['type'] === 'purchase_request' && empty($data['source_type'])) {
+            $data['source_type'] = 'supplier_quote';
+        }
+
         if ($meta['type'] === 'goods_receipt' && ($data['source_type'] ?? null) !== 'direct_receipt') {
             $data['source_type'] = 'supplier_po';
         }
@@ -1070,6 +1185,12 @@ class DocumentController extends Controller
         if (in_array($data['source_type'] ?? null, self::DIRECT_EXCEPTION_SOURCE_TYPES, true) && ! filled($data['source_note'] ?? null)) {
             throw ValidationException::withMessages([
                 'source_note' => $this->directExceptionSourceNoteMessage($data['source_type']),
+            ]);
+        }
+
+        if ($meta['type'] === 'purchase_request' && ($data['source_type'] ?? null) === 'quote_exception' && ! filled($data['source_note'] ?? null)) {
+            throw ValidationException::withMessages([
+                'source_note' => 'Add the quote exception reason before saving this purchase request.',
             ]);
         }
 
@@ -1147,6 +1268,28 @@ class DocumentController extends Controller
             'direct_supplier_invoice' => 'Add a reason for this direct supplier invoice.',
             default => 'Add a reason for this direct exception.',
         };
+    }
+
+    private function hasSupplierQuoteEvidence(Document $document): bool
+    {
+        $document->loadMissing('attachments');
+
+        return $document->attachments
+            ->contains(fn (Attachment $attachment) => $attachment->category === 'supplier_quote');
+    }
+
+    private function hasVerifiedSupplierQuoteEvidence(Document $document): bool
+    {
+        $document->loadMissing('attachments.extraction');
+
+        return $document->attachments
+            ->where('category', 'supplier_quote')
+            ->contains(fn (Attachment $attachment) => $attachment->extraction?->status === 'verified');
+    }
+
+    private function hasSupplierQuoteException(Document $document): bool
+    {
+        return $document->source_type === 'quote_exception' && filled($document->source_note);
     }
 
     private function syncItems(Document $document, array $items, ?float $documentTaxRate = null): void

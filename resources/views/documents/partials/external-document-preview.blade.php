@@ -3,12 +3,13 @@
     $currency = strtoupper($document->currency ?: 'MYR');
     $items = $document->items ?? collect();
     $previewOnly = $previewOnly ?? false;
-    $isSupplierQuotation = $document->type === 'supplier_quotation';
+    $usesSupplierQuoteCapture = in_array($document->type, ['purchase_request', 'supplier_quotation'], true);
     $extractionPolicy = app(\App\Services\Documents\ExternalDocumentExtractionService::class);
 
     $categoryPriority = match ($document->type) {
         'customer_po' => ['customer_po', 'supporting_document'],
         'supplier_quotation' => ['supplier_quote', 'supporting_document'],
+        'purchase_request' => ['supplier_quote', 'supporting_document'],
         'goods_receipt' => ['delivery_order', 'service_report', 'uat_document', 'installation_report', 'completion_photo', 'delivery_evidence', 'supporting_document'],
         default => ['supporting_document', 'email_approval'],
     };
@@ -26,9 +27,9 @@
     $canVerifyExtraction = in_array(auth()->user()?->role, ['admin', 'manager', 'procurement', 'accounts'], true);
     $extractedFields = $extraction?->extracted_fields ?? [];
     $verifiedFields = $extraction?->verified_fields ?? [];
-    $quoteFieldLabels = $isSupplierQuotation ? $extractionPolicy->fieldLabels($document) : [];
-    $manualFields = $isSupplierQuotation ? $extractionPolicy->manualFields($document) : [];
-    $manualItems = $isSupplierQuotation ? $extractionPolicy->manualItems($document) : [];
+    $quoteFieldLabels = $usesSupplierQuoteCapture ? $extractionPolicy->fieldLabels($document) : [];
+    $manualFields = $usesSupplierQuoteCapture ? $extractionPolicy->manualFields($document) : [];
+    $manualItems = $usesSupplierQuoteCapture ? $extractionPolicy->manualItems($document) : [];
     $quoteExtractionItems = collect(old('items', $verifiedFields['items'] ?? $extractedFields['items'] ?? $manualItems))->values();
     $verificationMethod = $extraction?->verification_method ?: ($extraction?->status === 'failed' ? 'manual' : 'ocr_assisted');
     $verificationMethodLabel = match ($verificationMethod) {
@@ -40,7 +41,7 @@
     $previewTitle = match ($document->type) {
         'customer_po' => 'Customer PO received',
         'supplier_quotation' => 'Supplier quotation received',
-        'purchase_request' => 'Purchase request record',
+        'purchase_request' => $primaryAttachment?->category === 'supplier_quote' ? 'Supplier quote evidence' : 'Purchase request record',
         'goods_receipt' => 'Receiving evidence record',
         default => 'Received document record',
     };
@@ -48,6 +49,7 @@
     $fileInstruction = match ($document->type) {
         'customer_po' => 'Upload the customer PO file as PO received so the team can review the customer-issued document.',
         'supplier_quotation' => 'Upload the supplier quotation PDF or image so procurement can review the supplier-issued offer.',
+        'purchase_request' => 'Upload the supplier quotation PDF or image before approval, or record a quote exception reason on the request.',
         'goods_receipt' => 'Upload delivery order for material receipts, or service report/UAT evidence for service acceptance.',
         default => 'Upload supporting evidence so the request can be reviewed with the source document.',
     };
@@ -61,6 +63,7 @@
     $referenceLabel = match ($document->type) {
         'customer_po' => 'Customer PO no.',
         'supplier_quotation' => 'Supplier quote no.',
+        'purchase_request' => $primaryAttachment?->category === 'supplier_quote' ? 'Supplier quote no.' : 'Request ref',
         'goods_receipt' => 'Evidence reference',
         default => 'Reference',
     };
@@ -69,6 +72,7 @@
         'customer_po' => 'Date received',
         'goods_receipt' => 'Recorded date',
         'supplier_quotation' => 'Quote date',
+        'purchase_request' => $primaryAttachment?->category === 'supplier_quote' ? 'Quote date' : 'Request date',
         default => 'Request date',
     };
 @endphp
@@ -113,7 +117,7 @@
                         <span class="external-document-file-count">{{ $supportingAttachments->count() }} supporting file{{ $supportingAttachments->count() === 1 ? '' : 's' }}</span>
                     @endif
 
-                    @if($isSupplierQuotation && ! $previewOnly)
+                    @if($usesSupplierQuoteCapture && ! $previewOnly)
                         @if($extraction?->status === 'verified')
                             <span class="supplier-invoice-extraction-state is-verified">Verified</span>
                         @elseif($extraction?->status === 'processed')
@@ -149,12 +153,12 @@
             @endif
         </section>
 
-        @if($isSupplierQuotation && ! $previewOnly)
+        @if($usesSupplierQuoteCapture && ! $previewOnly)
             <section class="supplier-invoice-extraction-panel external-document-extraction-panel">
                 <div class="supplier-invoice-extraction-heading">
                     <div>
                         <p class="document-pane-kicker">Assisted capture</p>
-                        <h4>Supplier quote details</h4>
+                        <h4>{{ $document->type === 'purchase_request' ? 'Supplier quote evidence' : 'Supplier quote details' }}</h4>
                     </div>
                     @if($extraction?->verified_at)
                         <span>{{ $verificationMethodLabel }} verification · {{ $extraction->verified_at->format('d M Y, g:i A') }}</span>
@@ -162,7 +166,7 @@
                 </div>
 
                 @if(! $extraction)
-                    <p class="supplier-invoice-extraction-note">Run OCR to prepare a draft from this supplier quote. Review and verify the fields before using the quote for purchasing.</p>
+                    <p class="supplier-invoice-extraction-note">{{ $document->type === 'purchase_request' ? 'Run OCR to prepare a draft from the supplier quote. Verify the fields before this request is approved.' : 'Run OCR to prepare a draft from this supplier quote. Review and verify the fields before using the quote for purchasing.' }}</p>
                 @else
                     @if($extraction->status === 'failed')
                         <div class="supplier-invoice-extraction-error">
@@ -220,7 +224,7 @@
 
                         <label class="flex items-start gap-2 text-sm font-semibold text-slate-700">
                             <input type="checkbox" name="supplier_confirmed" value="1" class="mt-1" @checked(old('supplier_confirmed', $extraction->supplier_confirmed)) @disabled($extraction->status === 'verified')>
-                            <span>Supplier on the quote matches this supplier record.</span>
+                            <span>{{ $document->type === 'purchase_request' ? 'Supplier on the quote matches the requested supplier.' : 'Supplier on the quote matches this supplier record.' }}</span>
                         </label>
                         <label class="flex items-start gap-2 text-sm font-semibold text-slate-700">
                             <input type="checkbox" name="recorded_total_confirmed" value="1" class="mt-1" @checked(old('recorded_total_confirmed', $extraction->recorded_total_confirmed)) @disabled($extraction->status === 'verified')>
@@ -232,7 +236,7 @@
                         </label>
 
                         @if($canVerifyExtraction && $extraction->status !== 'verified')
-                            <button type="submit" class="btn btn-primary supplier-invoice-verify-button">Verify and update supplier quote</button>
+                            <button type="submit" class="btn btn-primary supplier-invoice-verify-button">{{ $document->type === 'purchase_request' ? 'Verify supplier quote evidence' : 'Verify and update supplier quote' }}</button>
                         @endif
                     </form>
 

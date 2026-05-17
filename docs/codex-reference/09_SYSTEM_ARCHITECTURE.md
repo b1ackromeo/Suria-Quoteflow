@@ -319,16 +319,29 @@ Document draft/rejected
   -> Document status approved/rejected
 ```
 
-Future target:
+Document-type approval policy:
 
-Approval policy should become document-type-aware:
+Approval policy is document-type-aware:
 
 ```text
 quotation approval before issue
-purchase request approval before sourcing/PO
+purchase request approval after supplier quote evidence, or an explicit quote exception
 supplier PO approval before issue
 supplier invoice verification/matching before payment
 ```
+
+Purchase request quote evidence rule:
+
+```text
+purchase request draft
+  -> attach supplier quotation PDF/image on the purchase request
+  -> QuoteFlow runs bounded OCR-assisted capture when available
+  -> user verifies/corrects the supplier quote fields beside the uploaded source
+  -> approver reviews the verified quote evidence before approval
+  -> approved request can prefill supplier quotation or purchase order work
+```
+
+If no supplier quote is available, the request must use `quote_exception` with a reason. The approver must add a comment when approving that exception. A purchase request must not be approved merely from internal request text when supplier quotation evidence is expected.
 
 ## Attachment architecture
 
@@ -395,7 +408,7 @@ supplier_invoice: invoice no., invoice date, PO/receipt reference, line items, t
 payment proof: payment date, amount, bank/reference no., invoice references
 ```
 
-Do not apply OCR to internally generated records by default. Customer quotations, purchase requests, supplier purchase orders, and customer invoices should already be structured data in QuoteFlow.
+Do not apply OCR to internally generated records by default. Customer quotations, purchase requests, supplier purchase orders, and customer invoices should already be structured data in QuoteFlow. The exception is an external supplier quotation file attached to a purchase request; OCR is applied to that uploaded quote evidence, not to the internal purchase request form itself.
 
 OCR must remain an assistant:
 
