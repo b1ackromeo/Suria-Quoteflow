@@ -152,6 +152,54 @@
     </main>
 @endauth
 
+@if(request()->routeIs('documents.show'))
+<style>
+@media (min-width: 1280px) {
+    .document-open-workspace {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    }
+
+    .document-open-side-panel {
+        border-left-width: 1px;
+    }
+
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) {
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+    }
+
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > .external-document-preview-header,
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > .external-document-summary-strip,
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > .external-document-file-frame,
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > #supplier-quote-verification-panel,
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > .external-document-lines,
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > .external-document-supporting-files {
+        grid-column: auto !important;
+        grid-row: auto !important;
+    }
+
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > .external-document-file-frame {
+        position: static !important;
+        top: auto !important;
+    }
+
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > #supplier-quote-verification-panel {
+        max-height: none !important;
+        overflow: visible !important;
+        border-left: 0 !important;
+        border-top-width: 1px !important;
+    }
+
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) .external-document-pdf-viewer,
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) .external-document-image-viewer {
+        height: 52vh !important;
+        min-height: 28rem !important;
+    }
+}
+</style>
+@endif
+
 @if(request()->routeIs('documents.create') && request()->route('module') === 'purchase-requests')
 <script>
 (() => {
