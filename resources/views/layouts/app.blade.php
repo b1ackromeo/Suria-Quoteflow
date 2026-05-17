@@ -21,7 +21,6 @@
         $primaryNav = [
             ['label' => 'Dashboard', 'icon' => 'dashboard', 'route' => route('dashboard'), 'active' => request()->routeIs('dashboard')],
             ['label' => 'Reports', 'icon' => 'reports', 'route' => route('reports.index'), 'active' => request()->routeIs('reports.*')],
-            ['label' => 'Exports', 'icon' => 'export', 'route' => route('reports.export'), 'active' => false],
         ];
         if (auth()->user()->hasRole('admin', 'manager', 'accounts')) {
             $primaryNav[] = ['label' => 'Payments', 'icon' => 'payments', 'route' => route('payments.index'), 'active' => request()->routeIs('payments.*')];

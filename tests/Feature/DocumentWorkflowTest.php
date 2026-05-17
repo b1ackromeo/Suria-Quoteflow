@@ -392,6 +392,7 @@ class DocumentWorkflowTest extends TestCase
         $response->assertSee('Overdue receivables');
         $response->assertSee('href="'.route('approvals.pending').'"', false);
         $response->assertDontSee('Operations dashboard');
+        $response->assertDontSee('>Exports</span>', false);
     }
 
     public function test_non_approver_cannot_approve_pending_document_through_direct_post(): void
