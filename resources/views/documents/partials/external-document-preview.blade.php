@@ -77,6 +77,57 @@
     };
 @endphp
 
+@if($usesSupplierQuoteCapture && ! $previewOnly)
+    <style>
+        @media (min-width: 1280px) {
+            .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(26rem, 0.82fr);
+                grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+                column-gap: 0.75rem;
+                align-items: start;
+                overflow: visible;
+            }
+
+            .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > .external-document-preview-header,
+            .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > .external-document-summary-strip {
+                grid-column: 1 / -1;
+            }
+
+            .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > .external-document-file-frame {
+                position: sticky;
+                top: 0.75rem;
+                grid-column: 1;
+                grid-row: 3;
+                min-height: 0;
+                border-radius: 0.5rem;
+            }
+
+            .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > #supplier-quote-verification-panel {
+                grid-column: 2;
+                grid-row: 3;
+                max-height: calc(100vh - 16rem);
+                min-height: 0;
+                overflow-y: auto;
+                border-top: 0;
+                border-left: 1px solid #e2e8f0;
+                border-radius: 0.5rem;
+            }
+
+            .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > .external-document-lines,
+            .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > .external-document-supporting-files {
+                grid-column: 1 / -1;
+            }
+
+            .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) .external-document-pdf-viewer,
+            .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) .external-document-image-viewer {
+                height: calc(100vh - 17rem);
+                min-height: 34rem;
+            }
+        }
+    </style>
+@endif
+
 <article class="external-document-preview-card" data-external-document-preview>
     <div class="external-document-preview-header">
         <div>
@@ -182,7 +233,7 @@
                         @method('PUT')
                         @if($canVerifyExtraction && $extraction->status !== 'verified')
                             <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
-                                <span class="text-sm font-semibold text-blue-900">Review the fields below, then verify this supplier quote evidence.</span>
+                                <span class="text-sm font-semibold text-blue-900">Review the fields below against the quotation preview, then verify this supplier quote evidence.</span>
                                 <button type="submit" class="btn btn-primary">Verify supplier quote evidence</button>
                             </div>
                         @endif
