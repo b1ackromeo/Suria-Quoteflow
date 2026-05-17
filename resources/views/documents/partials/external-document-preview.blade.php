@@ -120,10 +120,12 @@
                     @if($usesSupplierQuoteCapture && ! $previewOnly)
                         @if($extraction?->status === 'verified')
                             <span class="supplier-invoice-extraction-state is-verified">Verified</span>
-                        @elseif($extraction?->status === 'processed')
-                            <span class="supplier-invoice-extraction-state is-ready">Ready to verify</span>
-                        @elseif($extraction?->status === 'failed')
-                            <span class="supplier-invoice-extraction-state is-failed">OCR failed</span>
+                        @elseif(in_array($extraction?->status, ['processed', 'failed'], true))
+                            <button
+                                type="button"
+                                class="btn btn-primary min-h-9 px-3 py-1.5"
+                                onclick="document.getElementById('supplier-quote-verification-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })"
+                            >{{ $extraction?->status === 'failed' ? 'Review manually' : 'Verify OCR draft' }}</button>
                         @else
                             <span class="supplier-invoice-extraction-state">Not extracted</span>
                         @endif
@@ -154,7 +156,7 @@
         </section>
 
         @if($usesSupplierQuoteCapture && ! $previewOnly)
-            <section class="supplier-invoice-extraction-panel external-document-extraction-panel">
+            <section id="supplier-quote-verification-panel" class="supplier-invoice-extraction-panel external-document-extraction-panel">
                 <div class="supplier-invoice-extraction-heading">
                     <div>
                         <p class="document-pane-kicker">Assisted capture</p>
