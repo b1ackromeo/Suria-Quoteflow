@@ -15,7 +15,23 @@ class BusinessDocumentCaptureService extends TesseractInvoiceExtractor
 
     public function extract(Attachment $attachment): array
     {
-        $result = parent::extract($attachment);
+        $attachment->loadMissing('document');
+        $originalDocument = $attachment->document;
+
+        if ($originalDocument?->type === 'purchase_request' && $attachment->category === 'supplier_quote') {
+            $quotationDocument = $originalDocument->replicate();
+            $quotationDocument->type = 'supplier_quotation';
+            $attachment->setRelation('document', $quotationDocument);
+        }
+
+        try {
+            $result = parent::extract($attachment);
+        } finally {
+            if ($originalDocument) {
+                $attachment->setRelation('document', $originalDocument);
+            }
+        }
+
         $localMechanism = $result['engine'] ?? 'local';
         $result['engine'] = self::ENGINE.':'.$localMechanism;
 
