@@ -357,7 +357,41 @@ class DocumentWorkflowTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('href="'.route('approvals.pending').'"', false);
+        $response->assertSee('aria-label="Pending approvals"', false);
         $response->assertSee('<span>1</span>', false);
+    }
+
+    public function test_dashboard_starts_with_today_work_and_global_task_links(): void
+    {
+        $quotation = $this->createDocument('customer-quotations', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'TODAY-WORK-CQ',
+            'description' => 'Quotation counted in today work',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+        $this->submitForApproval($quotation);
+
+        $this->createDocument('supplier-invoices', [
+            'supplier_id' => $this->supplier->id,
+            'source_type' => 'direct_supplier_invoice',
+            'source_note' => 'Direct supplier invoice waiting for verification in dashboard.',
+            'external_reference' => 'TODAY-WORK-SIN',
+            'description' => 'Supplier invoice waiting for verification',
+            'quantity' => 1,
+            'unit_price' => 450,
+        ]);
+
+        $response = $this->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertSee("Today's Work", false);
+        $response->assertSee('Pending approvals');
+        $response->assertSee('Verify supplier invoices');
+        $response->assertSee('Match supplier invoices');
+        $response->assertSee('Overdue receivables');
+        $response->assertSee('href="'.route('approvals.pending').'"', false);
+        $response->assertDontSee('Operations dashboard');
     }
 
     public function test_non_approver_cannot_approve_pending_document_through_direct_post(): void
@@ -486,6 +520,29 @@ class DocumentWorkflowTest extends TestCase
             'reference' => 'PAY-CUST-PART-PAID',
             'amount' => '50.00',
         ]);
+    }
+
+    public function test_document_show_surfaces_command_center_readiness_before_history(): void
+    {
+        $invoice = $this->createDocument('customer-invoices', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'COMMAND-CENTER-INV',
+            'description' => 'Invoice used to check command center hierarchy',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+
+        $response = $this->get(route('documents.show', $invoice));
+
+        $response->assertOk();
+        $response->assertSee('Next action');
+        $response->assertSee('Readiness and blockers');
+        $response->assertSee('Payment locked');
+        $response->assertSee('Primary actions');
+        $response->assertSee('Key facts');
+        $response->assertSee('Related chain');
+        $response->assertSee('Evidence and attachments');
+        $response->assertSee('Approval history');
     }
 
     public function test_supplier_invoice_payment_is_available_only_after_matching(): void
@@ -899,6 +956,60 @@ class DocumentWorkflowTest extends TestCase
         $this->assertStringContainsString($invoice->document_number, $reportCsv->streamedContent());
     }
 
+    public function test_reports_page_shows_finance_report_workbench_with_open_balances(): void
+    {
+        $customerInvoice = $this->createDocument('customer-invoices', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'REPORT-CUSTOMER-INV',
+            'description' => 'Customer invoice for report page',
+            'quantity' => 1,
+            'unit_price' => 1000,
+        ]);
+        $customerInvoice->forceFill([
+            'status' => 'issued',
+            'issue_date' => now()->subDays(20)->toDateString(),
+            'due_date' => now()->subDays(5)->toDateString(),
+        ])->save();
+
+        Payment::create([
+            'document_id' => $customerInvoice->id,
+            'direction' => 'incoming',
+            'payment_date' => now()->subDays(2)->toDateString(),
+            'amount' => 200,
+            'method' => 'Bank transfer',
+            'reference' => 'REPORT-INCOMING-PART',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $supplierInvoice = $this->createDocument('supplier-invoices', [
+            'supplier_id' => $this->supplier->id,
+            'external_reference' => 'REPORT-SUPPLIER-INV',
+            'description' => 'Supplier invoice for report page',
+            'quantity' => 1,
+            'unit_price' => 450,
+        ]);
+        $supplierInvoice->forceFill([
+            'status' => 'matched',
+            'issue_date' => now()->subDays(10)->toDateString(),
+            'due_date' => now()->addDays(3)->toDateString(),
+        ])->save();
+
+        $response = $this->get(route('reports.index', ['range' => 60]));
+
+        $response->assertOk();
+        $response->assertSee('Exposure and cash movement');
+        $response->assertSee('Overdue receivables');
+        $response->assertSee('Supplier payments due soon');
+        $response->assertSee('Receivables aging');
+        $response->assertSee('Payables aging');
+        $response->assertSee('Payment movement');
+        $response->assertSee($customerInvoice->document_number);
+        $response->assertSee($supplierInvoice->document_number);
+        $response->assertSee('MYR 880.00');
+        $response->assertSee('Showing the earliest 8 open receivables');
+        $response->assertDontSee('Incoming payments, last 30 days');
+    }
+
     public function test_supplier_invoice_preview_uses_uploaded_supplier_file_not_company_letterhead(): void
     {
         Storage::fake('local');
@@ -1224,9 +1335,9 @@ class DocumentWorkflowTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Record goods receipt');
-        $response->assertSee('PO and receiving details');
+        $response->assertSee('Party and receiving dates');
         $response->assertSee('Evidence after save');
-        $response->assertSee('Received material lines');
+        $response->assertSee('Items received');
         $response->assertSee('Material / goods receipt');
         $response->assertSee('Received qty');
         $response->assertSee('Short / rejected');
@@ -1443,7 +1554,8 @@ class DocumentWorkflowTest extends TestCase
         $show = $this->get(route('documents.show', $supplierInvoice));
         $show->assertOk();
         $show->assertSee('Supplier invoice matching checklist');
-        $show->assertSee('Blocked: Invoice details verified');
+        $show->assertSee('Blocked');
+        $show->assertSee('Invoice details verified');
         $show->assertDontSee('Mark matched');
 
         $this->from(route('documents.show', $supplierInvoice))
@@ -1614,7 +1726,8 @@ class DocumentWorkflowTest extends TestCase
         $show = $this->get(route('documents.show', $supplierInvoice));
         $show->assertOk();
         $show->assertSee('Supplier invoice matching checklist');
-        $show->assertSee('Passed: Invoice details verified');
+        $show->assertSee('Passed');
+        $show->assertSee('Invoice details verified');
         $show->assertSee('Mark matched');
 
         $this->transition($supplierInvoice, 'match', 'matched');
@@ -1786,6 +1899,9 @@ class DocumentWorkflowTest extends TestCase
         $response->assertSee('From PO received');
         $response->assertSee('Progress claim');
         $response->assertSee('Direct invoice');
+        $response->assertSee('Document form sections');
+        $response->assertSee('Party and dates');
+        $response->assertSee('Money and terms');
     }
 
     public function test_quotation_create_page_uses_quotation_workflow_language_and_autofill_hooks(): void
@@ -1813,7 +1929,8 @@ class DocumentWorkflowTest extends TestCase
         $response->assertSee('Previous quotation / revision');
         $response->assertSee('Valid until');
         $response->assertDontSee('Due date');
-        $response->assertSee('Commercial Terms');
+        $response->assertSee('Money and terms');
+        $response->assertSee('Document form sections');
         $response->assertSee('Simple payment terms');
         $response->assertSee('Project scope summary');
         $response->assertSee('data-billing-stage-panel', false);
@@ -1869,6 +1986,26 @@ class DocumentWorkflowTest extends TestCase
         $response->assertSee(route('documents.pdf', $secondQuotation), false);
         $response->assertSee($firstQuotation->document_number);
         $response->assertSee($secondQuotation->document_number);
+    }
+
+    public function test_document_index_exposes_separate_preview_and_open_actions(): void
+    {
+        $quotation = $this->createDocument('customer-quotations', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'ROW-A11Y-QUOTE',
+            'description' => 'Quotation used to check row actions',
+            'quantity' => 1,
+            'unit_price' => 500,
+        ]);
+
+        $response = $this->get(route('documents.index', 'customer-quotations'));
+
+        $response->assertOk();
+        $response->assertSee('data-preview-trigger', false);
+        $response->assertSee('aria-controls="document-preview-'.$quotation->id.'"', false);
+        $response->assertSee('>Preview</button>', false);
+        $response->assertSee('href="'.route('documents.show', $quotation).'"', false);
+        $response->assertDontSee('role="button"', false);
     }
 
     public function test_search_matches_documents_customers_suppliers_and_items(): void

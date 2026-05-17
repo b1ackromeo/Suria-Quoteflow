@@ -33,12 +33,75 @@ class DashboardController extends Controller
             ->whereNotIn('status', ['paid', 'closed', 'cancelled']);
 
         $today = now()->toDateString();
+        $nextWeek = now()->addDays(7)->toDateString();
+        $pendingApprovalCount = Approval::where('status', 'pending')->count();
+        $supplierInvoiceVerificationCount = Document::where('type', 'supplier_invoice')
+            ->whereIn('status', ['draft', 'rejected'])
+            ->whereDoesntHave('attachmentExtractions', fn ($query) => $query->where('status', 'verified'))
+            ->count();
+        $supplierInvoiceMatchingCount = Document::where('type', 'supplier_invoice')
+            ->whereIn('status', ['approved', 'issued', 'received'])
+            ->count();
+        $overdueReceivablesQuery = fn () => Document::where('type', 'customer_invoice')
+            ->whereIn('status', ['issued', 'part_paid'])
+            ->whereNotNull('due_date')
+            ->whereDate('due_date', '<', $today);
+        $overdueReceivablesCount = $overdueReceivablesQuery()->count();
+        $overdueReceivablesTotal = $overdueReceivablesQuery()->sum('total');
+        $supplierPaymentsDueQuery = fn () => Document::where('type', 'supplier_invoice')
+            ->whereIn('status', ['matched', 'part_paid'])
+            ->whereNotNull('due_date')
+            ->whereDate('due_date', '<=', $nextWeek);
+        $supplierPaymentsDueCount = $supplierPaymentsDueQuery()->count();
+        $supplierPaymentsDueTotal = $supplierPaymentsDueQuery()->sum('total');
 
         return view('dashboard.index', [
+            'todayWork' => [
+                [
+                    'label' => 'Pending approvals',
+                    'count' => $pendingApprovalCount,
+                    'note' => 'Manager action waiting now',
+                    'route' => route('approvals.pending'),
+                    'action' => 'Review approvals',
+                    'tone' => 'waiting',
+                ],
+                [
+                    'label' => 'Verify supplier invoices',
+                    'count' => $supplierInvoiceVerificationCount,
+                    'note' => 'Details must be checked before approval',
+                    'route' => route('documents.index', ['module' => 'supplier-invoices', 'status' => 'draft']),
+                    'action' => 'Open supplier invoices',
+                    'tone' => 'warning',
+                ],
+                [
+                    'label' => 'Match supplier invoices',
+                    'count' => $supplierInvoiceMatchingCount,
+                    'note' => 'Approved invoices waiting for matching',
+                    'route' => route('documents.index', ['module' => 'supplier-invoices', 'status' => 'approved']),
+                    'action' => 'Review matching',
+                    'tone' => 'ready',
+                ],
+                [
+                    'label' => 'Overdue receivables',
+                    'count' => $overdueReceivablesCount,
+                    'note' => 'RM '.number_format($overdueReceivablesTotal, 2).' overdue',
+                    'route' => route('documents.index', 'customer-invoices'),
+                    'action' => 'Review invoices',
+                    'tone' => 'danger',
+                ],
+                [
+                    'label' => 'Supplier payments due',
+                    'count' => $supplierPaymentsDueCount,
+                    'note' => 'RM '.number_format($supplierPaymentsDueTotal, 2).' due within 7 days',
+                    'route' => route('documents.index', ['module' => 'supplier-invoices', 'status' => 'matched']),
+                    'action' => 'Review payments',
+                    'tone' => 'money',
+                ],
+            ],
             'cards' => [
                 ['label' => 'Open Receivables', 'value' => $receivableTotal - $receivablePaid, 'note' => 'Customer invoices awaiting collection', 'accent' => 'primary', 'icon' => 'payments', 'trend' => 'Live balance'],
                 ['label' => 'Open Payables', 'value' => $payableTotal - $payablePaid, 'note' => 'Supplier invoices awaiting payment', 'accent' => 'amber', 'icon' => 'purchase', 'trend' => 'Supplier side'],
-                ['label' => 'Pending Approvals', 'value' => Approval::where('status', 'pending')->count(), 'plain' => true, 'note' => 'Documents waiting for manager action', 'accent' => 'blue', 'icon' => 'admin', 'trend' => 'Requires action'],
+                ['label' => 'Pending Approvals', 'value' => $pendingApprovalCount, 'plain' => true, 'note' => 'Documents waiting for manager action', 'accent' => 'blue', 'icon' => 'admin', 'trend' => 'Requires action'],
                 ['label' => 'Trading Partners', 'value' => Customer::where('is_active', true)->count() + Supplier::where('is_active', true)->count(), 'plain' => true, 'note' => 'Active customers and suppliers', 'accent' => 'slate', 'icon' => 'customers', 'trend' => 'Master data'],
             ],
             'workflow' => [

@@ -46,7 +46,7 @@
         || $canMarkMatched
         || $canOverrideSupplierInvoiceMatch
         || $canCloseDocument
-    );
+    ) || $canRecordPayment;
     $issueActionLabel = match ($document->type) {
         'customer_po' => 'Accept PO received',
         'supplier_po' => 'Issue purchase order',
@@ -106,6 +106,8 @@
     $processLabel = $document->direction === 'outgoing'
         ? 'Customer sales process'
         : 'Supplier procurement process';
+    $paidAmount = (float) $document->payments->sum('amount');
+    $balanceDue = max(0, (float) $document->total - $paidAmount);
     $nextAction = match (true) {
         in_array($document->status, ['draft', 'rejected'], true) => 'Submit this '.$meta['singular'].' for approval when details and attachments are ready.',
         $document->status === 'pending_approval' => 'Manager approval is required before this document can move forward.',
@@ -123,7 +125,7 @@
         $document->type === 'supplier_invoice' && $document->status === 'matched' => 'Record supplier payment after the matched invoice is approved for payment.',
         $document->isInvoice() && in_array($document->status, ['issued', 'part_paid'], true) => 'Record payment against this invoice.',
         $document->isInvoice() && $document->status === 'paid' => 'Close the invoice after payment is confirmed.',
-        $document->isInvoice() && $document->status === 'closed' && $document->balanceDue() > 0 => 'Closed with a remaining balance. Review payment records before relying on this invoice status.',
+        $document->isInvoice() && $document->status === 'closed' && $balanceDue > 0 => 'Closed with a remaining balance. Review payment records before relying on this invoice status.',
         $document->status === 'closed' => 'Workflow is closed.',
         default => 'Review document status, attachments, approvals, and payment balance.',
     };
@@ -131,15 +133,44 @@
         ['label' => $primaryDateLabel, 'value' => optional($document->issue_date)->format('d M Y') ?: 'Not set'],
         ['label' => $secondaryDateLabel, 'value' => optional($document->due_date)->format('d M Y') ?: 'Not set'],
         ['label' => 'Reference', 'value' => $document->external_reference ?: 'Not set'],
-        ['label' => 'Related document', 'value' => $document->relatedDocument?->document_number ?? 'None'],
-        ['label' => 'Source', 'value' => $document->sourceTypeDisplay()],
         ['label' => 'Payment terms', 'value' => $document->paymentTermsDisplay()],
         ['label' => 'Project / site', 'value' => $document->project_name ?: 'Not set'],
     ];
     if ($document->isInvoice()) {
         $detailRows[] = ['label' => 'Progress invoice', 'value' => $document->progress_invoice_number && $document->progress_invoice_total ? 'No. '.$document->progress_invoice_number.' of '.$document->progress_invoice_total : 'Not set'];
         $detailRows[] = ['label' => 'Billing stage', 'value' => $document->billing_stage_name ?: 'Not set'];
-        $detailRows[] = ['label' => 'Balance', 'value' => $document->currency.' '.number_format($document->balanceDue(), 2)];
+        $detailRows[] = ['label' => 'Balance', 'value' => $document->currency.' '.number_format($balanceDue, 2)];
+    }
+    $readinessItems = [];
+    if ($document->status === 'pending_approval') {
+        $readinessItems[] = ['state' => 'waiting', 'label' => 'Approval waiting', 'message' => 'Manager approval is required before this record can move forward.'];
+    }
+    if ($document->type === 'supplier_invoice' && $supplierInvoiceVerification) {
+        if ($supplierInvoiceVerification['verified'] ?? false) {
+            $verifiedBy = $supplierInvoiceVerification['verifier']?->name ?? 'Verified';
+            $readinessItems[] = [
+                'state' => 'ready',
+                'label' => 'Invoice details verified',
+                'message' => trim(($supplierInvoiceVerification['method_label'] ?? 'Verified').' by '.$verifiedBy.'.'),
+            ];
+        } else {
+            foreach (($supplierInvoiceVerification['issues'] ?? []) as $issue) {
+                $readinessItems[] = ['state' => 'blocked', 'label' => 'Verification blocked', 'message' => $issue];
+            }
+        }
+    }
+    if ($document->type === 'supplier_invoice' && $supplierInvoiceMatching) {
+        $readinessItems[] = $supplierInvoiceCanMatch
+            ? ['state' => 'ready', 'label' => 'Matching checklist ready', 'message' => 'Invoice can be matched against its source.']
+            : ['state' => 'blocked', 'label' => 'Matching blocked', 'message' => implode(' ', $supplierInvoiceMatchingBlockers)];
+    }
+    if ($showPaymentBlockedReason) {
+        $readinessItems[] = ['state' => 'blocked', 'label' => 'Payment locked', 'message' => $paymentBlockedReason];
+    } elseif ($canRecordPayment) {
+        $readinessItems[] = ['state' => 'money', 'label' => 'Payment ready', 'message' => 'Payment can be recorded for this invoice.'];
+    }
+    if ($readinessItems === []) {
+        $readinessItems[] = ['state' => 'ready', 'label' => 'No blocker visible', 'message' => 'Review the facts, evidence, and history before acting.'];
     }
 @endphp
 
@@ -181,16 +212,6 @@
                 <span>{{ $document->statusDisplay() }}</span>
             </div>
             <h2>{{ $nextAction }}</h2>
-            @if($showPaymentBlockedReason)
-                <p class="mt-3 text-sm font-semibold text-amber-700">{{ $paymentBlockedReason }}</p>
-            @endif
-            @if($canTrySupplierInvoiceMatch && ! $supplierInvoiceCanMatch && $supplierInvoiceMatchingBlockers !== [])
-                <div class="mt-3 grid gap-1 text-sm font-semibold text-amber-700">
-                    @foreach($supplierInvoiceMatchingBlockers as $blocker)
-                        <p>{{ $blocker }}</p>
-                    @endforeach
-                </div>
-            @endif
             @if($nextDocumentLinks !== [])
                 <div class="mt-4 grid gap-2">
                     @foreach($nextDocumentLinks as $link)
@@ -200,9 +221,37 @@
             @endif
         </section>
 
+        <section class="document-side-card document-readiness-card">
+            <h2 class="panel-title">Readiness and blockers</h2>
+            <div class="document-readiness-list">
+                @foreach($readinessItems as $item)
+                    <article class="document-readiness-item readiness-state-{{ $item['state'] }}">
+                        <strong>{{ $item['label'] }}</strong>
+                        <p>{{ $item['message'] }}</p>
+                    </article>
+                @endforeach
+            </div>
+
+            @if($document->type === 'supplier_invoice' && $supplierInvoiceMatching)
+                <div class="document-checklist-summary">
+                    <h3>Supplier invoice matching checklist</h3>
+                    @foreach($supplierInvoiceMatching['checks'] as $check)
+                        <div class="document-checklist-row {{ $check['passed'] ? 'is-passed' : 'is-blocked' }}">
+                            <span>{{ $check['passed'] ? 'Passed' : 'Blocked' }}</span>
+                            <strong>{{ $check['label'] }}</strong>
+                            <p>{{ $check['message'] }}</p>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </section>
+
         @if($hasWorkflowActions)
             <section class="document-side-card document-action-stack">
-                <h2 class="panel-title">Workflow actions</h2>
+                <h2 class="panel-title">Primary actions</h2>
+                @if($canRecordPayment)
+                    <a class="btn btn-primary w-full" href="{{ route('payments.create', $document) }}">Record payment</a>
+                @endif
                 @if($canSubmitForApproval)
                     <form method="post" action="{{ route('documents.submit', $document) }}"><input type="hidden" name="_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-primary w-full">Submit for approval</button></form>
                 @endif
@@ -238,22 +287,8 @@
             </section>
         @endif
 
-        @if($document->type === 'supplier_invoice' && $supplierInvoiceMatching)
-            <section class="document-side-card">
-                <h2 class="panel-title">Supplier invoice matching checklist</h2>
-                <div class="grid gap-3 text-sm">
-                    @foreach($supplierInvoiceMatching['checks'] as $check)
-                        <div>
-                            <strong>{{ $check['passed'] ? 'Passed' : 'Blocked' }}: {{ $check['label'] }}</strong>
-                            <p class="{{ $check['passed'] ? 'text-slate-600' : 'text-amber-700 font-semibold' }}">{{ $check['message'] }}</p>
-                        </div>
-                    @endforeach
-                </div>
-            </section>
-        @endif
-
         <section class="document-side-card">
-            <h2 class="panel-title">Document details</h2>
+            <h2 class="panel-title">Key facts</h2>
             <dl class="document-detail-list">
                 @foreach($detailRows as $row)
                     <div>
@@ -280,13 +315,65 @@
             @endif
         </section>
 
-        <details class="document-side-card document-side-disclosure" open>
-            <summary>
-                <span>Workflow progress</span>
-                <strong>{{ $document->direction === 'outgoing' ? 'Sales process' : 'Procurement process' }}</strong>
-            </summary>
+        <section class="document-side-card document-chain-card">
+            <h2 class="panel-title">Related chain</h2>
+            <dl class="document-detail-list">
+                <div>
+                    <dt>Source</dt>
+                    <dd>{{ $document->sourceTypeDisplay() }}</dd>
+                </div>
+                <div>
+                    <dt>Related document</dt>
+                    <dd>{{ $document->relatedDocument?->document_number ?? 'None' }}</dd>
+                </div>
+            </dl>
             @include('documents.partials.workflow-timeline', ['meta' => $meta, 'document' => $document])
-        </details>
+        </section>
+
+        <section class="document-side-card">
+            <div class="document-side-section-heading">
+                <h2 class="panel-title">Evidence and attachments</h2>
+                <span>{{ $document->attachments->count() }} file{{ $document->attachments->count() === 1 ? '' : 's' }}</span>
+            </div>
+            <div class="document-attachment-list">
+                @forelse($document->attachments as $attachment)
+                    <a href="{{ $attachment->isPreviewable() ? route('attachments.preview', $attachment) : route('attachments.download', $attachment) }}" @if($attachment->isPreviewable()) target="_blank" rel="noopener" @endif>
+                        <span>{{ $attachment->original_name }}</span>
+                        <strong>
+                            {{ str_replace('_', ' ', ucfirst($attachment->category ?? 'supporting_document')) }}{{ $attachment->isPreviewable() ? ' · Previewable' : '' }}
+                            @if($attachment->extraction?->status)
+                                · OCR {{ str_replace('_', ' ', $attachment->extraction->status) }}
+                            @endif
+                        </strong>
+                    </a>
+                @empty
+                    <p>No attachments.</p>
+                @endforelse
+            </div>
+            @if($canWrite)
+                <form method="post" action="{{ route('documents.attachments.store', $document) }}" enctype="multipart/form-data" class="document-upload-form">
+                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                    <label class="form-label">Attachment category
+                        <select class="form-input" name="category">
+                            <option value="supporting_document">Supporting document</option>
+                            <option value="customer_po">PO received</option>
+                            <option value="supplier_quote">Supplier quotation</option>
+                            <option value="delivery_evidence">Delivery / service evidence</option>
+                            <option value="invoice_copy" @selected($document->type === 'supplier_invoice')>Invoice copy</option>
+                            <option value="delivery_order">Delivery order</option>
+                            <option value="service_report">Service report</option>
+                            <option value="uat_document">UAT / acceptance document</option>
+                            <option value="installation_report">Installation report</option>
+                            <option value="completion_photo">Completion photo</option>
+                            <option value="email_approval">Email approval</option>
+                            <option value="payment_proof">Payment proof</option>
+                        </select>
+                    </label>
+                    <input class="form-input file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-bold file:text-slate-700 hover:file:bg-slate-200" type="file" name="attachment" required>
+                    <button type="submit" class="btn btn-secondary w-full">Upload</button>
+                </form>
+            @endif
+        </section>
 
         @if($document->billingStages->isNotEmpty())
             <details class="document-side-card document-side-disclosure">
@@ -348,51 +435,6 @@
 
         <details class="document-side-card document-side-disclosure">
             <summary>
-                <span>Attachments</span>
-                <strong>{{ $document->attachments->count() }} file{{ $document->attachments->count() === 1 ? '' : 's' }}</strong>
-            </summary>
-            <div class="document-attachment-list">
-                @forelse($document->attachments as $attachment)
-                    <a href="{{ $attachment->isPreviewable() ? route('attachments.preview', $attachment) : route('attachments.download', $attachment) }}" @if($attachment->isPreviewable()) target="_blank" rel="noopener" @endif>
-                        <span>{{ $attachment->original_name }}</span>
-                        <strong>
-                            {{ str_replace('_', ' ', ucfirst($attachment->category ?? 'supporting_document')) }}{{ $attachment->isPreviewable() ? ' · Previewable' : '' }}
-                            @if($attachment->extraction?->status)
-                                · OCR {{ str_replace('_', ' ', $attachment->extraction->status) }}
-                            @endif
-                        </strong>
-                    </a>
-                @empty
-                    <p>No attachments.</p>
-                @endforelse
-            </div>
-            @if($canWrite)
-                <form method="post" action="{{ route('documents.attachments.store', $document) }}" enctype="multipart/form-data" class="document-upload-form">
-                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                    <label class="form-label">Attachment category
-                        <select class="form-input" name="category">
-                            <option value="supporting_document">Supporting document</option>
-                            <option value="customer_po">PO received</option>
-                            <option value="supplier_quote">Supplier quotation</option>
-                            <option value="delivery_evidence">Delivery / service evidence</option>
-                            <option value="invoice_copy" @selected($document->type === 'supplier_invoice')>Invoice copy</option>
-                            <option value="delivery_order">Delivery order</option>
-                            <option value="service_report">Service report</option>
-                            <option value="uat_document">UAT / acceptance document</option>
-                            <option value="installation_report">Installation report</option>
-                            <option value="completion_photo">Completion photo</option>
-                            <option value="email_approval">Email approval</option>
-                            <option value="payment_proof">Payment proof</option>
-                        </select>
-                    </label>
-                    <input class="form-input file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-bold file:text-slate-700 hover:file:bg-slate-200" type="file" name="attachment" required>
-                    <button type="submit" class="btn btn-secondary w-full">Upload</button>
-                </form>
-            @endif
-        </details>
-
-        <details class="document-side-card document-side-disclosure">
-            <summary>
                 <span>Notes and terms</span>
                 <strong>Commercial text</strong>
             </summary>
@@ -411,7 +453,7 @@
         <details class="document-side-card document-side-disclosure">
             <summary>
                 <span>Payments</span>
-                <strong>{{ $document->currency }} {{ number_format($document->balanceDue(), 2) }} balance</strong>
+                <strong>{{ $document->currency }} {{ number_format($balanceDue, 2) }} balance</strong>
             </summary>
             <div class="document-compact-table">
                 <table>

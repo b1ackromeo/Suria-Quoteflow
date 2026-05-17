@@ -19,126 +19,122 @@
 @section('content')
 <div class="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_19rem]">
     <div class="space-y-4">
-        <section class="dashboard-hero">
-            <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <section class="today-work-panel" aria-labelledby="today-work-heading">
+            <div class="dashboard-section-heading">
                 <div>
                     <p class="dashboard-hero-eyebrow">Suria QuoteFlow</p>
-                    <h1>Operations dashboard</h1>
-                    <p>
-                        Company identity: <strong class="text-white">{{ $companyProfile->displayName() }}</strong>. Monitor quotations, approvals, purchase orders, invoices, payments, and procurement work from one operating view.
-                    </p>
+                    <h1 id="today-work-heading">Today's Work</h1>
+                    <p>Work that needs attention for {{ $companyProfile->displayName() }}.</p>
                 </div>
                 <div class="dashboard-hero-actions">
                     <a class="btn btn-primary" href="{{ route('documents.create', 'customer-quotations') }}">New quotation</a>
-                    <a class="dashboard-hero-secondary" href="{{ route('documents.index', 'customer-quotations') }}">Review quotations</a>
+                    <a class="dashboard-hero-secondary" href="{{ route('approvals.pending') }}">Review approvals</a>
                 </div>
+            </div>
+
+            <div class="today-work-grid">
+                @foreach($todayWork as $work)
+                    <a class="today-work-card today-work-{{ $work['tone'] }}" href="{{ $work['route'] }}">
+                        <span class="today-work-card-kicker">{{ $work['label'] }}</span>
+                        <strong class="today-work-count">{{ number_format($work['count']) }}</strong>
+                        <span class="today-work-note">{{ $work['note'] }}</span>
+                        <span class="today-work-action">{{ $work['action'] }} <x-icon name="arrow" class="h-4 w-4" aria-hidden="true" /></span>
+                    </a>
+                @endforeach
             </div>
         </section>
 
-        <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            @foreach($cards as $card)
-                <div class="metric-card">
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="metric-icon metric-icon-{{ $card['accent'] ?? 'primary' }}">
-                            <x-icon :name="$card['icon'] ?? 'dashboard'" class="h-4 w-4" />
+        <section class="space-y-3" aria-labelledby="workflow-health-heading">
+            <div class="dashboard-section-heading dashboard-section-heading-light">
+                <div>
+                    <p class="dashboard-hero-eyebrow">Workflow health</p>
+                    <h2 id="workflow-health-heading">Where work is moving</h2>
+                    <p>Open each lane to continue sales or procurement work.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div class="workflow-card workflow-card-outgoing">
+                    <div class="panel-header">
+                        <div>
+                            <h3 class="panel-title">Outgoing workflow</h3>
+                            <p class="panel-subtitle">Inquiry to payment collection</p>
                         </div>
-                        <span class="metric-foot">{{ $card['trend'] }}</span>
+                        <a class="link text-sm" href="{{ route('documents.index', 'customer-quotations') }}">View outgoing</a>
                     </div>
-                    <p class="metric-label mt-4">{{ $card['label'] }}</p>
-                    <p class="metric-value">
-                        @if($card['plain'] ?? false)
-                            {{ number_format($card['value']) }}
-                        @else
-                            RM {{ number_format($card['value'], 2) }}
-                        @endif
-                    </p>
-                    <p class="mt-4 text-xs font-semibold leading-5 text-slate-500">{{ $card['note'] }}</p>
+                    <div class="workflow-track">
+                        @foreach($workflow['outgoing'] as $step)
+                            <a class="workflow-node" href="{{ $step['route'] }}">
+                                <span class="workflow-node-count workflow-node-primary">{{ number_format($step['count']) }}</span>
+                                <span class="workflow-node-label">{{ $step['label'] }}</span>
+                            </a>
+                            @unless($loop->last)
+                                <span class="workflow-arrow"><x-icon name="arrow" class="h-4 w-4" aria-hidden="true" /></span>
+                            @endunless
+                        @endforeach
+                    </div>
+                    <a class="workflow-action-band" href="{{ route('documents.index', 'customer-quotations') }}">View outgoing documents <x-icon name="arrow" class="h-4 w-4" aria-hidden="true" /></a>
                 </div>
-            @endforeach
-        </section>
 
-        <section class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div class="workflow-card workflow-card-outgoing">
-                <div class="panel-header">
-                    <div>
-                        <h2 class="panel-title">Outgoing Workflow</h2>
-                        <p class="panel-subtitle">Inquiry to payment collection</p>
+                <div class="workflow-card workflow-card-incoming">
+                    <div class="panel-header">
+                        <div>
+                            <h3 class="panel-title">Incoming workflow</h3>
+                            <p class="panel-subtitle">Request to supplier payment</p>
+                        </div>
+                        <a class="link text-sm" href="{{ route('documents.index', 'purchase-requests') }}">View incoming</a>
                     </div>
-                    <a class="link text-sm" href="{{ route('documents.index', 'customer-quotations') }}">View outgoing</a>
-                </div>
-                <div class="workflow-track">
-                    @foreach($workflow['outgoing'] as $step)
-                        <a class="workflow-node" href="{{ $step['route'] }}">
-                            <span class="workflow-node-count workflow-node-primary">{{ number_format($step['count']) }}</span>
-                            <span class="workflow-node-label">{{ $step['label'] }}</span>
-                        </a>
-                        @unless($loop->last)
-                            <span class="workflow-arrow"><x-icon name="arrow" class="h-4 w-4" /></span>
-                        @endunless
-                    @endforeach
-                </div>
-                <a class="workflow-action-band" href="{{ route('documents.index', 'customer-quotations') }}">View all outgoing documents <x-icon name="arrow" class="h-4 w-4" /></a>
-            </div>
-
-            <div class="workflow-card workflow-card-incoming">
-                <div class="panel-header">
-                    <div>
-                        <h2 class="panel-title">Incoming Workflow</h2>
-                        <p class="panel-subtitle">Request to supplier payment</p>
+                    <div class="workflow-track">
+                        @foreach($workflow['incoming'] as $step)
+                            <a class="workflow-node" href="{{ $step['route'] }}">
+                                <span class="workflow-node-count workflow-node-blue">{{ number_format($step['count']) }}</span>
+                                <span class="workflow-node-label">{{ $step['label'] }}</span>
+                            </a>
+                            @unless($loop->last)
+                                <span class="workflow-arrow"><x-icon name="arrow" class="h-4 w-4" aria-hidden="true" /></span>
+                            @endunless
+                        @endforeach
                     </div>
-                    <a class="link text-sm" href="{{ route('documents.index', 'purchase-requests') }}">View incoming</a>
+                    <a class="workflow-action-band workflow-action-band-blue" href="{{ route('documents.index', 'purchase-requests') }}">View incoming documents <x-icon name="arrow" class="h-4 w-4" aria-hidden="true" /></a>
                 </div>
-                <div class="workflow-track">
-                    @foreach($workflow['incoming'] as $step)
-                        <a class="workflow-node" href="{{ $step['route'] }}">
-                            <span class="workflow-node-count workflow-node-blue">{{ number_format($step['count']) }}</span>
-                            <span class="workflow-node-label">{{ $step['label'] }}</span>
-                        </a>
-                        @unless($loop->last)
-                            <span class="workflow-arrow"><x-icon name="arrow" class="h-4 w-4" /></span>
-                        @endunless
-                    @endforeach
-                </div>
-                <a class="workflow-action-band workflow-action-band-blue" href="{{ route('documents.index', 'purchase-requests') }}">View all incoming documents <x-icon name="arrow" class="h-4 w-4" /></a>
             </div>
         </section>
 
-        <section class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div class="panel">
-                <div class="panel-header">
-                    <div>
-                        <h2 class="panel-title">Pending Approvals</h2>
-                        <p class="panel-subtitle">Manager actions waiting now</p>
+        <section class="space-y-3" aria-labelledby="financial-snapshot-heading">
+            <div class="dashboard-section-heading dashboard-section-heading-light">
+                <div>
+                    <p class="dashboard-hero-eyebrow">Financial snapshot</p>
+                    <h2 id="financial-snapshot-heading">Money and exposure</h2>
+                    <p>Open balances, approval load, and invoice aging.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                @foreach($cards as $card)
+                    <div class="metric-card">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="metric-icon metric-icon-{{ $card['accent'] ?? 'primary' }}">
+                                <x-icon :name="$card['icon'] ?? 'dashboard'" class="h-4 w-4" aria-hidden="true" />
+                            </div>
+                            <span class="metric-foot">{{ $card['trend'] }}</span>
+                        </div>
+                        <p class="metric-label mt-4">{{ $card['label'] }}</p>
+                        <p class="metric-value">
+                            @if($card['plain'] ?? false)
+                                {{ number_format($card['value']) }}
+                            @else
+                                RM {{ number_format($card['value'], 2) }}
+                            @endif
+                        </p>
+                        <p class="mt-4 text-xs font-semibold leading-5 text-slate-500">{{ $card['note'] }}</p>
                     </div>
-                    <a class="link text-sm" href="{{ route('documents.index', ['module' => 'customer-quotations', 'status' => 'pending_approval']) }}">Review</a>
-                </div>
-                <div class="table-wrap">
-                    <table class="data-table">
-                        <thead>
-                        <tr><th>Document</th><th>Party</th><th class="text-right">Total</th></tr>
-                        </thead>
-                        <tbody>
-                        @forelse($pendingApprovals->take(5) as $approval)
-                            <tr>
-                                <td>
-                                    <a class="link" href="{{ route('documents.show', $approval->document) }}">{{ $approval->document->document_number }}</a>
-                                    <div class="mt-1"><span class="status-chip status-pending_approval">Pending</span></div>
-                                </td>
-                                <td>{{ $approval->document->partyName() }}</td>
-                                <td class="text-right font-bold text-slate-900">{{ $approval->document->currency }} {{ number_format($approval->document->total, 2) }}</td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="3" class="empty-cell">No approvals waiting.</td></tr>
-                        @endforelse
-                        </tbody>
-                    </table>
-                </div>
+                @endforeach
             </div>
 
             <div class="panel">
                 <div class="panel-header">
                     <div>
-                        <h2 class="panel-title">Payment Summary</h2>
+                        <h3 class="panel-title">Payment summary</h3>
                         <p class="panel-subtitle">Open invoice aging by due date</p>
                     </div>
                     <a class="link text-sm" href="{{ route('reports.index') }}">Open report</a>
@@ -162,10 +158,10 @@
             </div>
         </section>
 
-        <section class="panel">
+        <section class="panel" aria-labelledby="recent-activity-heading">
             <div class="panel-header">
                 <div>
-                    <h2 class="panel-title">Recent Documents</h2>
+                    <h2 id="recent-activity-heading" class="panel-title">Recent activity</h2>
                     <p class="panel-subtitle">Latest commercial records across both workflows</p>
                 </div>
                 <a class="btn btn-secondary" href="{{ route('documents.index', 'customer-quotations') }}">View all</a>
@@ -196,11 +192,11 @@
 
     <aside class="space-y-4" aria-label="Dashboard actions and summaries">
         <section class="action-rail">
-            <h2 class="panel-title">Quick Actions</h2>
+            <h2 class="panel-title">Quick actions</h2>
             <div class="mt-4 space-y-2">
                 @foreach($quickActions as $action)
                     <a class="quick-action-link" href="{{ $action['route'] }}">
-                        <x-icon :name="$action['icon']" class="nav-icon" />
+                        <x-icon :name="$action['icon']" class="nav-icon" aria-hidden="true" />
                         <span>{{ $action['label'] }}</span>
                     </a>
                 @endforeach
@@ -208,7 +204,30 @@
         </section>
 
         <section class="action-rail">
-            <h2 class="panel-title">Approval Overview</h2>
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h2 class="panel-title">Approval queue</h2>
+                    <p class="panel-subtitle">Newest pending requests</p>
+                </div>
+                <a class="link text-sm" href="{{ route('approvals.pending') }}">Review</a>
+            </div>
+            <div class="mt-4 space-y-2">
+                @forelse($pendingApprovals->take(5) as $approval)
+                    <a class="dashboard-queue-item" href="{{ route('documents.show', $approval->document) }}">
+                        <span>
+                            <strong>{{ $approval->document->document_number }}</strong>
+                            <small>{{ $approval->document->partyName() }}</small>
+                        </span>
+                        <span class="status-chip status-pending_approval">Pending</span>
+                    </a>
+                @empty
+                    <div class="soft-band text-sm font-medium text-slate-500">No approvals waiting.</div>
+                @endforelse
+            </div>
+        </section>
+
+        <section class="action-rail">
+            <h2 class="panel-title">Approval overview</h2>
             <div class="mt-4 grid grid-cols-3 divide-x divide-slate-200 rounded-lg border border-slate-200 bg-slate-50 text-center">
                 <div class="p-3">
                     <p class="text-xl font-black text-amber-600">{{ number_format($approvalStats['pending']) }}</p>
@@ -223,11 +242,11 @@
                     <p class="mt-1 text-xs font-semibold text-slate-500">Approved</p>
                 </div>
             </div>
-            <a class="quick-action-link mt-4" href="{{ route('audit.index') }}"><x-icon name="admin" class="nav-icon" /><span>View audit trail</span></a>
+            <a class="quick-action-link mt-4" href="{{ route('audit.index') }}"><x-icon name="admin" class="nav-icon" aria-hidden="true" /><span>View audit trail</span></a>
         </section>
 
         <section class="action-rail">
-            <h2 class="panel-title">Top Customers</h2>
+            <h2 class="panel-title">Top customers</h2>
             <div class="mt-4 space-y-3">
                 @forelse($topCustomers as $row)
                     <div class="flex items-center justify-between gap-3 text-sm">

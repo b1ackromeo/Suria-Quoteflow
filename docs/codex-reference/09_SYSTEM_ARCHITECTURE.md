@@ -424,17 +424,20 @@ The UI should show the checklist result before allowing `matched`.
 
 ## Reporting architecture
 
-Reports and CSV exports should remain simple and shared-hosting safe.
+Reports and CSV exports should remain shared-hosting safe. Report pages can present finance action surfaces, but their backend data must stay bounded and aggregate-based.
 
 Use:
 
 - paginated database queries
 - streamed CSV downloads
 - chunked export where needed
+- SQL aggregates / subqueries for balances, counts, and aging buckets
+- limited open-balance lists for action tables
 
 Avoid:
 
 - loading all records into memory
+- calculating balances through per-row relationship queries in Blade
 - external BI/search engines as required dependencies
 
 ## PDF architecture

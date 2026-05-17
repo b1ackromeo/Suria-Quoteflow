@@ -153,8 +153,6 @@
                         data-preview-target="document-preview-{{ $document->id }}"
                         data-document-number="{{ $document->document_number }}"
                         data-preview-active="{{ $loop->first ? 'true' : 'false' }}"
-                        role="button"
-                        tabindex="0"
                     >
                         <div class="document-list-row-main">
                             <div class="min-w-0">
@@ -170,7 +168,18 @@
                             </div>
                             <div class="document-row-total-action">
                                 <strong>{{ $rowTotalLabel }}</strong>
-                                <a class="btn btn-primary min-h-7 px-2.5 py-0.5 text-xs" href="{{ route('documents.show', $document) }}">Open</a>
+                                <div class="document-row-actions">
+                                    <button
+                                        class="document-row-preview-button"
+                                        type="button"
+                                        data-preview-trigger
+                                        data-preview-target="document-preview-{{ $document->id }}"
+                                        data-document-number="{{ $document->document_number }}"
+                                        aria-controls="document-preview-{{ $document->id }}"
+                                        aria-pressed="{{ $loop->first ? 'true' : 'false' }}"
+                                    >Preview</button>
+                                    <a class="btn btn-primary document-row-open-link" href="{{ route('documents.show', $document) }}">Open</a>
+                                </div>
                             </div>
                         </div>
                     </article>
@@ -231,6 +240,7 @@
 <script>
 (() => {
     const rows = document.querySelectorAll('[data-document-row]');
+    const triggers = document.querySelectorAll('[data-preview-trigger]');
     const wrappers = document.querySelectorAll('[data-preview-card-wrapper]');
     const selectedLabel = document.querySelector('[data-selected-preview-number]');
 
@@ -250,21 +260,17 @@
             const active = row.dataset.previewTarget === targetId;
             row.dataset.previewActive = active ? 'true' : 'false';
         });
+        triggers.forEach((trigger) => {
+            trigger.setAttribute('aria-pressed', trigger.dataset.previewTarget === targetId ? 'true' : 'false');
+        });
 
         loadOutputPreview(document.getElementById(targetId));
         if (selectedLabel) selectedLabel.textContent = documentNumber || 'None';
     }
 
-    rows.forEach((row) => {
-        row.addEventListener('click', (event) => {
-            if (event.target.closest('a[href]')) return;
-            selectPreview(row.dataset.previewTarget, row.dataset.documentNumber);
-        });
-
-        row.addEventListener('keydown', (event) => {
-            if (event.key !== 'Enter' && event.key !== ' ') return;
-            event.preventDefault();
-            selectPreview(row.dataset.previewTarget, row.dataset.documentNumber);
+    triggers.forEach((trigger) => {
+        trigger.addEventListener('click', () => {
+            selectPreview(trigger.dataset.previewTarget, trigger.dataset.documentNumber);
         });
     });
 

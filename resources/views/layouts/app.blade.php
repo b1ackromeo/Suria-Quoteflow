@@ -38,6 +38,14 @@
             ['label' => 'Receiving Records', 'icon' => 'receipt', 'module' => 'goods-receipts'],
             ['label' => 'Supplier Invoices', 'icon' => 'receipt', 'module' => 'supplier-invoices'],
         ];
+        $taskLinks = [
+            ['label' => 'Pending approvals', 'icon' => 'admin', 'route' => route('approvals.pending'), 'active' => request()->routeIs('approvals.pending')],
+            ['label' => 'Verify invoices', 'icon' => 'receipt', 'route' => route('documents.index', ['module' => 'supplier-invoices', 'status' => 'draft']), 'active' => $isModule('supplier-invoices') && request('status') === 'draft'],
+            ['label' => 'Match invoices', 'icon' => 'purchase', 'route' => route('documents.index', ['module' => 'supplier-invoices', 'status' => 'approved']), 'active' => $isModule('supplier-invoices') && request('status') === 'approved'],
+        ];
+        if (auth()->user()->hasRole('admin', 'manager', 'accounts')) {
+            $taskLinks[] = ['label' => 'Payments', 'icon' => 'payments', 'route' => route('payments.index'), 'active' => request()->routeIs('payments.*')];
+        }
     @endphp
 
     <div class="min-h-screen xl:flex">
@@ -53,7 +61,7 @@
                 </a>
                 <form method="post" action="{{ route('logout') }}">
                     <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="text-xs font-semibold uppercase tracking-wide text-slate-400 transition hover:text-slate-900">Logout</button>
+                    <button type="submit" class="inline-flex min-h-9 items-center rounded-md px-2 text-xs font-semibold uppercase tracking-wide text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2">Logout</button>
                 </form>
                 </div>
                 <div class="company-identity-card">
@@ -73,6 +81,7 @@
                 </summary>
                 @include('layouts.partials.navigation', [
                     'primaryNav' => $primaryNav,
+                    'taskLinks' => $taskLinks,
                     'salesLinks' => $salesLinks,
                     'procurementLinks' => $procurementLinks,
                     'isModule' => $isModule,
@@ -82,6 +91,7 @@
 
             @include('layouts.partials.navigation', [
                 'primaryNav' => $primaryNav,
+                'taskLinks' => $taskLinks,
                 'salesLinks' => $salesLinks,
                 'procurementLinks' => $procurementLinks,
                 'isModule' => $isModule,
@@ -93,7 +103,7 @@
             <header class="app-header">
                 <div class="header-tools">
                     <form class="global-search" method="get" action="{{ route('search.index') }}" role="search" aria-label="Global search">
-                        <x-icon name="search" class="h-4 w-4 text-slate-400" />
+                        <x-icon name="search" class="h-4 w-4 text-slate-400" aria-hidden="true" />
                         <input type="search" name="q" value="{{ request('q') }}" placeholder="Search document no., customer, supplier, item, amount..." aria-label="Search Suria QuoteFlow">
                         <button type="submit" class="sr-only">Search</button>
                     </form>
@@ -105,13 +115,13 @@
                     </div>
                     @if($showDateControl)
                         <div class="date-control">
-                            <x-icon name="calendar" class="h-4 w-4 text-slate-500" />
+                            <x-icon name="calendar" class="h-4 w-4 text-slate-500" aria-hidden="true" />
                             <span>{{ now()->startOfMonth()->format('d M Y') }} - {{ now()->format('d M Y') }}</span>
-                            <x-icon name="chevron" class="h-4 w-4 text-slate-400" />
+                            <x-icon name="chevron" class="h-4 w-4 text-slate-400" aria-hidden="true" />
                         </div>
                     @endif
                     <a class="icon-button notification-button" href="{{ route('approvals.pending') }}" aria-label="Pending approvals">
-                        <x-icon name="bell" class="h-5 w-5" />
+                        <x-icon name="bell" class="h-5 w-5" aria-hidden="true" />
                         <span>{{ \App\Models\Approval::where('status', 'pending')->count() }}</span>
                     </a>
                     <div class="user-chip">
@@ -128,7 +138,7 @@
             @php
                 $contentClass = $contentMode === 'fullscreen'
                     ? 'min-h-0 min-w-0 flex-1 overflow-hidden'
-                    : 'mx-auto max-w-[1500px] px-4 py-5 sm:px-6 lg:px-8';
+                    : 'w-full px-4 py-5 sm:px-6 lg:px-8';
                 $noticeClass = $contentMode === 'fullscreen'
                     ? 'mx-4 mt-4'
                     : 'mb-5';

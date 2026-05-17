@@ -4,28 +4,52 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\Payment;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ReportController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $receivables = Document::with(['customer', 'payments'])
-            ->where('type', 'customer_invoice')
-            ->whereNotIn('status', ['paid', 'closed', 'cancelled'])
-            ->latest('issue_date')
-            ->limit(20)
-            ->get();
+        $rangeDays = (int) $request->query('range', 30);
+        $rangeDays = in_array($rangeDays, [30, 60, 90, 365], true) ? $rangeDays : 30;
+        $periodStart = now()->subDays($rangeDays)->startOfDay();
+        $previousPeriodStart = now()->subDays($rangeDays * 2)->startOfDay();
+        $today = now()->toDateString();
+        $nextWeek = now()->addDays(7)->toDateString();
+        $receivableStatuses = ['issued', 'part_paid'];
+        $payableStatuses = ['matched', 'part_paid'];
 
-        $payables = Document::with(['supplier', 'payments'])
-            ->where('type', 'supplier_invoice')
-            ->whereNotIn('status', ['paid', 'closed', 'cancelled'])
-            ->latest('issue_date')
-            ->limit(20)
-            ->get();
+        $receivables = $this->openInvoiceList('customer_invoice', $receivableStatuses, 'customer');
+        $payables = $this->openInvoiceList('supplier_invoice', $payableStatuses, 'supplier');
+        $receivableBalance = $this->balanceTotal('customer_invoice', $receivableStatuses);
+        $payableBalance = $this->balanceTotal('supplier_invoice', $payableStatuses);
+        $overdueReceivableBalance = $this->balanceTotal(
+            'customer_invoice',
+            $receivableStatuses,
+            fn (Builder $query) => $query
+                ->whereNotNull('documents.due_date')
+                ->whereDate('documents.due_date', '<', $today)
+        );
+        $supplierDueSoonBalance = $this->balanceTotal(
+            'supplier_invoice',
+            $payableStatuses,
+            fn (Builder $query) => $query
+                ->whereNotNull('documents.due_date')
+                ->whereDate('documents.due_date', '<=', $nextWeek)
+        );
 
-        $monthlyInvoices = Document::selectRaw('DATE_FORMAT(issue_date, "%Y-%m") as month, direction, SUM(total) as total')
+        $incomingPayments = $this->paymentTotal('incoming', $periodStart);
+        $outgoingPayments = $this->paymentTotal('outgoing', $periodStart);
+        $previousIncomingPayments = $this->paymentTotal('incoming', $previousPeriodStart, $periodStart);
+        $previousOutgoingPayments = $this->paymentTotal('outgoing', $previousPeriodStart, $periodStart);
+        $monthExpression = DB::connection()->getDriverName() === 'sqlite'
+            ? "strftime('%Y-%m', issue_date)"
+            : "DATE_FORMAT(issue_date, '%Y-%m')";
+
+        $monthlyInvoices = Document::selectRaw($monthExpression.' as month, direction, SUM(total) as total')
             ->whereIn('type', ['customer_invoice', 'supplier_invoice'])
             ->where('issue_date', '>=', now()->subMonths(12)->startOfMonth())
             ->groupBy('month', 'direction')
@@ -36,8 +60,20 @@ class ReportController extends Controller
             'receivables' => $receivables,
             'payables' => $payables,
             'monthlyInvoices' => $monthlyInvoices,
-            'incomingPayments' => Payment::where('direction', 'incoming')->where('payment_date', '>=', now()->subDays(30))->sum('amount'),
-            'outgoingPayments' => Payment::where('direction', 'outgoing')->where('payment_date', '>=', now()->subDays(30))->sum('amount'),
+            'rangeDays' => $rangeDays,
+            'receivableCount' => $this->openBalanceInvoiceBaseQuery('customer_invoice', $receivableStatuses)->count('documents.id'),
+            'payableCount' => $this->openBalanceInvoiceBaseQuery('supplier_invoice', $payableStatuses)->count('documents.id'),
+            'incomingPayments' => $incomingPayments,
+            'outgoingPayments' => $outgoingPayments,
+            'previousIncomingPayments' => $previousIncomingPayments,
+            'previousOutgoingPayments' => $previousOutgoingPayments,
+            'receivableBalance' => $receivableBalance,
+            'payableBalance' => $payableBalance,
+            'netExposure' => $receivableBalance - $payableBalance,
+            'overdueReceivableBalance' => $overdueReceivableBalance,
+            'supplierDueSoonBalance' => $supplierDueSoonBalance,
+            'receivableAging' => $this->agingBuckets('customer_invoice', $receivableStatuses),
+            'payableAging' => $this->agingBuckets('supplier_invoice', $payableStatuses),
         ]);
     }
 
@@ -73,11 +109,14 @@ class ReportController extends Controller
 
             $type = $report === 'receivables' ? 'customer_invoice' : 'supplier_invoice';
             fputcsv($handle, ['Document', 'Party', 'Issue Date', 'Due Date', 'Status', 'Total', 'Paid', 'Balance']);
-            Document::with(['customer', 'supplier', 'payments'])
+            Document::with(['customer', 'supplier'])
+                ->withSum('payments as paid_total', 'amount')
                 ->where('type', $type)
                 ->orderBy('issue_date')
                 ->chunk(200, function ($documents) use ($handle) {
                     foreach ($documents as $document) {
+                        $paidTotal = (float) ($document->paid_total ?? 0);
+
                         fputcsv($handle, [
                             $document->document_number,
                             $document->partyName(),
@@ -85,13 +124,117 @@ class ReportController extends Controller
                             optional($document->due_date)->format('Y-m-d'),
                             $document->status,
                             $document->total,
-                            $document->payments->sum('amount'),
-                            $document->balanceDue(),
+                            $paidTotal,
+                            max(0, (float) $document->total - $paidTotal),
                         ]);
                     }
                 });
 
             fclose($handle);
         }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    private function openBalanceInvoiceBaseQuery(string $type, array $statuses): Builder
+    {
+        $paymentTotals = $this->paymentTotalsSubquery();
+
+        return Document::query()
+            ->leftJoinSub($paymentTotals, 'payment_totals', 'payment_totals.document_id', '=', 'documents.id')
+            ->where('documents.type', $type)
+            ->whereIn('documents.status', $statuses)
+            ->whereRaw('documents.total - COALESCE(payment_totals.paid_total, 0) > 0');
+    }
+
+    private function openInvoiceList(string $type, array $statuses, string $partyRelation)
+    {
+        return $this->openBalanceInvoiceBaseQuery($type, $statuses)
+            ->select('documents.*')
+            ->selectRaw('COALESCE(payment_totals.paid_total, 0) as paid_total')
+            ->with($partyRelation)
+            ->orderByRaw('CASE WHEN documents.due_date IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('documents.due_date')
+            ->limit(8)
+            ->get();
+    }
+
+    private function paymentTotal(string $direction, $startDate, $endDate = null): float
+    {
+        return (float) Payment::where('direction', $direction)
+            ->where('payment_date', '>=', $startDate)
+            ->when($endDate, fn ($query) => $query->where('payment_date', '<', $endDate))
+            ->sum('amount');
+    }
+
+    private function balanceTotal(string $type, array $statuses, ?\Closure $scope = null): float
+    {
+        $query = $this->openBalanceInvoiceBaseQuery($type, $statuses);
+
+        if ($scope) {
+            $scope($query);
+        }
+
+        return (float) $query
+            ->selectRaw('COALESCE(SUM(documents.total - COALESCE(payment_totals.paid_total, 0)), 0) as balance_total')
+            ->value('balance_total');
+    }
+
+    private function paymentTotalsSubquery(): Builder
+    {
+        return Payment::query()
+            ->select('document_id', DB::raw('SUM(amount) as paid_total'))
+            ->groupBy('document_id');
+    }
+
+    private function agingBuckets(string $type, array $statuses): array
+    {
+        $today = now()->toDateString();
+        $thirtyDaysAgo = now()->subDays(30)->toDateString();
+        $sixtyDaysAgo = now()->subDays(60)->toDateString();
+
+        return [
+            [
+                'label' => 'Not due',
+                'helper' => 'Due today or later',
+                'amount' => $this->balanceTotal(
+                    $type,
+                    $statuses,
+                    fn (Builder $query) => $query
+                        ->where(function ($query) use ($today) {
+                            $query->whereNull('documents.due_date')->orWhereDate('documents.due_date', '>=', $today);
+                        })
+                ),
+            ],
+            [
+                'label' => '1-30 days',
+                'helper' => 'Recently overdue',
+                'amount' => $this->balanceTotal(
+                    $type,
+                    $statuses,
+                    fn (Builder $query) => $query
+                        ->whereDate('documents.due_date', '<', $today)
+                        ->whereDate('documents.due_date', '>=', $thirtyDaysAgo)
+                ),
+            ],
+            [
+                'label' => '31-60 days',
+                'helper' => 'Needs follow-up',
+                'amount' => $this->balanceTotal(
+                    $type,
+                    $statuses,
+                    fn (Builder $query) => $query
+                        ->whereDate('documents.due_date', '<', $thirtyDaysAgo)
+                        ->whereDate('documents.due_date', '>=', $sixtyDaysAgo)
+                ),
+            ],
+            [
+                'label' => '60+ days',
+                'helper' => 'Escalation risk',
+                'amount' => $this->balanceTotal(
+                    $type,
+                    $statuses,
+                    fn (Builder $query) => $query->whereDate('documents.due_date', '<', $sixtyDaysAgo)
+                ),
+            ],
+        ];
     }
 }

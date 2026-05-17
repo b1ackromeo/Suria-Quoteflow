@@ -51,30 +51,30 @@
     $companyProfile = \App\Models\CompanyProfile::active();
     $sourceOptions = match ($meta['type']) {
         'customer_po' => [
-            'quotation' => ['title' => 'From approved quotation', 'copy' => 'Use this when the PO received from the customer follows a quotation already approved in Suria QuoteFlow.'],
+            'quotation' => ['title' => 'From approved quotation', 'copy' => 'Use when the customer PO follows an approved quotation.'],
             'direct_customer_po' => ['title' => 'Direct PO received', 'copy' => 'Use only when no quotation is required. Add a reason.'],
         ],
         'customer_invoice' => [
-            'customer_po' => ['title' => 'From PO received', 'copy' => 'Use this when billing against a PO already recorded from the customer.'],
-            'progress_claim' => ['title' => 'Progress claim', 'copy' => 'Use this for staged billing where the invoice represents the current billing stage.'],
+            'customer_po' => ['title' => 'From PO received', 'copy' => 'Bill against a customer PO already recorded.'],
+            'progress_claim' => ['title' => 'Progress claim', 'copy' => 'Use for the current billing stage.'],
             'direct_invoice' => ['title' => 'Direct invoice', 'copy' => 'Use only when billing is allowed without a recorded PO. Add a reason.'],
         ],
         'supplier_po' => [
-            'supplier_quote' => ['title' => 'From supplier quotation', 'copy' => 'Use this when the order follows a supplier quotation.'],
-            'purchase_request' => ['title' => 'From purchase request', 'copy' => 'Use this when internal approval started from a purchase request.'],
+            'supplier_quote' => ['title' => 'From supplier quotation', 'copy' => 'Order from an accepted supplier quote.'],
+            'purchase_request' => ['title' => 'From purchase request', 'copy' => 'Order from an approved internal request.'],
             'direct_supplier_po' => ['title' => 'Direct purchase order', 'copy' => 'Use only when no supplier quotation or purchase request is required. Add a reason.'],
         ],
         'supplier_quotation' => [
-            'purchase_request' => ['title' => 'From purchase request', 'copy' => 'Use this when the quotation was requested because of an approved internal purchase request.'],
-            'supplier_quote' => ['title' => 'Previous supplier quotation / revision', 'copy' => 'Use this when recording a revised quotation from the same supplier.'],
+            'purchase_request' => ['title' => 'From purchase request', 'copy' => 'Quote requested for an approved purchase request.'],
+            'supplier_quote' => ['title' => 'Previous supplier quotation / revision', 'copy' => 'Record a revised quote from the same supplier.'],
         ],
         'goods_receipt' => [
-            'supplier_po' => ['title' => 'Against issued purchase order', 'copy' => 'Normal path. Open from the issued PO so the supplier, site, ordered lines, and quantities are copied for receiving.'],
+            'supplier_po' => ['title' => 'Against issued purchase order', 'copy' => 'Normal receiving path. Start from the issued PO.'],
             'direct_receipt' => ['title' => 'Direct receipt exception', 'copy' => 'Use only when goods or services must be captured before the PO is available. Add a reason.'],
         ],
         'supplier_invoice' => [
-            'goods_receipt' => ['title' => 'From receipt', 'copy' => 'Use this when matching supplier invoice to accepted goods or service receipt.'],
-            'supplier_po' => ['title' => 'From purchase order', 'copy' => 'Use this when invoice matching is based directly on the purchase order.'],
+            'goods_receipt' => ['title' => 'From receipt', 'copy' => 'Match to accepted goods or service.'],
+            'supplier_po' => ['title' => 'From purchase order', 'copy' => 'Match directly to the PO.'],
             'direct_supplier_invoice' => ['title' => 'Direct supplier invoice', 'copy' => 'Use only when no PO or receipt is required. Add a reason.'],
         ],
         default => [],
@@ -151,45 +151,43 @@
         default => 'New '.$documentNoun,
     };
     $studioHeroCopy = match (true) {
-        $isQuotationDocument => 'Build the customer-facing document on the left. The preview on the right updates as commercial details, line items, payment terms, and scope are entered.',
-        $meta['type'] === 'customer_po' => 'Record the PO received from the customer on the left. The preview on the right shows the workflow record, source reference, delivery or service details, and billing conditions.',
-        $meta['type'] === 'supplier_po' => 'Prepare the supplier-facing purchase order from an approved request, accepted supplier quotation, or approved direct procurement. The preview shows the PO that will be issued.',
-        $isGoodsReceipt => 'Start from the issued purchase order, then record the delivered materials. Switch to service acceptance only when the PO line is a service or milestone.',
-        $meta['type'] === 'supplier_invoice' => 'Record the supplier invoice details on the left. The preview on the right shows the incoming file preview area and matching summary after the supplier PDF or image is uploaded.',
-        $isInvoiceDocument => 'Prepare billing details on the left. The preview on the right shows the invoice output, payment terms, progress billing, and totals.',
-        default => 'Enter the workflow details on the left. The preview on the right updates as the document is prepared.',
+        $isQuotationDocument => 'Enter the quote, terms, items, and scope. The preview updates as you work.',
+        $meta['type'] === 'customer_po' => 'Record the customer PO, source, dates, site, and billing condition.',
+        $meta['type'] === 'supplier_po' => 'Prepare the PO from an approved source or a direct exception with a reason.',
+        $isGoodsReceipt => 'Start from the issued PO, then record received goods or accepted services.',
+        $meta['type'] === 'supplier_invoice' => 'Record invoice details now. Upload the supplier file after saving.',
+        $isInvoiceDocument => 'Enter billing details, terms, items, and progress information.',
+        default => 'Enter the workflow details and check the preview before saving.',
     };
-    $stepOneTitle = $isGoodsReceipt
-        ? 'PO and receiving details'
-        : ($meta['type'] === 'supplier_po' ? 'Vendor, source, and delivery' : ($meta['party'] === 'customer' ? 'Customer and project' : 'Supplier and project'));
+    $stepOneTitle = $isGoodsReceipt ? 'Party and receiving dates' : 'Party and dates';
     $stepOneCopy = match (true) {
-        $isQuotationDocument => 'Choose the customer, reference, validity, site, and delivery or service location that will appear on the quotation.',
-        $meta['type'] === 'customer_po' => 'Choose the customer, PO reference, date received, expected completion date, project site, and service or delivery location.',
-        $meta['type'] === 'supplier_po' => 'Select the supplier, source request or quotation, PO date, delivery date, project site, and ship-to details.',
-        $isGoodsReceipt => 'Choose the supplier, issued purchase order, delivery order reference, received date, and receiving location.',
-        $meta['type'] === 'supplier_invoice' => 'Choose the supplier, supplier invoice number, invoice date, payment due date if stated, project site, and matching source.',
-        $isInvoiceDocument => 'Choose the billing party, source reference, invoice date, due date, project site, and service or delivery reference.',
-        default => 'Choose the party, reference, date, project site, and delivery or service location for this workflow record.',
+        $isQuotationDocument => 'Set the customer, reference, validity, site, and delivery location.',
+        $meta['type'] === 'customer_po' => 'Set the customer, PO reference, dates, site, and service location.',
+        $meta['type'] === 'supplier_po' => 'Set the supplier, PO dates, site, and ship-to details.',
+        $isGoodsReceipt => 'Set the supplier, source PO, evidence reference, date, and location.',
+        $meta['type'] === 'supplier_invoice' => 'Set the supplier, invoice number, dates, site, and source.',
+        $isInvoiceDocument => 'Set the billing party, reference, invoice date, due date, and site.',
+        default => 'Set the party, reference, dates, site, and location.',
     };
-    $stepTwoTitle = $isQuotationDocument ? 'Commercial Terms' : ($isPoDocument ? ($isSupplierPo ? 'Delivery and supplier payment terms' : 'Delivery and Payment Terms') : ($isGoodsReceipt ? 'Receiving evidence' : ($meta['type'] === 'supplier_invoice' ? 'Supplier Payment Terms' : ($isInvoiceDocument ? 'Billing and Payment Terms' : 'Commercial Terms'))));
-    $stepThreeTitle = $isQuotationDocument ? 'Scope and line items' : ($isPoDocument ? ($isSupplierPo ? 'Ordered items and scope' : 'Items and order scope') : ($isGoodsReceipt ? 'Received material lines' : ($meta['type'] === 'supplier_invoice' ? 'Invoice lines and matching stages' : ($isInvoiceDocument ? 'Invoice items and billing stages' : 'Line items'))));
+    $stepTwoTitle = $isGoodsReceipt ? 'Evidence' : 'Money and terms';
+    $stepThreeTitle = $isGoodsReceipt ? 'Items received' : 'Items';
     $stepThreeCopy = match (true) {
-        $isQuotationDocument => 'Select products or services to auto-fill descriptions, units, and prices. Tax stays at document total level, not line item level.',
-        $isPoDocument => 'Select products or services to auto-fill ordered descriptions, units, and prices. Tax stays at document total level, not line item level.',
-        $isGoodsReceipt => 'Confirm received quantity, shortage or rejected quantity, and unit for each PO line. Price, tax, and payment terms are not part of receiving.',
-        $meta['type'] === 'supplier_invoice' => 'Record the supplier billed lines so the file can be checked against the purchase order, receipt, approved amount, and payment status.',
-        $isInvoiceDocument => 'Select billable items and, when needed, mark the current progress billing stage. Tax stays at document total level, not line item level.',
-        default => 'Select products or services to auto-fill descriptions, units, and prices.',
+        $isQuotationDocument => 'Add products or services. Tax is set at document level.',
+        $isPoDocument => 'Add ordered products or services. Tax is set at document level.',
+        $isGoodsReceipt => 'Confirm received, short, or rejected quantities. No pricing is recorded here.',
+        $meta['type'] === 'supplier_invoice' => 'Record billed lines for verification, matching, and payment checks.',
+        $isInvoiceDocument => 'Add billable items and mark the current progress stage if needed.',
+        default => 'Add products or services.',
     };
-    $stepFourTitle = $isQuotationDocument ? 'Scope summary and terms' : ($isPoDocument ? 'Delivery notes and terms' : ($isGoodsReceipt ? 'Receiving remarks' : ($isInvoiceDocument ? 'Billing notes and terms' : 'Notes and terms')));
+    $stepFourTitle = $isGoodsReceipt ? 'Notes and evidence' : 'Notes and terms';
     $stepFourCopy = match (true) {
-        $isQuotationDocument => 'Write the customer-facing scope summary, assumptions, exclusions, and commercial terms that should appear on the quotation.',
-        $meta['type'] === 'customer_po' => 'Record delivery instructions, service notes, customer obligations, and internal terms for handling the PO received.',
-        $meta['type'] === 'supplier_po' => 'Write supplier delivery instructions, required documents, acceptance conditions, and PO terms.',
-        $isGoodsReceipt => 'Record receiving remarks, shortage, rejected quantity, damage, or inspection notes. Upload evidence after saving this record.',
-        $meta['type'] === 'supplier_invoice' => 'Record internal matching notes, disputed items, payment instructions, or supplier terms found on the uploaded invoice file.',
-        $isInvoiceDocument => 'Write billing notes, supporting references, payment instructions, and terms for this invoice.',
-        default => 'Write notes, instructions, and terms for this document.',
+        $isQuotationDocument => 'Add customer-facing scope, assumptions, exclusions, and terms.',
+        $meta['type'] === 'customer_po' => 'Add delivery instructions, service notes, and internal terms.',
+        $meta['type'] === 'supplier_po' => 'Add delivery instructions, required documents, and PO terms.',
+        $isGoodsReceipt => 'Add receiving remarks. Upload evidence after saving this receipt.',
+        $meta['type'] === 'supplier_invoice' => 'Add matching notes, disputed items, payment instructions, or supplier terms.',
+        $isInvoiceDocument => 'Add billing notes, supporting references, payment instructions, and terms.',
+        default => 'Add notes, instructions, and terms.',
     };
     $livePreviewTitle = match (true) {
         $isQuotationDocument => 'Quotation Preview',
@@ -234,7 +232,7 @@
         'supplier_po' => 'How is this purchase order created?',
         'customer_invoice' => 'How is this invoice created?',
         'goods_receipt' => 'What is this receipt recorded against?',
-        'supplier_invoice' => 'How was this supplier invoice received or matched?',
+        'supplier_invoice' => 'How should this invoice be matched?',
         default => 'How is this '.$documentNoun.' created?',
     };
     $sourceNotePlaceholder = match ($meta['type']) {
@@ -273,17 +271,25 @@
     @if($usesDocumentStudio)
         <div class="workspace-pane-header">
             <div class="studio-hero">
-                <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
+                <div class="flex min-w-0 flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-start lg:justify-between">
+                    <div class="min-w-0">
                         <p class="text-xs font-black uppercase tracking-wide text-[#0a4f93]">{{ $studioAction }}</p>
                         <h2 class="mt-1 text-2xl font-black tracking-tight text-slate-950">{{ $meta['singular'] }}</h2>
                         <p class="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-500">{{ $studioHeroCopy }}</p>
                     </div>
-                    <div class="flex flex-wrap gap-2">
+                    <div class="flex shrink-0 flex-wrap gap-2">
                         <a class="btn btn-secondary" href="{{ $document->exists ? route('documents.show', $document) : route('documents.index', $meta['slug']) }}">Cancel</a>
                         <button class="btn btn-primary" type="submit">Save {{ $documentNoun }}</button>
                     </div>
                 </div>
+                <nav class="studio-stepper" aria-label="Document form sections">
+                    @foreach(['Source', 'Party and dates', $isGoodsReceipt ? 'Evidence' : 'Money and terms', $isGoodsReceipt ? 'Items received' : 'Items', $isGoodsReceipt ? 'Notes and evidence' : 'Notes and terms'] as $stepLabel)
+                        <span class="studio-step {{ $loop->first ? 'studio-step-active' : '' }}">
+                            <span class="studio-step-number">Step {{ $loop->iteration }}</span>
+                            <span class="studio-step-label">{{ $stepLabel }}</span>
+                        </span>
+                    @endforeach
+                </nav>
             </div>
         </div>
     @endif
@@ -295,17 +301,17 @@
                 <h2 id="source-workflow-heading" class="studio-section-title">{{ $isGoodsReceipt ? 'Start with the issued purchase order' : $sourceQuestion }}</h2>
                 <p class="studio-section-copy">
                     @if($isGoodsReceipt)
-                        Normal receiving is done against an issued supplier PO. Use direct receipt only when the delivery must be captured before the PO is available, and add a reason.
+                        Normal receiving uses an issued supplier PO. Direct receipt needs a reason.
                     @elseif($meta['type'] === 'supplier_po')
-                        Choose whether this PO comes from an accepted supplier quotation, an approved purchase request, or approved direct procurement. This source becomes the audit trail before approval and issue.
+                        Choose the approved source. Direct purchase order needs a reason.
                     @elseif($meta['type'] === 'supplier_invoice')
-                        Choose whether the supplier invoice is matched against a receiving record, a purchase order, or an approved direct supplier invoice exception.
+                        Match to a receipt, match to a PO, or record an approved direct exception.
                     @elseif($meta['type'] === 'customer_po')
-                        Choose whether the PO was received against an approved quotation or as a direct customer PO under an allowed commercial arrangement.
+                        Link the customer PO to a quotation, or record a direct PO with a reason.
                     @elseif($meta['type'] === 'customer_invoice')
-                        Choose whether the invoice is created from a PO received, a current progress claim, or an approved direct invoice exception.
+                        Bill from a PO, a progress claim, or an approved direct invoice exception.
                     @else
-                        Pick the real business source first so the next user can understand why this record exists.
+                        Pick the real business source first.
                     @endif
                 </p>
             </div>
