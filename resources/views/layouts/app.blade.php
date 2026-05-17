@@ -151,5 +151,101 @@
         @yield('content')
     </main>
 @endauth
+
+@if(request()->routeIs('documents.create') && request()->route('module') === 'purchase-requests')
+<script>
+(() => {
+    const form = document.querySelector('form[action*="/documents/purchase-requests"]');
+    if (!form || form.dataset.purchaseRequestQuoteUploadReady === 'true') return;
+
+    form.dataset.purchaseRequestQuoteUploadReady = 'true';
+    form.enctype = 'multipart/form-data';
+
+    const header = form.querySelector('.workspace-pane-header');
+    const firstSection = form.querySelector('.studio-section');
+    const insertBefore = firstSection || header?.nextElementSibling;
+    const panel = document.createElement('section');
+    panel.className = 'studio-source-panel';
+    panel.setAttribute('aria-labelledby', 'purchase-request-source-heading');
+    panel.innerHTML = `
+        <div>
+            <p class="studio-section-kicker">Source path</p>
+            <h2 id="purchase-request-source-heading" class="studio-section-title">Start from supplier quotation</h2>
+            <p class="studio-section-copy">Upload the supplier quotation first. OCR will read the quote fields and line items after the draft PR is saved, then the verified quote lines will populate the PR line items.</p>
+        </div>
+        <div class="source-choice-grid">
+            <label class="source-choice-card">
+                <input class="source-choice-input" type="radio" name="source_type" value="supplier_quote" checked data-pr-source-type>
+                <span>
+                    <span class="source-choice-title">Supplier quotation upload</span>
+                    <span class="source-choice-copy">Normal path. The quotation file is the source for OCR and PR line items.</span>
+                </span>
+            </label>
+            <label class="source-choice-card">
+                <input class="source-choice-input" type="radio" name="source_type" value="quote_exception" data-pr-source-type>
+                <span>
+                    <span class="source-choice-title">Quote exception</span>
+                    <span class="source-choice-copy">Use only when no supplier quotation is available. Add a reason and enter PR lines manually.</span>
+                </span>
+            </label>
+        </div>
+        <label class="form-label" data-pr-quote-upload-wrap>Supplier quotation PDF or image
+            <input class="form-input file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-bold file:text-slate-700 hover:file:bg-slate-200" type="file" name="source_attachment" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff">
+            <span class="mt-1 block text-xs font-semibold text-slate-500">Upload the supplier quotation here before saving the PR draft. The file will be attached as supplier_quote and OCR will run after save.</span>
+        </label>
+        <label class="form-label">Source note
+            <textarea class="form-input min-h-20" name="source_note" placeholder="Required only for quote exception. Example: emergency purchase approved before supplier quote was received."></textarea>
+            <span class="mt-1 block text-xs font-semibold text-slate-500">For normal supplier quote upload, this note is optional.</span>
+        </label>
+    `;
+
+    if (insertBefore) {
+        form.insertBefore(panel, insertBefore);
+    } else {
+        form.prepend(panel);
+    }
+
+    const uploadWrap = panel.querySelector('[data-pr-quote-upload-wrap]');
+    const uploadInput = panel.querySelector('[name="source_attachment"]');
+
+    function syncSourceMode() {
+        const selected = panel.querySelector('[data-pr-source-type]:checked')?.value || 'supplier_quote';
+        const isException = selected === 'quote_exception';
+        uploadWrap.classList.toggle('hidden', isException);
+        uploadInput.disabled = isException;
+    }
+
+    panel.addEventListener('change', (event) => {
+        if (event.target.matches('[data-pr-source-type]')) {
+            syncSourceMode();
+        }
+    });
+
+    form.addEventListener('submit', () => {
+        if (!uploadInput.files?.length) return;
+
+        const firstDescription = form.querySelector('[name="items[0][description]"]');
+        const firstQuantity = form.querySelector('[name="items[0][quantity]"]');
+        const firstUnit = form.querySelector('[name="items[0][unit]"]');
+        const firstPrice = form.querySelector('[name="items[0][unit_price]"]');
+
+        if (firstDescription && firstDescription.value.trim() === '') {
+            firstDescription.value = 'Supplier quote OCR pending verification';
+        }
+        if (firstQuantity && Number(firstQuantity.value || 0) <= 0) {
+            firstQuantity.value = '1';
+        }
+        if (firstUnit && firstUnit.value.trim() === '') {
+            firstUnit.value = 'lot';
+        }
+        if (firstPrice && firstPrice.value.trim() === '') {
+            firstPrice.value = '0';
+        }
+    });
+
+    syncSourceMode();
+})();
+</script>
+@endif
 </body>
 </html>
