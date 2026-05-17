@@ -190,7 +190,7 @@
             </label>
         </div>
         <label class="form-label" data-pr-quote-upload-wrap>Supplier quotation PDF or image
-            <input class="form-input file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-bold file:text-slate-700 hover:file:bg-slate-200" type="file" name="source_attachment" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff">
+            <input class="form-input file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-bold file:text-slate-700 hover:file:bg-slate-200" type="file" name="source_attachment" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff" data-pr-quote-upload>
             <span class="mt-1 block text-xs font-semibold text-slate-500">Upload the supplier quotation here before saving the PR draft. The file will be attached as supplier_quote and OCR will run after save.</span>
         </label>
         <label class="form-label">Source note
@@ -206,42 +206,82 @@
     }
 
     const uploadWrap = panel.querySelector('[data-pr-quote-upload-wrap]');
-    const uploadInput = panel.querySelector('[name="source_attachment"]');
+    const uploadInput = panel.querySelector('[data-pr-quote-upload]');
+    const lineRows = () => Array.from(form.querySelectorAll('#line-items tbody tr'));
+
+    function firstLineFields() {
+        return {
+            description: form.querySelector('[name="items[0][description]"]'),
+            quantity: form.querySelector('[name="items[0][quantity]"]'),
+            unit: form.querySelector('[name="items[0][unit]"]'),
+            price: form.querySelector('[name="items[0][unit_price]"]'),
+        };
+    }
+
+    function applyQuoteUploadPlaceholder() {
+        const fields = firstLineFields();
+        if (fields.description && fields.description.value.trim() === '') {
+            fields.description.value = 'Supplier quote OCR pending verification';
+        }
+        if (fields.quantity && Number(fields.quantity.value || 0) <= 0) {
+            fields.quantity.value = '1';
+        }
+        if (fields.unit && fields.unit.value.trim() === '') {
+            fields.unit.value = 'lot';
+        }
+        if (fields.price && fields.price.value.trim() === '') {
+            fields.price.value = '0';
+        }
+    }
+
+    function setManualLineRequirement(required) {
+        lineRows().forEach((row, index) => {
+            row.querySelectorAll('input, select, textarea').forEach((field) => {
+                if (field.name?.endsWith('[description]')) {
+                    field.required = required;
+                }
+                if (field.name?.endsWith('[quantity]')) {
+                    field.min = required ? '0.001' : '0';
+                }
+            });
+
+            if (!required && index > 0) {
+                row.querySelectorAll('input, select, textarea').forEach((field) => {
+                    if (!field.name?.endsWith('[product_id]')) {
+                        field.disabled = true;
+                    }
+                });
+            }
+        });
+    }
 
     function syncSourceMode() {
         const selected = panel.querySelector('[data-pr-source-type]:checked')?.value || 'supplier_quote';
         const isException = selected === 'quote_exception';
+        const hasUpload = !!uploadInput.files?.length;
+
         uploadWrap.classList.toggle('hidden', isException);
         uploadInput.disabled = isException;
+
+        if (!isException && hasUpload) {
+            applyQuoteUploadPlaceholder();
+            setManualLineRequirement(false);
+        } else {
+            setManualLineRequirement(true);
+        }
     }
 
     panel.addEventListener('change', (event) => {
-        if (event.target.matches('[data-pr-source-type]')) {
+        if (event.target.matches('[data-pr-source-type], [data-pr-quote-upload]')) {
             syncSourceMode();
         }
     });
 
     form.addEventListener('submit', () => {
         if (!uploadInput.files?.length) return;
-
-        const firstDescription = form.querySelector('[name="items[0][description]"]');
-        const firstQuantity = form.querySelector('[name="items[0][quantity]"]');
-        const firstUnit = form.querySelector('[name="items[0][unit]"]');
-        const firstPrice = form.querySelector('[name="items[0][unit_price]"]');
-
-        if (firstDescription && firstDescription.value.trim() === '') {
-            firstDescription.value = 'Supplier quote OCR pending verification';
-        }
-        if (firstQuantity && Number(firstQuantity.value || 0) <= 0) {
-            firstQuantity.value = '1';
-        }
-        if (firstUnit && firstUnit.value.trim() === '') {
-            firstUnit.value = 'lot';
-        }
-        if (firstPrice && firstPrice.value.trim() === '') {
-            firstPrice.value = '0';
-        }
-    });
+        applyQuoteUploadPlaceholder();
+        setManualLineRequirement(false);
+    }, true);
 
     syncSourceMode();
 })();
