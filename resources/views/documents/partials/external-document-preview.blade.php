@@ -77,6 +77,52 @@
     };
 @endphp
 
+@if($usesSupplierQuoteCapture && ! $previewOnly)
+<style>
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) {
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: visible !important;
+    }
+
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > .external-document-preview-header {
+        order: 1;
+    }
+
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > .external-document-summary-strip {
+        order: 2;
+    }
+
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > #supplier-quote-verification-panel {
+        order: 3;
+        border-top-width: 1px;
+        border-left: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > .external-document-file-frame {
+        order: 4;
+        position: static !important;
+        top: auto !important;
+    }
+
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > .external-document-lines {
+        order: 5;
+    }
+
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) > .external-document-supporting-files {
+        order: 6;
+    }
+
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) .external-document-pdf-viewer,
+    .document-open-preview-body .external-document-preview-card:has(#supplier-quote-verification-panel) .external-document-image-viewer {
+        height: 48vh !important;
+        min-height: 26rem !important;
+    }
+</style>
+@endif
+
 <article class="external-document-preview-card" data-external-document-preview>
     <div class="external-document-preview-header">
         <div>
@@ -182,7 +228,7 @@
                         @method('PUT')
                         @if($canVerifyExtraction && $extraction->status !== 'verified')
                             <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
-                                <span class="text-sm font-semibold text-blue-900">Review the fields below against the quotation preview, then verify this supplier quote evidence.</span>
+                                <span class="text-sm font-semibold text-blue-900">Review the OCR draft first. Use the quotation preview below to check any field before verifying.</span>
                                 <button type="submit" class="btn btn-primary">Verify supplier quote evidence</button>
                             </div>
                         @endif
