@@ -214,8 +214,8 @@
     }
 @endphp
 
-<div class="document-open-workspace">
-    <section class="document-open-preview-pane" aria-label="Document preview">
+<div class="document-open-workspace" style="grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);">
+    <aside class="document-open-side-panel" style="border-top: 0; border-right: 1px solid #e2e8f0;" aria-label="Document workspace and actions">
         <div class="document-open-heading">
             <div class="min-w-0">
                 <p class="document-pane-kicker">{{ $processLabel }}</p>
@@ -228,24 +228,6 @@
             </div>
         </div>
 
-        <div class="document-open-preview-body">
-            @if($previewMode === 'generated')
-                @include('documents.partials.generated-pdf-output-preview', ['document' => $document, 'meta' => $meta, 'isActive' => true])
-            @elseif($previewMode === 'supplier_invoice')
-                @include('documents.partials.supplier-invoice-file-preview', ['document' => $document, 'meta' => $meta])
-            @elseif($previewMode === 'external')
-                @include('documents.partials.external-document-preview', ['document' => $document, 'meta' => $meta])
-            @else
-                <article class="document-preview-empty">
-                    <p class="document-pane-kicker">Document preview</p>
-                    <h2>{{ $meta['singular'] }} record</h2>
-                    <p>The document output will appear here after it is ready for issue, receipt, or matching.</p>
-                </article>
-            @endif
-        </div>
-    </section>
-
-    <aside class="document-open-side-panel" aria-label="Document actions and details">
         <section class="document-side-card document-next-step-card">
             <div class="document-side-card-heading">
                 <p class="document-pane-kicker">Next action</p>
@@ -545,5 +527,23 @@
             </div>
         </details>
     </aside>
+
+    <section class="document-open-preview-pane" style="border-right: 0;" aria-label="Source preview and assisted capture">
+        <div class="document-open-preview-body">
+            @if($previewMode === 'generated')
+                @include('documents.partials.generated-pdf-output-preview', ['document' => $document, 'meta' => $meta, 'isActive' => true])
+            @elseif($previewMode === 'supplier_invoice')
+                @include('documents.partials.supplier-invoice-file-preview', ['document' => $document, 'meta' => $meta])
+            @elseif($previewMode === 'external')
+                @include('documents.partials.external-document-preview', ['document' => $document, 'meta' => $meta])
+            @else
+                <article class="document-preview-empty">
+                    <p class="document-pane-kicker">Document preview</p>
+                    <h2>{{ $meta['singular'] }} record</h2>
+                    <p>The document output will appear here after it is ready for issue, receipt, or matching.</p>
+                </article>
+            @endif
+        </div>
+    </section>
 </div>
 @endsection
