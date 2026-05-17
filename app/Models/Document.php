@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class Document extends Model
 {
@@ -139,6 +140,23 @@ class Document extends Model
         'tax_total' => 'decimal:2',
         'total' => 'decimal:2',
     ];
+
+    protected static function booted(): void
+    {
+        static::updating(function (self $document): void {
+            if (
+                $document->type === 'purchase_request'
+                && $document->isDirty('status')
+                && $document->status === 'pending_approval'
+                && ! $document->hasVerifiedSupplierQuoteEvidence()
+                && ! $document->hasSupplierQuoteException()
+            ) {
+                throw ValidationException::withMessages([
+                    'approval' => 'Verify the supplier quote evidence, or record a quote exception reason, before submitting this purchase request for approval.',
+                ]);
+            }
+        });
+    }
 
     public function customer(): BelongsTo
     {
@@ -280,6 +298,20 @@ class Document extends Model
             'direct_supplier_invoice' => 'Direct supplier invoice',
             default => $this->related_document_id ? 'Linked document' : 'Not specified',
         };
+    }
+
+    public function hasVerifiedSupplierQuoteEvidence(): bool
+    {
+        $this->loadMissing('attachments.extraction');
+
+        return $this->attachments
+            ->where('category', 'supplier_quote')
+            ->contains(fn (Attachment $attachment) => $attachment->extraction?->status === 'verified');
+    }
+
+    public function hasSupplierQuoteException(): bool
+    {
+        return $this->source_type === 'quote_exception' && filled($this->source_note);
     }
 
     public static function metaForSlug(string $slug): array
