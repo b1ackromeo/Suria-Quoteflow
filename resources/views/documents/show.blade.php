@@ -32,6 +32,10 @@
     $canSubmitForApproval = in_array($document->status, ['draft', 'rejected'], true);
     $supplierQuoteAttachment = $document->attachments->firstWhere('category', 'supplier_quote');
     $supplierQuoteExtraction = $supplierQuoteAttachment?->extraction;
+    $hasSupplierQuotePreview = $document->type === 'purchase_request'
+        && $document->attachments
+            ->where('category', 'supplier_quote')
+            ->contains(fn ($attachment) => $attachment->isPreviewable());
     $hasSupplierQuoteException = $document->type === 'purchase_request'
         && $document->source_type === 'quote_exception'
         && filled($document->source_note);
@@ -113,6 +117,7 @@
 @section('content')
 @php
     $previewMode = match (true) {
+        $hasSupplierQuotePreview => 'external',
         $canGenerateCompanyPdf => 'generated',
         $document->type === 'supplier_invoice' => 'supplier_invoice',
         $usesReceivedFilePreview => 'external',
