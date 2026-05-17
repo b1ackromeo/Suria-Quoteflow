@@ -2,6 +2,9 @@
     $attachments = $document->attachments ?? collect();
     $currency = strtoupper($document->currency ?: 'MYR');
     $items = $document->items ?? collect();
+    $previewOnly = $previewOnly ?? false;
+    $isSupplierQuotation = $document->type === 'supplier_quotation';
+    $extractionPolicy = app(\App\Services\Documents\ExternalDocumentExtractionService::class);
 
     $categoryPriority = match ($document->type) {
         'customer_po' => ['customer_po', 'supporting_document'],
@@ -19,6 +22,20 @@
     $supportingAttachments = $attachments
         ->filter(fn ($attachment) => $attachment->id !== $primaryAttachment?->id)
         ->values();
+    $extraction = $primaryAttachment?->extraction;
+    $canVerifyExtraction = in_array(auth()->user()?->role, ['admin', 'manager', 'procurement', 'accounts'], true);
+    $extractedFields = $extraction?->extracted_fields ?? [];
+    $verifiedFields = $extraction?->verified_fields ?? [];
+    $quoteFieldLabels = $isSupplierQuotation ? $extractionPolicy->fieldLabels($document) : [];
+    $manualFields = $isSupplierQuotation ? $extractionPolicy->manualFields($document) : [];
+    $manualItems = $isSupplierQuotation ? $extractionPolicy->manualItems($document) : [];
+    $quoteExtractionItems = collect(old('items', $verifiedFields['items'] ?? $extractedFields['items'] ?? $manualItems))->values();
+    $verificationMethod = $extraction?->verification_method ?: ($extraction?->status === 'failed' ? 'manual' : 'ocr_assisted');
+    $verificationMethodLabel = match ($verificationMethod) {
+        'ocr_assisted' => 'OCR-assisted',
+        'external' => 'External',
+        default => 'Manual',
+    };
 
     $previewTitle = match ($document->type) {
         'customer_po' => 'Customer PO received',
@@ -91,9 +108,32 @@
                     <strong>{{ $primaryAttachment->original_name }}</strong>
                     <span>{{ strtoupper($primaryAttachment->mime_type ?: 'file') }} · {{ number_format(($primaryAttachment->size ?? 0) / 1024, 1) }} KB</span>
                 </div>
-                @if($supportingAttachments->isNotEmpty())
-                    <span class="external-document-file-count">{{ $supportingAttachments->count() }} supporting file{{ $supportingAttachments->count() === 1 ? '' : 's' }}</span>
-                @endif
+                <div class="external-document-toolbar-actions">
+                    @if($supportingAttachments->isNotEmpty())
+                        <span class="external-document-file-count">{{ $supportingAttachments->count() }} supporting file{{ $supportingAttachments->count() === 1 ? '' : 's' }}</span>
+                    @endif
+
+                    @if($isSupplierQuotation && ! $previewOnly)
+                        @if($extraction?->status === 'verified')
+                            <span class="supplier-invoice-extraction-state is-verified">Verified</span>
+                        @elseif($extraction?->status === 'processed')
+                            <span class="supplier-invoice-extraction-state is-ready">Ready to verify</span>
+                        @elseif($extraction?->status === 'failed')
+                            <span class="supplier-invoice-extraction-state is-failed">OCR failed</span>
+                        @else
+                            <span class="supplier-invoice-extraction-state">Not extracted</span>
+                        @endif
+
+                        @if($primaryAttachment->canBeExtracted() && $canVerifyExtraction)
+                            <form method="post" action="{{ route('attachments.extract', $primaryAttachment) }}">
+                                @csrf
+                                <button type="submit" class="btn btn-secondary min-h-9 px-3 py-1.5">{{ $extraction ? 'Re-run OCR' : 'Run OCR' }}</button>
+                            </form>
+                        @elseif(! $primaryAttachment->canBeExtracted())
+                            <a class="btn btn-secondary min-h-9 px-3 py-1.5" href="{{ route('attachments.download', $primaryAttachment) }}">Download file</a>
+                        @endif
+                    @endif
+                </div>
             </div>
 
             @if($primaryAttachment->isPdf())
@@ -108,6 +148,103 @@
                 </div>
             @endif
         </section>
+
+        @if($isSupplierQuotation && ! $previewOnly)
+            <section class="supplier-invoice-extraction-panel external-document-extraction-panel">
+                <div class="supplier-invoice-extraction-heading">
+                    <div>
+                        <p class="document-pane-kicker">Assisted capture</p>
+                        <h4>Supplier quote details</h4>
+                    </div>
+                    @if($extraction?->verified_at)
+                        <span>{{ $verificationMethodLabel }} verification · {{ $extraction->verified_at->format('d M Y, g:i A') }}</span>
+                    @endif
+                </div>
+
+                @if(! $extraction)
+                    <p class="supplier-invoice-extraction-note">Run OCR to prepare a draft from this supplier quote. Review and verify the fields before using the quote for purchasing.</p>
+                @else
+                    @if($extraction->status === 'failed')
+                        <div class="supplier-invoice-extraction-error">
+                            <strong>OCR could not read this supplier quote.</strong>
+                            <span>{{ $extraction->error_message ?: 'Verify the quote details manually from the uploaded source file.' }}</span>
+                        </div>
+                    @endif
+
+                    <form method="post" action="{{ route('attachment-extractions.verify', $extraction) }}" class="supplier-invoice-extraction-form">
+                        @csrf
+                        @method('PUT')
+                        @foreach($quoteFieldLabels as $key => $label)
+                            <label>
+                                <span>{{ $label }}</span>
+                                <input
+                                    class="form-input"
+                                    name="fields[{{ $key }}]"
+                                    value="{{ old('fields.'.$key, $verifiedFields[$key] ?? $extractedFields[$key] ?? $manualFields[$key] ?? '') }}"
+                                    @if($extraction->status === 'verified') readonly @endif
+                                >
+                            </label>
+                        @endforeach
+
+                        <div class="external-document-extraction-items supplier-invoice-verify-button">
+                            <div class="external-document-lines-heading">
+                                <span>Quote line items</span>
+                                <strong>{{ $quoteExtractionItems->count() }} line{{ $quoteExtractionItems->count() === 1 ? '' : 's' }}</strong>
+                            </div>
+                            @if($quoteExtractionItems->isNotEmpty())
+                                <div class="external-document-extraction-item-grid">
+                                    @foreach($quoteExtractionItems->take(10) as $index => $item)
+                                        <label class="external-document-extraction-description">
+                                            <span>Description</span>
+                                            <input class="form-input" name="items[{{ $index }}][description]" value="{{ $item['description'] ?? '' }}" @if($extraction->status === 'verified') readonly @endif>
+                                        </label>
+                                        <label>
+                                            <span>Qty</span>
+                                            <input class="form-input" name="items[{{ $index }}][quantity]" value="{{ $item['quantity'] ?? '1' }}" @if($extraction->status === 'verified') readonly @endif>
+                                        </label>
+                                        <label>
+                                            <span>Unit</span>
+                                            <input class="form-input" name="items[{{ $index }}][unit]" value="{{ $item['unit'] ?? 'unit' }}" @if($extraction->status === 'verified') readonly @endif>
+                                        </label>
+                                        <label>
+                                            <span>Unit price</span>
+                                            <input class="form-input" name="items[{{ $index }}][unit_price]" value="{{ $item['unit_price'] ?? '0.00' }}" @if($extraction->status === 'verified') readonly @endif>
+                                        </label>
+                                        <input type="hidden" name="items[{{ $index }}][tax_rate]" value="{{ $item['tax_rate'] ?? '0' }}">
+                                    @endforeach
+                                </div>
+                            @else
+                                <p class="supplier-invoice-extraction-note">No line items were found in the OCR draft. Enter the quote total above, or edit the document lines after verification.</p>
+                            @endif
+                        </div>
+
+                        <label class="flex items-start gap-2 text-sm font-semibold text-slate-700">
+                            <input type="checkbox" name="supplier_confirmed" value="1" class="mt-1" @checked(old('supplier_confirmed', $extraction->supplier_confirmed)) @disabled($extraction->status === 'verified')>
+                            <span>Supplier on the quote matches this supplier record.</span>
+                        </label>
+                        <label class="flex items-start gap-2 text-sm font-semibold text-slate-700">
+                            <input type="checkbox" name="recorded_total_confirmed" value="1" class="mt-1" @checked(old('recorded_total_confirmed', $extraction->recorded_total_confirmed)) @disabled($extraction->status === 'verified')>
+                            <span>Recorded total has been checked against the supplier quote.</span>
+                        </label>
+                        <label>
+                            <span>Verification notes</span>
+                            <textarea class="form-input" name="verification_notes" @if($extraction->status === 'verified') readonly @endif>{{ old('verification_notes', $extraction->verification_notes) }}</textarea>
+                        </label>
+
+                        @if($canVerifyExtraction && $extraction->status !== 'verified')
+                            <button type="submit" class="btn btn-primary supplier-invoice-verify-button">Verify and update supplier quote</button>
+                        @endif
+                    </form>
+
+                    @if(filled($extraction->raw_text))
+                        <details class="supplier-invoice-ocr-text">
+                            <summary>OCR text used for this draft</summary>
+                            <pre>{{ \Illuminate\Support\Str::limit($extraction->raw_text, 2500) }}</pre>
+                        </details>
+                    @endif
+                @endif
+            </section>
+        @endif
     @else
         <section class="external-document-record-only">
             <h4>No previewable source file uploaded yet</h4>

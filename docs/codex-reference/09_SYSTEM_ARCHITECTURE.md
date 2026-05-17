@@ -347,18 +347,20 @@ Do not require public storage symlink or S3 for core workflow.
 
 ## OCR and invoice verification architecture
 
-Current OCR service:
+Current business document capture service:
 
 ```text
-App\Services\Ocr\TesseractInvoiceExtractor
+App\Services\Documents\BusinessDocumentCaptureService
 ```
 
-It uses:
+This is a first-class QuoteFlow service, not an external plugin/provider boundary. It uses local extraction mechanisms embedded in the Laravel workflow:
 
 - Tesseract command
 - Symfony Process / proc_open
+- optional Poppler `pdftotext` command for PDFs that already contain a text layer
 - Imagick for PDF-to-image conversion
 - local temp files
+- optional embedded PaddleOCR analyzer only when the shared-hosting runtime has been explicitly verified
 
 Architecture rule:
 
@@ -372,6 +374,60 @@ Verification can be OCR-assisted or manual.
 ```
 
 Do not make successful OCR the only approval path.
+
+External received-document capture should follow the same product logic wherever it reduces retyping:
+
+```text
+Supplier/customer sends PDF or image
+  -> QuoteFlow creates an OCR-assisted draft when local OCR is available
+  -> user reviews and corrects the draft beside the source file
+  -> verified values update the structured document record
+  -> downstream workflow reuses the verified data
+```
+
+Good candidates:
+
+```text
+supplier_quotation: quote no., quote date, validity, terms, line items, total
+customer_po: customer PO no., PO date, linked quotation reference, line items, total
+goods_receipt evidence: delivery/order evidence no., delivered date, received quantities
+supplier_invoice: invoice no., invoice date, PO/receipt reference, line items, total
+payment proof: payment date, amount, bank/reference no., invoice references
+```
+
+Do not apply OCR to internally generated records by default. Customer quotations, purchase requests, supplier purchase orders, and customer invoices should already be structured data in QuoteFlow.
+
+OCR must remain an assistant:
+
+- local extraction only, no mandatory external OCR API
+- bounded synchronous extraction for reasonable file sizes
+- manual verification/editing remains available when OCR fails
+- user verification, not OCR, is the trusted business event
+- verified external-document capture should record an audit event
+- do not add a plugin/provider switching layer for core capture; the document-type parsing and confidence policy belong inside QuoteFlow service classes
+
+PaddleOCR production boundary:
+
+- QuoteFlow may keep an embedded PaddleOCR 3.5.0 analyzer behind `BusinessDocumentCaptureService`.
+- PaddleOCR must be disabled by default for Exabytes/Plesk until the real hosting account proves `python3`, PaddleOCR, PaddlePaddle, model/cache paths, and process limits are usable.
+- PaddleOCR paths must be environment-configured and remain inside the hosting account, such as `/home/rctech.my/` or `/tmp/`; never hardcode Laragon, Windows, or developer-machine paths for production.
+- PaddleOCR failure must degrade to PDF text extraction, local Tesseract where available, and manual verification.
+- The trusted business event remains the user's verification/correction, not the OCR engine output.
+
+Business document extraction must prefer a resilient assisted-capture pipeline, not a single brittle OCR pass:
+
+```text
+PDF/image uploaded
+  -> if PDF has a text layer, try bounded pdftotext layout/plain extraction
+  -> if the text-layer result is incomplete, run bounded Tesseract passes with configured page segmentation modes
+  -> if enabled and hosting-verified, include a bounded PaddleOCR candidate
+  -> parse each candidate by document type
+  -> score candidates by supplier/customer name, document number, date, total, terms, line count, and line-total math
+  -> show the best draft beside the source file
+  -> user verifies/corrects before QuoteFlow trusts the data
+```
+
+Do not promise that OCR alone can perfectly read every supplier/customer layout. The product guarantee is that uploads remain usable and reviewable, extraction uses multiple bounded strategies, weak drafts can be corrected, and manual verification remains a first-class path.
 
 ## Payment architecture
 

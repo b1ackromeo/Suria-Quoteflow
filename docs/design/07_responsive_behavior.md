@@ -208,3 +208,10 @@ For every UI change, check:
 - zero records
 - many records
 - validation errors
+
+Hard stop rule:
+
+- A UI change is not complete until the affected page has been rendered in browser at the relevant viewport sizes above.
+- Dashboard and full-screen workspace changes must pass at `1366x768` before they can be called fixed.
+- Passing a larger desktop monitor does not prove the laptop layout works.
+- If any primary panel, action, chart, form control, or navigation item clips, overlaps, becomes unreachable, or creates unintended page-level scrolling, fix the layout and re-test before summarizing completion.

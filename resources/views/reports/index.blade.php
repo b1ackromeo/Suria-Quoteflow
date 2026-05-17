@@ -1,4 +1,4 @@
-@extends('layouts.app', ['title' => 'Reports'])
+@extends('layouts.app', ['title' => 'Reports', 'contentMode' => 'dashboard', 'showDateControl' => false])
 
 @php
     $money = fn ($value) => 'RM '.number_format((float) $value, 2);
@@ -25,264 +25,243 @@
 
 @section('content')
 <div class="reports-page">
-    <section class="reports-hero">
+    <section class="reports-titlebar">
         <div>
-            <p class="reports-eyebrow">Finance reports</p>
-            <h1>Exposure and cash movement</h1>
-            <p>See what is overdue, what cash moved, what is due soon, and which invoices accounts should open next.</p>
+            <h1>Finance reports</h1>
+            <p>Receivables, payables, cash movement, and invoice aging for finance follow-up.</p>
         </div>
-        <div class="reports-control-row">
-            <form class="reports-range-form" method="GET" action="{{ route('reports.index') }}">
-                <label class="sr-only" for="range">Report period</label>
-                <select id="range" name="range" class="form-input">
-                    @foreach([30, 60, 90, 365] as $days)
-                        <option value="{{ $days }}" @selected($rangeDays === $days)>Last {{ $days }} days</option>
+        <form class="reports-range-form" method="GET" action="{{ route('reports.index') }}">
+            <label for="range">Report period</label>
+            <select id="range" name="range" class="form-input">
+                @foreach([30, 60, 90, 365] as $days)
+                    <option value="{{ $days }}" @selected($rangeDays === $days)>Last {{ $days }} days</option>
+                @endforeach
+            </select>
+            <button class="btn btn-secondary" type="submit">Apply</button>
+        </form>
+    </section>
+
+    <div class="reports-workbench">
+        <div class="reports-main-column">
+            <section class="reports-position-panel" aria-labelledby="money-position-title">
+                <div class="reports-position-lead">
+                    <h2 id="money-position-title" class="reports-section-label">Money position</h2>
+                    <strong class="reports-position-value">{{ $money($netExposure) }}</strong>
+                    <p>Open receivables minus open payables. Use this as the starting point before opening the detail lists.</p>
+                    <div class="reports-net-strip {{ $netExposure >= 0 ? 'is-positive' : 'is-negative' }}">
+                        <span>{{ $netExposure >= 0 ? 'Customer side is ahead' : 'Supplier side is ahead' }}</span>
+                        <strong>{{ $money(abs($netExposure)) }}</strong>
+                    </div>
+                </div>
+
+                <div class="reports-position-bars" aria-label="Open balance comparison">
+                    @foreach($exposureBars as $bar)
+                        <a class="reports-comparison-row reports-comparison-{{ $bar['tone'] }}" href="{{ $bar['route'] }}">
+                            <span>
+                                <strong>{{ $bar['label'] }}</strong>
+                                <em>{{ $bar['helper'] }}</em>
+                            </span>
+                            <b>{{ $money($bar['amount']) }}</b>
+                            <i aria-hidden="true"><u style="width: {{ $bar['percent'] }}%"></u></i>
+                        </a>
                     @endforeach
-                </select>
-                <button class="btn btn-secondary" type="submit">Apply</button>
-            </form>
-            <div class="reports-actions" aria-label="Report exports">
-                <a class="btn btn-secondary" href="{{ route('reports.export', ['report' => 'receivables']) }}">Export receivables</a>
-                <a class="btn btn-secondary" href="{{ route('reports.export', ['report' => 'payables']) }}">Export payables</a>
-                <a class="btn btn-secondary" href="{{ route('reports.export', ['report' => 'payments']) }}">Export payments</a>
+                </div>
+            </section>
+
+            <div class="reports-analysis-grid">
+                <section class="reports-chart-panel" aria-labelledby="cash-movement-title">
+                    <div class="reports-panel-heading">
+                        <div>
+                            <h2 id="cash-movement-title">Cash movement</h2>
+                            <p>Payments recorded in the selected period.</p>
+                        </div>
+                        <strong>{{ $money($netMovement) }}</strong>
+                    </div>
+                    <div class="reports-cash-bars">
+                        @foreach($cashMovementBars as $bar)
+                            <div class="reports-cash-row reports-cash-{{ $bar['tone'] }}">
+                                <div>
+                                    <strong>{{ $bar['label'] }}</strong>
+                                    <span>{{ $movementLabel((float) $bar['amount'], (float) $bar['previous']) }}</span>
+                                </div>
+                                <b>{{ $money($bar['amount']) }}</b>
+                                <i aria-hidden="true"><u style="width: {{ $bar['percent'] }}%"></u></i>
+                            </div>
+                        @endforeach
+                    </div>
+                </section>
+
+                <section class="reports-chart-panel" aria-labelledby="invoice-movement-title">
+                    <div class="reports-panel-heading">
+                        <div>
+                            <h2 id="invoice-movement-title">12-month invoice movement</h2>
+                            <p>Customer invoices against supplier invoices.</p>
+                        </div>
+                        <a class="link" href="{{ route('reports.index', ['range' => 365]) }}">Year view</a>
+                    </div>
+                    <div class="reports-month-chart" aria-label="Customer and supplier invoice totals for the last 12 months">
+                        @foreach($monthlyInvoiceChart as $month)
+                            <div class="reports-month-column">
+                                <div class="reports-month-bars" aria-hidden="true">
+                                    <span class="reports-month-customer" style="height: {{ $month['customer_percent'] }}%"></span>
+                                    <span class="reports-month-supplier" style="height: {{ $month['supplier_percent'] }}%"></span>
+                                </div>
+                                <span>{{ $month['label'] }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                    <div class="reports-chart-legend" aria-hidden="true">
+                        <span><i class="reports-legend-customer"></i>Customer invoices</span>
+                        <span><i class="reports-legend-supplier"></i>Supplier invoices</span>
+                    </div>
+                </section>
             </div>
+
+            <section class="reports-aging-panel" aria-labelledby="aging-title">
+                <div class="reports-panel-heading">
+                    <div>
+                        <h2 id="aging-title">Collection and payment aging</h2>
+                        <p>Balances grouped by due-date risk.</p>
+                    </div>
+                </div>
+                <div class="reports-aging-grid">
+                    <div>
+                        <div class="reports-aging-heading">
+                            <h3>Receivables aging</h3>
+                            <a class="link" href="{{ route('documents.index', 'customer-invoices') }}">Open receivables</a>
+                        </div>
+                        <div class="reports-aging-list">
+                            @foreach($receivableAging as $bucket)
+                                @php
+                                    $width = (float) $bucket['amount'] > 0
+                                        ? min(100, max(4, ((float) $bucket['amount'] / $agingTotal($receivableAging)) * 100))
+                                        : 0;
+                                @endphp
+                                <div class="reports-aging-row">
+                                    <span>
+                                        <strong>{{ $bucket['label'] }}</strong>
+                                        <em>{{ $bucket['helper'] }}</em>
+                                    </span>
+                                    <b>{{ $money($bucket['amount']) }}</b>
+                                    <i aria-hidden="true"><u style="width: {{ $width }}%"></u></i>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="reports-aging-heading">
+                            <h3>Payables aging</h3>
+                            <a class="link" href="{{ route('documents.index', 'supplier-invoices') }}">Open payables</a>
+                        </div>
+                        <div class="reports-aging-list">
+                            @foreach($payableAging as $bucket)
+                                @php
+                                    $width = (float) $bucket['amount'] > 0
+                                        ? min(100, max(4, ((float) $bucket['amount'] / $agingTotal($payableAging)) * 100))
+                                        : 0;
+                                @endphp
+                                <div class="reports-aging-row">
+                                    <span>
+                                        <strong>{{ $bucket['label'] }}</strong>
+                                        <em>{{ $bucket['helper'] }}</em>
+                                    </span>
+                                    <b>{{ $money($bucket['amount']) }}</b>
+                                    <i aria-hidden="true"><u style="width: {{ $width }}%"></u></i>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            </section>
         </div>
-    </section>
 
-    <section class="reports-risk-grid" aria-label="Finance attention">
-        <a class="reports-risk-card reports-risk-card-alert" href="{{ route('documents.index', 'customer-invoices') }}">
-            <span>Overdue receivables</span>
-            <strong>{{ $money($overdueReceivableBalance) }}</strong>
-            <p>Customer balances past due date. Open invoices for follow-up.</p>
-        </a>
-        <a class="reports-risk-card reports-risk-card-warning" href="{{ route('documents.index', 'supplier-invoices') }}">
-            <span>Supplier payments due soon</span>
-            <strong>{{ $money($supplierDueSoonBalance) }}</strong>
-            <p>Matched supplier invoices due within 7 days.</p>
-        </a>
-        <section class="reports-risk-card">
-            <span>Net exposure</span>
-            <strong>{{ $money($netExposure) }}</strong>
-            <p>Open receivables minus open payables.</p>
-        </section>
-    </section>
-
-    <div class="reports-metric-grid">
-        <section class="reports-metric-card">
-            <span>Incoming payments</span>
-            <strong>{{ $money($incomingPayments) }}</strong>
-            <p>Last {{ $rangeDays }} days. {{ $movementLabel((float) $incomingPayments, (float) $previousIncomingPayments) }}.</p>
-        </section>
-        <section class="reports-metric-card">
-            <span>Outgoing payments</span>
-            <strong>{{ $money($outgoingPayments) }}</strong>
-            <p>Last {{ $rangeDays }} days. {{ $movementLabel((float) $outgoingPayments, (float) $previousOutgoingPayments) }}.</p>
-        </section>
-        <section class="reports-metric-card">
-            <span>Open receivables</span>
-            <strong>{{ $money($receivableBalance) }}</strong>
-            <p>{{ $receivableCount }} issued or part-paid customer invoices still carrying balance.</p>
-        </section>
-        <section class="reports-metric-card">
-            <span>Open payables</span>
-            <strong>{{ $money($payableBalance) }}</strong>
-            <p>{{ $payableCount }} matched or part-paid supplier invoices still carrying balance.</p>
-        </section>
-    </div>
-
-    <div class="reports-insight-grid">
-        <section class="reports-aging-card">
-            <div class="panel-header">
-                <div>
-                    <h2 class="panel-title">Receivables aging</h2>
-                    <p class="panel-subtitle">Customer money still to collect.</p>
+        <aside class="reports-side-column" aria-label="Report actions and risks">
+            <section class="reports-attention-panel">
+                <h2>Finance attention</h2>
+                <p>Open the records behind the amount before acting.</p>
+                <div class="reports-attention-list">
+                    @foreach($attentionCards as $card)
+                        <a class="reports-attention-card reports-attention-{{ $card['tone'] }}" href="{{ $card['route'] }}">
+                            <span>{{ $card['label'] }}</span>
+                            <strong>{{ $money($card['amount']) }}</strong>
+                            <em>{{ $card['helper'] }}</em>
+                        </a>
+                    @endforeach
                 </div>
-                <a class="link" href="{{ route('documents.index', 'customer-invoices') }}">Open receivables</a>
-            </div>
-            <div class="reports-aging-list">
-                @foreach($receivableAging as $bucket)
-                    @php
-                        $width = (float) $bucket['amount'] > 0
-                            ? min(100, max(4, ((float) $bucket['amount'] / $agingTotal($receivableAging)) * 100))
-                            : 0;
-                    @endphp
-                    <div class="reports-aging-row">
-                        <div>
-                            <strong>{{ $bucket['label'] }}</strong>
-                            <span>{{ $bucket['helper'] }}</span>
-                        </div>
-                        <em>{{ $money($bucket['amount']) }}</em>
-                        <div class="reports-aging-bar" aria-hidden="true">
-                            <span style="width: {{ $width }}%"></span>
-                        </div>
+            </section>
+
+            <section class="reports-download-panel">
+                <h2>Download CSV</h2>
+                <p>Exports are streamed in chunks for shared hosting.</p>
+                <div class="reports-download-list">
+                    <a href="{{ route('reports.export', ['report' => 'receivables']) }}">
+                        <x-icon name="export" class="h-4 w-4" aria-hidden="true" />
+                        <span>Receivables CSV</span>
+                    </a>
+                    <a href="{{ route('reports.export', ['report' => 'payables']) }}">
+                        <x-icon name="export" class="h-4 w-4" aria-hidden="true" />
+                        <span>Payables CSV</span>
+                    </a>
+                    <a href="{{ route('reports.export', ['report' => 'payments']) }}">
+                        <x-icon name="export" class="h-4 w-4" aria-hidden="true" />
+                        <span>Payments CSV</span>
+                    </a>
+                </div>
+            </section>
+
+            <section class="reports-table-panel">
+                <div class="reports-panel-heading">
+                    <div>
+                        <h2>Receivables to follow up</h2>
+                        <p>Earliest due customer invoices.</p>
                     </div>
-                @endforeach
-            </div>
-        </section>
-
-        <section class="reports-aging-card">
-            <div class="panel-header">
-                <div>
-                    <h2 class="panel-title">Payables aging</h2>
-                    <p class="panel-subtitle">Supplier money still to pay.</p>
+                    <a class="link" href="{{ route('documents.index', 'customer-invoices') }}">All</a>
                 </div>
-                <a class="link" href="{{ route('documents.index', 'supplier-invoices') }}">Open payables</a>
-            </div>
-            <div class="reports-aging-list">
-                @foreach($payableAging as $bucket)
-                    @php
-                        $width = (float) $bucket['amount'] > 0
-                            ? min(100, max(4, ((float) $bucket['amount'] / $agingTotal($payableAging)) * 100))
-                            : 0;
-                    @endphp
-                    <div class="reports-aging-row">
-                        <div>
-                            <strong>{{ $bucket['label'] }}</strong>
-                            <span>{{ $bucket['helper'] }}</span>
-                        </div>
-                        <em>{{ $money($bucket['amount']) }}</em>
-                        <div class="reports-aging-bar" aria-hidden="true">
-                            <span style="width: {{ $width }}%"></span>
-                        </div>
-                    </div>
-                @endforeach
-            </div>
-        </section>
-
-        <section class="reports-cash-card">
-            <p class="reports-eyebrow">Payment movement</p>
-            <h2>{{ $money($netMovement) }}</h2>
-            <p>Net cash movement for the selected period.</p>
-            <dl>
-                <div>
-                    <dt>Collected</dt>
-                    <dd>{{ $money($incomingPayments) }}</dd>
-                </div>
-                <div>
-                    <dt>Paid out</dt>
-                    <dd>{{ $money($outgoingPayments) }}</dd>
-                </div>
-                <div>
-                    <dt>Previous collected</dt>
-                    <dd>{{ $money($previousIncomingPayments) }}</dd>
-                </div>
-                <div>
-                    <dt>Previous paid out</dt>
-                    <dd>{{ $money($previousOutgoingPayments) }}</dd>
-                </div>
-            </dl>
-        </section>
-    </div>
-
-    <div class="reports-table-grid">
-        <section class="panel">
-            <div class="panel-header">
-                <div>
-                    <h2 class="panel-title">Receivables to follow up</h2>
-                    <p class="panel-subtitle">Earliest due customer invoices with open balance.</p>
-                </div>
-                <a class="link" href="{{ route('documents.index', 'customer-invoices') }}">Open invoices</a>
-            </div>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Invoice</th>
-                            <th>Customer</th>
-                            <th>Due</th>
-                            <th>Status</th>
-                            <th class="text-right">Balance</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+                <div class="reports-compact-list">
                     @forelse($receivables as $document)
-                        <tr>
-                            <td><a class="link" href="{{ route('documents.show', $document) }}">{{ $document->document_number }}</a></td>
-                            <td>{{ $document->partyName() }}</td>
-                            <td>{{ optional($document->due_date)->format('d M Y') ?? '-' }}</td>
-                            <td><span class="status-chip status-{{ $document->status }}">{{ $document->statusDisplay() }}</span></td>
-                            <td class="text-right">{{ $document->currency }} {{ number_format($balanceDue($document), 2) }}</td>
-                        </tr>
+                        <a class="reports-record-row" href="{{ route('documents.show', $document) }}">
+                            <span>
+                                <strong>{{ $document->document_number }}</strong>
+                                <em>{{ $document->partyName() }}</em>
+                            </span>
+                            <b>{{ $document->currency }} {{ number_format($balanceDue($document), 2) }}</b>
+                        </a>
                     @empty
-                        <tr><td colspan="5" class="empty-cell">No open receivables.</td></tr>
+                        <p class="reports-empty">No open receivables.</p>
                     @endforelse
-                    </tbody>
-                </table>
-            </div>
-            @if($receivables->isNotEmpty())
-                <p class="reports-table-note">Showing the earliest 8 open receivables so the page stays fast.</p>
-            @endif
-        </section>
-
-        <section class="panel">
-            <div class="panel-header">
-                <div>
-                    <h2 class="panel-title">Payables to schedule</h2>
-                    <p class="panel-subtitle">Earliest due supplier invoices with open balance.</p>
                 </div>
-                <a class="link" href="{{ route('documents.index', 'supplier-invoices') }}">Open invoices</a>
-            </div>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Invoice</th>
-                            <th>Supplier</th>
-                            <th>Due</th>
-                            <th>Status</th>
-                            <th class="text-right">Balance</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @forelse($payables as $document)
-                        <tr>
-                            <td><a class="link" href="{{ route('documents.show', $document) }}">{{ $document->document_number }}</a></td>
-                            <td>{{ $document->partyName() }}</td>
-                            <td>{{ optional($document->due_date)->format('d M Y') ?? '-' }}</td>
-                            <td><span class="status-chip status-{{ $document->status }}">{{ $document->statusDisplay() }}</span></td>
-                            <td class="text-right">{{ $document->currency }} {{ number_format($balanceDue($document), 2) }}</td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="5" class="empty-cell">No open payables.</td></tr>
-                    @endforelse
-                    </tbody>
-                </table>
-            </div>
-            @if($payables->isNotEmpty())
-                <p class="reports-table-note">Showing the earliest 8 open payables so the page stays fast.</p>
-            @endif
-        </section>
-    </div>
+                @if($receivables->isNotEmpty())
+                    <p class="reports-table-note">Showing 8 earliest open receivables.</p>
+                @endif
+            </section>
 
-    <section class="panel">
-        <div class="panel-header">
-            <div>
-                <h2 class="panel-title">Invoice totals by month</h2>
-                <p class="panel-subtitle">Customer and supplier invoice totals for the last 12 months.</p>
-            </div>
-        </div>
-        <div class="table-wrap">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Month</th>
-                        <th>Direction</th>
-                        <th class="text-right">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                @forelse($monthlyInvoices as $row)
-                    <tr>
-                        <td>{{ $row->month }}</td>
-                        <td>{{ ucfirst($row->direction) }}</td>
-                        <td class="text-right">RM {{ number_format($row->total, 2) }}</td>
-                    </tr>
-                @empty
-                    <tr><td colspan="3" class="empty-cell">No invoice totals yet.</td></tr>
-                @endforelse
-                </tbody>
-            </table>
-        </div>
-    </section>
+            <section class="reports-table-panel">
+                <div class="reports-panel-heading">
+                    <div>
+                        <h2>Payables to schedule</h2>
+                        <p>Earliest due supplier invoices.</p>
+                    </div>
+                    <a class="link" href="{{ route('documents.index', 'supplier-invoices') }}">All</a>
+                </div>
+                <div class="reports-compact-list">
+                    @forelse($payables as $document)
+                        <a class="reports-record-row" href="{{ route('documents.show', $document) }}">
+                            <span>
+                                <strong>{{ $document->document_number }}</strong>
+                                <em>{{ $document->partyName() }}</em>
+                            </span>
+                            <b>{{ $document->currency }} {{ number_format($balanceDue($document), 2) }}</b>
+                        </a>
+                    @empty
+                        <p class="reports-empty">No open payables.</p>
+                    @endforelse
+                </div>
+                @if($payables->isNotEmpty())
+                    <p class="reports-table-note">Showing 8 earliest open payables.</p>
+                @endif
+            </section>
+        </aside>
+    </div>
 </div>
 @endsection

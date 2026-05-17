@@ -13,7 +13,7 @@ use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Models\User;
-use App\Services\Ocr\TesseractInvoiceExtractor;
+use App\Services\Documents\BusinessDocumentCaptureService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -386,7 +386,8 @@ class DocumentWorkflowTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Operations today');
-        $response->assertSee('Open work');
+        $response->assertSee('Open work by urgency.');
+        $response->assertDontSee('dashboard-title-snapshot', false);
         $response->assertSee('Needs attention');
         $response->assertSee('Each card opens the records behind it.');
         $response->assertSee('Pending approvals');
@@ -1059,16 +1060,23 @@ class DocumentWorkflowTest extends TestCase
         $response = $this->get(route('reports.index', ['range' => 60]));
 
         $response->assertOk();
-        $response->assertSee('Exposure and cash movement');
+        $response->assertSee('Finance reports');
+        $response->assertSee('Money position');
         $response->assertSee('Overdue receivables');
         $response->assertSee('Supplier payments due soon');
+        $response->assertSee('Cash movement');
         $response->assertSee('Receivables aging');
         $response->assertSee('Payables aging');
-        $response->assertSee('Payment movement');
+        $response->assertSee('12-month invoice movement');
+        $response->assertSee('Download CSV');
         $response->assertSee($customerInvoice->document_number);
         $response->assertSee($supplierInvoice->document_number);
         $response->assertSee('MYR 880.00');
-        $response->assertSee('Showing the earliest 8 open receivables');
+        $response->assertSee('Showing 8 earliest open receivables');
+        $response->assertSee('Receivables CSV');
+        $response->assertSee('Payables CSV');
+        $response->assertSee('Payments CSV');
+        $response->assertDontSee('date-control', false);
         $response->assertDontSee('Incoming payments, last 30 days');
     }
 
@@ -1097,6 +1105,7 @@ class DocumentWorkflowTest extends TestCase
         $index->assertOk();
         $index->assertSee('Supplier billing');
         $index->assertSee('Supplier Invoice Preview');
+        $index->assertDontSee('document-preview-toolbar', false);
         $index->assertDontSee('Incoming supplier document');
         $index->assertSee('supplier-tax-invoice-8891.pdf');
         $index->assertSee(route('attachments.preview', $attachment), false);
@@ -1502,6 +1511,159 @@ class DocumentWorkflowTest extends TestCase
         $this->post(route('documents.submit', $supplierInvoice))
             ->assertRedirect();
         $this->assertSame('pending_approval', $supplierInvoice->refresh()->status);
+    }
+
+    public function test_supplier_quotation_ocr_draft_can_be_verified_and_updates_quote_record(): void
+    {
+        Storage::fake('local');
+        $this->fakeTesseractExtractor([
+            'supplier_name' => 'Best Supplies Sdn Bhd',
+            'quote_number' => 'SQ-BEST-009',
+            'quote_date' => '2026-05-14',
+            'valid_until' => '2026-06-13',
+            'subtotal' => '2430.00',
+            'tax_total' => '0.00',
+            'total' => '2430.00',
+            'payment_terms' => '30 days from invoice date',
+            'items' => [
+                [
+                    'description' => 'Operations hardware kit',
+                    'quantity' => '5',
+                    'unit' => 'set',
+                    'unit_price' => '450.00',
+                    'tax_rate' => '0',
+                ],
+                [
+                    'description' => 'Service coordination',
+                    'quantity' => '1',
+                    'unit' => 'job',
+                    'unit_price' => '180.00',
+                    'tax_rate' => '0',
+                ],
+            ],
+        ], 'Supplier quotation OCR text');
+
+        $supplierQuotation = $this->createDocument('supplier-quotations', [
+            'supplier_id' => $this->supplier->id,
+            'external_reference' => 'DRAFT-SQ-001',
+            'description' => 'Placeholder supplier quotation line',
+            'quantity' => 1,
+            'unit_price' => 1,
+        ]);
+
+        $this->post(route('documents.attachments.store', $supplierQuotation), [
+            'attachment' => UploadedFile::fake()->image('n2n-system-quote-009.jpg', 900, 1200),
+            'category' => 'supplier_quote',
+        ])->assertRedirect()
+            ->assertSessionHas('status', 'Attachment uploaded. Quote OCR draft is ready for verification.');
+
+        $attachment = Attachment::where('document_id', $supplierQuotation->id)->firstOrFail();
+        $extraction = AttachmentExtraction::where('attachment_id', $attachment->id)->firstOrFail();
+
+        $this->assertSame('processed', $extraction->status);
+        $this->assertSame('SQ-BEST-009', $extraction->extracted_fields['quote_number']);
+
+        $show = $this->get(route('documents.show', $supplierQuotation));
+        $show->assertOk();
+        $show->assertSee('Supplier quote details');
+        $show->assertSee('Ready to verify');
+        $show->assertSee('Verify and update supplier quote');
+
+        $this->put(route('attachment-extractions.verify', $extraction), [
+            'fields' => [
+                'supplier_name' => 'Best Supplies Sdn Bhd',
+                'quote_number' => 'SQ-BEST-009',
+                'quote_date' => '2026-05-14',
+                'valid_until' => '2026-06-13',
+                'subtotal' => '2430.00',
+                'tax_total' => '0.00',
+                'total' => '2430.00',
+                'payment_terms' => '30 days from invoice date',
+            ],
+            'items' => [
+                [
+                    'description' => 'Operations hardware kit',
+                    'quantity' => '5',
+                    'unit' => 'set',
+                    'unit_price' => '450.00',
+                    'tax_rate' => '0',
+                ],
+                [
+                    'description' => 'Service coordination',
+                    'quantity' => '1',
+                    'unit' => 'job',
+                    'unit_price' => '180.00',
+                    'tax_rate' => '0',
+                ],
+            ],
+            'supplier_confirmed' => '1',
+            'recorded_total_confirmed' => '1',
+            'verification_notes' => 'OCR-assisted supplier quote details checked against the uploaded source.',
+        ])->assertRedirect()
+            ->assertSessionHas('status', 'Supplier quotation details verified.');
+
+        $supplierQuotation->refresh();
+        $supplierQuotation->load('items');
+
+        $this->assertSame('SQ-BEST-009', $supplierQuotation->external_reference);
+        $this->assertSame('2026-05-14', $supplierQuotation->issue_date->toDateString());
+        $this->assertSame('2026-06-13', $supplierQuotation->due_date->toDateString());
+        $this->assertSame('2430.00', $supplierQuotation->total);
+        $this->assertCount(2, $supplierQuotation->items);
+        $this->assertSame('Operations hardware kit', $supplierQuotation->items[0]->description);
+        $this->assertSame('450.00', $supplierQuotation->items[0]->unit_price);
+        $this->assertSame('verified', $extraction->refresh()->status);
+
+        $this->assertDatabaseHas('audit_trails', [
+            'action' => 'supplier_quotation_details_verified',
+            'auditable_type' => AttachmentExtraction::class,
+            'auditable_id' => $extraction->id,
+        ]);
+
+        $index = $this->get(route('documents.index', 'supplier-quotations'));
+        $index->assertOk();
+        $index->assertDontSee('Run OCR');
+        $index->assertDontSee('Verify and update supplier quote');
+    }
+
+    public function test_supplier_quotation_with_ocr_failure_can_still_be_verified_from_source_file(): void
+    {
+        Storage::fake('local');
+        $this->fakeFailingTesseractExtractor('Tesseract could not read this supplier quote image.');
+
+        $supplierQuotation = $this->createDocument('supplier-quotations', [
+            'supplier_id' => $this->supplier->id,
+            'external_reference' => 'MANUAL-SQ-001',
+            'description' => 'Supplier quote requiring manual verification',
+            'quantity' => 1,
+            'unit_price' => 100,
+        ]);
+
+        $this->post(route('documents.attachments.store', $supplierQuotation), [
+            'attachment' => UploadedFile::fake()->image('unreadable-supplier-quote.jpg', 900, 1200),
+            'category' => 'supplier_quote',
+        ])->assertRedirect()
+            ->assertSessionHas('status', 'Attachment uploaded. OCR could not read the supplier quotation; verify the quote details manually from the source file.');
+
+        $extraction = AttachmentExtraction::where('document_id', $supplierQuotation->id)->firstOrFail();
+        $this->assertSame('failed', $extraction->status);
+
+        $this->put(route('attachment-extractions.verify', $extraction), [
+            'fields' => [
+                'supplier_name' => 'Best Supplies Sdn Bhd',
+                'quote_number' => 'MANUAL-SQ-001',
+                'quote_date' => '2026-05-15',
+                'total' => '100.00',
+            ],
+            'supplier_confirmed' => '1',
+            'recorded_total_confirmed' => '1',
+            'verification_notes' => 'Verified manually because OCR could not read the supplier quote file.',
+        ])->assertRedirect()
+            ->assertSessionHas('status', 'Supplier quotation details verified.');
+
+        $this->assertSame('verified', $extraction->refresh()->status);
+        $this->assertSame('manual', $extraction->verification_method);
+        $this->assertSame('2026-05-15', $supplierQuotation->refresh()->issue_date->toDateString());
     }
 
     public function test_supplier_invoice_submission_requires_invoice_copy_and_verified_details(): void
@@ -2039,6 +2201,8 @@ class DocumentWorkflowTest extends TestCase
         $response->assertSee('data-quotation-preview-panel', false);
         $response->assertSee('data-quotation-row', false);
         $response->assertSee('data-preview-card-wrapper', false);
+        $response->assertSee('class="sr-only"', false);
+        $response->assertDontSee('document-preview-toolbar', false);
         $response->assertDontSee('Preview every quotation');
         $response->assertDontSee('Embedded Quotation Previews');
         $response->assertSee('data-generated-pdf-preview', false);
@@ -2760,7 +2924,7 @@ class DocumentWorkflowTest extends TestCase
     {
         config(['ocr.enabled' => true]);
 
-        $this->app->instance(TesseractInvoiceExtractor::class, new class($fields, $rawText) extends TesseractInvoiceExtractor {
+        $this->app->instance(BusinessDocumentCaptureService::class, new class($fields, $rawText) extends BusinessDocumentCaptureService {
             public function __construct(private array $fields, private string $rawText)
             {
             }
@@ -2786,7 +2950,7 @@ class DocumentWorkflowTest extends TestCase
     {
         config(['ocr.enabled' => true]);
 
-        $this->app->instance(TesseractInvoiceExtractor::class, new class($message) extends TesseractInvoiceExtractor {
+        $this->app->instance(BusinessDocumentCaptureService::class, new class($message) extends BusinessDocumentCaptureService {
             public function __construct(private string $message)
             {
             }

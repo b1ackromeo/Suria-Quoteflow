@@ -112,6 +112,13 @@ Follow `docs/design/` for layout, components, status language, UX writing, acces
 
 Do not copy decorative dashboard trends blindly. Use Figma-style component discipline, Dribbble-level polish, and real workflow clarity.
 
+Hard UI verification rule:
+
+- Do not mark UI, dashboard, layout, navigation, form, typography, or responsive work as complete from a single wide-desktop view.
+- Render and inspect the affected page in browser at the required desktop/laptop/mobile sizes from `docs/design/07_responsive_behavior.md` before calling it fixed.
+- For dashboard or full-screen workspace changes, laptop `1366x768` is a mandatory acceptance viewport. If the main content clips, overlaps, hides primary actions, creates unintended page scroll, or only works at a larger monitor size, the task is not done.
+- If a visual issue is reported with a screenshot, verify against that viewport class first, then at adjacent breakpoints. Do not explain it away as the user's laptop view.
+
 ## Definition of done
 
 A task is complete only when:
@@ -125,6 +132,7 @@ A task is complete only when:
 - audit trail is preserved where relevant
 - tests are added or updated for changed behavior
 - page loading remains smooth and bounded
+- affected UI has been rendered and checked at the required viewports, including `1366x768` for dashboard/full-screen workspace changes
 - no obvious N+1 or unbounded large-table query is introduced
 - shared-hosting constraints are preserved
 - changed files are summarized

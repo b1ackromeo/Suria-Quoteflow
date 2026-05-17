@@ -90,6 +90,7 @@ Dashboard anti-redundancy rules:
 - do not show a system-generated date range as if it is a user-selected dashboard filter
 - do not use Recent Records as dashboard filler; document lists handle browsing, and audit/activity pages handle history
 - desktop dashboard should fit the app viewport with internal panels instead of forcing page scroll for core dashboard content
+- dashboard/full-screen workspace fixes must be rendered and verified at `1366x768`; if they only fit a wider desktop monitor, they are not fixed
 - trend charts must use fixed reporting windows and aggregate queries; do not render open-ended historical charts on the dashboard
 
 ## Document index workbench
@@ -115,6 +116,14 @@ Rules:
 - filters must remain compact
 - preview panel should show useful empty/loading/unavailable states
 - mobile should not force the full two-pane layout
+
+Document index anti-redundancy rules:
+
+- the selected list row is the source of record context: document number, party, status, date/reference, amount, Preview, and Open
+- the preview pane should show the selected document output, file, or useful unavailable state, not repeat the same record metadata already visible in the selected row
+- do not add visible preview headers such as "Previewing...", "Uploaded file preview", or repeated document titles when the selected row and page title already provide that context
+- keep detailed preview headers, summaries, verification panels, and matching information on the document show command center, where the preview is no longer beside an already-selected list row
+- when fixing document index layout, verify the actual rendered page for generated PDFs, uploaded files, and unavailable-preview states before calling the anti-redundancy issue resolved
 
 ## Document show command center
 

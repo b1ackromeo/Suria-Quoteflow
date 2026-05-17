@@ -151,7 +151,6 @@
                         data-document-row
                         @if($isQuotationIndex) data-quotation-row @endif
                         data-preview-target="document-preview-{{ $document->id }}"
-                        data-document-number="{{ $document->document_number }}"
                         data-preview-active="{{ $loop->first ? 'true' : 'false' }}"
                     >
                         <div class="document-list-row-main">
@@ -174,7 +173,6 @@
                                         type="button"
                                         data-preview-trigger
                                         data-preview-target="document-preview-{{ $document->id }}"
-                                        data-document-number="{{ $document->document_number }}"
                                         aria-controls="document-preview-{{ $document->id }}"
                                         aria-pressed="{{ $loop->first ? 'true' : 'false' }}"
                                     >Preview</button>
@@ -200,12 +198,9 @@
             data-document-preview-panel
             @if($isQuotationIndex) data-quotation-preview-list data-quotation-preview-panel @endif
         >
-            <div class="document-preview-toolbar">
-                <div>
-                    <p class="document-pane-kicker">{{ $previewKicker }}</p>
-                    <h2 class="text-base font-bold text-slate-950">{{ $previewTitle }}</h2>
-                    <p class="document-preview-copy">{{ $previewCaption }}</p>
-                </div>
+            <div class="sr-only">
+                <p>{{ $previewKicker }}</p>
+                <h2>{{ $previewTitle }}</h2>
             </div>
 
             <div class="document-preview-scroll">
@@ -220,7 +215,7 @@
                         @elseif($meta['type'] === 'supplier_invoice')
                             @include('documents.partials.supplier-invoice-file-preview', ['document' => $document, 'meta' => $meta, 'previewOnly' => true])
                         @elseif($usesReceivedFilePreview)
-                            @include('documents.partials.external-document-preview', ['document' => $document, 'meta' => $meta])
+                            @include('documents.partials.external-document-preview', ['document' => $document, 'meta' => $meta, 'previewOnly' => true])
                         @else
                             @include('documents.partials.quotation-preview', ['document' => $document, 'meta' => $meta])
                         @endif
@@ -242,7 +237,6 @@
     const rows = document.querySelectorAll('[data-document-row]');
     const triggers = document.querySelectorAll('[data-preview-trigger]');
     const wrappers = document.querySelectorAll('[data-preview-card-wrapper]');
-    const selectedLabel = document.querySelector('[data-selected-preview-number]');
 
     function loadOutputPreview(wrapper) {
         if (!wrapper) return;
@@ -254,7 +248,7 @@
         });
     }
 
-    function selectPreview(targetId, documentNumber) {
+    function selectPreview(targetId) {
         wrappers.forEach((wrapper) => wrapper.classList.toggle('hidden', wrapper.id !== targetId));
         rows.forEach((row) => {
             const active = row.dataset.previewTarget === targetId;
@@ -265,12 +259,11 @@
         });
 
         loadOutputPreview(document.getElementById(targetId));
-        if (selectedLabel) selectedLabel.textContent = documentNumber || 'None';
     }
 
     triggers.forEach((trigger) => {
         trigger.addEventListener('click', () => {
-            selectPreview(trigger.dataset.previewTarget, trigger.dataset.documentNumber);
+            selectPreview(trigger.dataset.previewTarget);
         });
     });
 

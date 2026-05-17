@@ -24,6 +24,8 @@ class ReportController extends Controller
 
         $receivables = $this->openInvoiceList('customer_invoice', $receivableStatuses, 'customer');
         $payables = $this->openInvoiceList('supplier_invoice', $payableStatuses, 'supplier');
+        $receivableCount = $this->openBalanceInvoiceBaseQuery('customer_invoice', $receivableStatuses)->count('documents.id');
+        $payableCount = $this->openBalanceInvoiceBaseQuery('supplier_invoice', $payableStatuses)->count('documents.id');
         $receivableBalance = $this->balanceTotal('customer_invoice', $receivableStatuses);
         $payableBalance = $this->balanceTotal('supplier_invoice', $payableStatuses);
         $overdueReceivableBalance = $this->balanceTotal(
@@ -49,31 +51,86 @@ class ReportController extends Controller
             ? "strftime('%Y-%m', issue_date)"
             : "DATE_FORMAT(issue_date, '%Y-%m')";
 
-        $monthlyInvoices = Document::selectRaw($monthExpression.' as month, direction, SUM(total) as total')
+        $monthlyInvoices = Document::selectRaw($monthExpression.' as month, type, SUM(total) as total')
             ->whereIn('type', ['customer_invoice', 'supplier_invoice'])
             ->where('issue_date', '>=', now()->subMonths(12)->startOfMonth())
-            ->groupBy('month', 'direction')
+            ->groupBy('month', 'type')
             ->orderBy('month')
             ->get();
+
+        $netExposure = $receivableBalance - $payableBalance;
+        $largestExposure = max($receivableBalance, $payableBalance, abs($netExposure), 1);
+        $cashPeak = max($incomingPayments, $outgoingPayments, $previousIncomingPayments, $previousOutgoingPayments, abs($incomingPayments - $outgoingPayments), 1);
 
         return view('reports.index', [
             'receivables' => $receivables,
             'payables' => $payables,
             'monthlyInvoices' => $monthlyInvoices,
+            'monthlyInvoiceChart' => $this->monthlyInvoiceChart($monthlyInvoices),
             'rangeDays' => $rangeDays,
-            'receivableCount' => $this->openBalanceInvoiceBaseQuery('customer_invoice', $receivableStatuses)->count('documents.id'),
-            'payableCount' => $this->openBalanceInvoiceBaseQuery('supplier_invoice', $payableStatuses)->count('documents.id'),
+            'receivableCount' => $receivableCount,
+            'payableCount' => $payableCount,
             'incomingPayments' => $incomingPayments,
             'outgoingPayments' => $outgoingPayments,
             'previousIncomingPayments' => $previousIncomingPayments,
             'previousOutgoingPayments' => $previousOutgoingPayments,
             'receivableBalance' => $receivableBalance,
             'payableBalance' => $payableBalance,
-            'netExposure' => $receivableBalance - $payableBalance,
+            'netExposure' => $netExposure,
             'overdueReceivableBalance' => $overdueReceivableBalance,
             'supplierDueSoonBalance' => $supplierDueSoonBalance,
             'receivableAging' => $this->agingBuckets('customer_invoice', $receivableStatuses),
             'payableAging' => $this->agingBuckets('supplier_invoice', $payableStatuses),
+            'exposureBars' => [
+                [
+                    'label' => 'Open receivables',
+                    'helper' => $receivableCount.' customer invoices awaiting collection',
+                    'amount' => $receivableBalance,
+                    'percent' => $this->chartPercent($receivableBalance, $largestExposure),
+                    'tone' => 'receivable',
+                    'route' => route('documents.index', 'customer-invoices'),
+                ],
+                [
+                    'label' => 'Open payables',
+                    'helper' => $payableCount.' supplier invoices awaiting payment',
+                    'amount' => $payableBalance,
+                    'percent' => $this->chartPercent($payableBalance, $largestExposure),
+                    'tone' => 'payable',
+                    'route' => route('documents.index', 'supplier-invoices'),
+                ],
+            ],
+            'cashMovementBars' => [
+                [
+                    'label' => 'Collected',
+                    'amount' => $incomingPayments,
+                    'previous' => $previousIncomingPayments,
+                    'percent' => $this->chartPercent($incomingPayments, $cashPeak),
+                    'tone' => 'collected',
+                ],
+                [
+                    'label' => 'Paid out',
+                    'amount' => $outgoingPayments,
+                    'previous' => $previousOutgoingPayments,
+                    'percent' => $this->chartPercent($outgoingPayments, $cashPeak),
+                    'tone' => 'paid',
+                ],
+            ],
+            'attentionCards' => [
+                [
+                    'label' => 'Overdue receivables',
+                    'amount' => $overdueReceivableBalance,
+                    'helper' => 'Customer balances past due date',
+                    'route' => route('documents.index', 'customer-invoices'),
+                    'tone' => 'danger',
+                ],
+                [
+                    'label' => 'Supplier payments due soon',
+                    'amount' => $supplierDueSoonBalance,
+                    'helper' => 'Matched supplier invoices due within 7 days',
+                    'route' => route('documents.index', 'supplier-invoices'),
+                    'tone' => 'warning',
+                ],
+            ],
         ]);
     }
 
@@ -236,5 +293,51 @@ class ReportController extends Controller
                 ),
             ],
         ];
+    }
+
+    private function monthlyInvoiceChart($monthlyInvoices): array
+    {
+        $rowsByMonth = $monthlyInvoices->groupBy('month');
+        $months = collect(range(11, 0))->map(function (int $offset) use ($rowsByMonth) {
+            $date = now()->subMonths($offset)->startOfMonth();
+            $key = $date->format('Y-m');
+            $rows = $rowsByMonth->get($key, collect());
+            $customerTotal = (float) $rows
+                ->where('type', 'customer_invoice')
+                ->sum('total');
+            $supplierTotal = (float) $rows
+                ->where('type', 'supplier_invoice')
+                ->sum('total');
+
+            return [
+                'month' => $key,
+                'label' => $date->format('M'),
+                'customer_total' => $customerTotal,
+                'supplier_total' => $supplierTotal,
+            ];
+        });
+
+        $largest = max(
+            $months->max('customer_total') ?? 0,
+            $months->max('supplier_total') ?? 0,
+            1
+        );
+
+        return $months
+            ->map(fn (array $month) => array_merge($month, [
+                'customer_percent' => $this->chartPercent((float) $month['customer_total'], $largest),
+                'supplier_percent' => $this->chartPercent((float) $month['supplier_total'], $largest),
+            ]))
+            ->values()
+            ->all();
+    }
+
+    private function chartPercent(float $value, float $largest): int
+    {
+        if ($value <= 0 || $largest <= 0) {
+            return 0;
+        }
+
+        return (int) min(100, max(4, round(($value / $largest) * 100)));
     }
 }

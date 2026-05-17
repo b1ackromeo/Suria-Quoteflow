@@ -9,10 +9,11 @@ use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Product;
 use App\Models\Supplier;
+use App\Services\Documents\BusinessDocumentCaptureService;
+use App\Services\Documents\ExternalDocumentExtractionService;
 use App\Services\Documents\PaymentEligibilityService;
 use App\Services\Invoices\SupplierInvoiceMatchingService;
 use App\Services\Invoices\SupplierInvoiceVerificationService;
-use App\Services\Ocr\TesseractInvoiceExtractor;
 use App\Support\Audit;
 use App\Support\SearchFilters;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -39,7 +40,8 @@ class DocumentController extends Controller
 
     public function __construct(
         private SupplierInvoiceVerificationService $supplierInvoiceVerification,
-        private SupplierInvoiceMatchingService $supplierInvoiceMatching
+        private SupplierInvoiceMatchingService $supplierInvoiceMatching,
+        private ExternalDocumentExtractionService $externalDocumentExtraction
     ) {
     }
 
@@ -367,7 +369,7 @@ class DocumentController extends Controller
         return back()->with('status', $message);
     }
 
-    public function uploadAttachment(Request $request, Document $document, TesseractInvoiceExtractor $extractor): RedirectResponse
+    public function uploadAttachment(Request $request, Document $document, BusinessDocumentCaptureService $extractor): RedirectResponse
     {
         $meta = Document::metaForSlug(Document::slugForType($document->type));
         $this->ensureWriteAccess($meta);
@@ -396,32 +398,32 @@ class DocumentController extends Controller
 
         $message = 'Attachment uploaded.';
 
-        if ($document->type === 'supplier_invoice') {
+        if ($this->externalDocumentExtraction->shouldAutoExtract($attachment)) {
             $extraction = $this->storeExtractionDraft($attachment, $extractor);
 
             if ($extraction?->status === 'processed') {
-                $message = 'Attachment uploaded. OCR extraction draft is ready for verification.';
+                $message = $this->externalDocumentExtraction->uploadProcessedMessage($document);
             } elseif ($extraction?->status === 'failed') {
-                $message = 'Attachment uploaded. OCR extraction could not run yet; check the extraction message on the invoice page.';
+                $message = $this->externalDocumentExtraction->uploadFailedMessage($document);
             }
         }
 
         return back()->with('status', $message);
     }
 
-    public function extractAttachment(Attachment $attachment, TesseractInvoiceExtractor $extractor): RedirectResponse
+    public function extractAttachment(Attachment $attachment, BusinessDocumentCaptureService $extractor): RedirectResponse
     {
         $attachment->load('document');
         abort_if(! $attachment->document, 404);
 
         $meta = Document::metaForSlug(Document::slugForType($attachment->document->type));
         $this->ensureWriteAccess($meta);
-        abort_unless($attachment->document->type === 'supplier_invoice', 422, 'OCR extraction is only available for supplier invoice documents.');
+        abort_unless($this->externalDocumentExtraction->supportsAssistedCapture($attachment->document), 422, 'OCR extraction is only available for supplier invoice and supplier quotation documents.');
 
         $extraction = $this->storeExtractionDraft($attachment, $extractor, true);
 
         if ($extraction?->status === 'processed') {
-            return back()->with('status', 'OCR extraction draft is ready. Verify the fields before approval.');
+            return back()->with('status', $this->externalDocumentExtraction->readyMessage($attachment->document));
         }
 
         return back()->withErrors([
@@ -437,6 +439,10 @@ class DocumentController extends Controller
 
         $meta = Document::metaForSlug(Document::slugForType($document->type));
         $this->ensureWriteAccess($meta);
+        if ($document->type === 'supplier_quotation') {
+            return $this->verifySupplierQuotationExtraction($request, $extraction, $document);
+        }
+
         abort_unless($document->type === 'supplier_invoice', 422, 'Extraction verification is only available for supplier invoices.');
 
         $data = $request->validate([
@@ -612,7 +618,7 @@ class DocumentController extends Controller
         ]);
     }
 
-    private function storeExtractionDraft(Attachment $attachment, TesseractInvoiceExtractor $extractor, bool $failIfUnsupported = false): ?AttachmentExtraction
+    private function storeExtractionDraft(Attachment $attachment, BusinessDocumentCaptureService $extractor, bool $failIfUnsupported = false): ?AttachmentExtraction
     {
         if (! config('ocr.enabled', true)) {
             return null;
@@ -621,7 +627,7 @@ class DocumentController extends Controller
         if (! $extractor->canExtract($attachment)) {
             if ($failIfUnsupported) {
                 throw ValidationException::withMessages([
-                    'extraction' => 'Only supplier invoice PDF and image files can be extracted.',
+                    'extraction' => $this->externalDocumentExtraction->extractionUnavailableMessage(),
                 ]);
             }
 
@@ -649,7 +655,7 @@ class DocumentController extends Controller
             $payload = [
                 'document_id' => $attachment->document_id,
                 'status' => 'failed',
-                'engine' => 'tesseract',
+                'engine' => $extractor->engineName(),
                 'language' => (string) config('ocr.language', 'eng'),
                 'raw_text' => null,
                 'extracted_fields' => [],
@@ -675,6 +681,96 @@ class DocumentController extends Controller
         ]);
 
         return $extraction;
+    }
+
+    private function verifySupplierQuotationExtraction(Request $request, AttachmentExtraction $extraction, Document $document): RedirectResponse
+    {
+        $data = $request->validate([
+            'fields' => ['required', 'array'],
+            'fields.supplier_name' => ['nullable', 'string', 'max:255'],
+            'fields.quote_number' => ['required', 'string', 'max:255'],
+            'fields.quote_date' => ['required', 'string', 'max:80'],
+            'fields.valid_until' => ['nullable', 'string', 'max:80'],
+            'fields.subtotal' => ['nullable', 'string', 'max:80'],
+            'fields.tax_total' => ['nullable', 'string', 'max:80'],
+            'fields.total' => ['nullable', 'string', 'max:80'],
+            'fields.payment_terms' => ['nullable', 'string', 'max:255'],
+            'items' => ['nullable', 'array'],
+            'items.*.description' => ['nullable', 'string', 'max:255'],
+            'items.*.quantity' => ['nullable', 'string', 'max:80'],
+            'items.*.unit' => ['nullable', 'string', 'max:40'],
+            'items.*.unit_price' => ['nullable', 'string', 'max:80'],
+            'items.*.line_total' => ['nullable', 'string', 'max:80'],
+            'items.*.tax_rate' => ['nullable', 'string', 'max:80'],
+            'supplier_confirmed' => ['accepted'],
+            'recorded_total_confirmed' => ['nullable', 'boolean'],
+            'verification_notes' => ['nullable', 'string', 'max:2000'],
+        ], [
+            'fields.quote_number.required' => 'Enter the supplier quote number before verifying.',
+            'fields.quote_date.required' => 'Enter the quote date before verifying.',
+            'supplier_confirmed.accepted' => 'Confirm the quotation supplier matches this supplier record.',
+        ]);
+
+        $fields = collect($data['fields'])
+            ->map(fn ($value) => is_string($value) ? trim($value) : $value)
+            ->filter(fn ($value) => filled($value))
+            ->all();
+        $items = $this->externalDocumentExtraction->normalizeItems($data['items'] ?? []);
+        $recordedTotalConfirmed = $request->boolean('recorded_total_confirmed');
+        $verificationNotes = $request->string('verification_notes')->trim()->toString() ?: null;
+
+        if (! filled($fields['total'] ?? null) && $items === [] && ! $recordedTotalConfirmed) {
+            throw ValidationException::withMessages([
+                'recorded_total_confirmed' => 'Enter quote lines, enter the quote total, or confirm the recorded total was checked.',
+            ]);
+        }
+
+        DB::transaction(function () use ($extraction, $document, $fields, $items, $recordedTotalConfirmed, $verificationNotes) {
+            $before = $extraction->only(['status', 'verified_by', 'verified_at', 'verification_method', 'verification_notes', 'supplier_confirmed', 'recorded_total_confirmed', 'verified_fields']);
+            $verifiedFields = $fields;
+
+            if ($items !== []) {
+                $verifiedFields['items'] = $items;
+            }
+
+            $extraction->update([
+                'status' => 'verified',
+                'verified_fields' => $verifiedFields,
+                'verification_method' => $extraction->status === 'failed'
+                    ? ExternalDocumentExtractionService::METHOD_MANUAL
+                    : ExternalDocumentExtractionService::METHOD_OCR_ASSISTED,
+                'verification_notes' => $verificationNotes,
+                'supplier_confirmed' => true,
+                'recorded_total_confirmed' => $recordedTotalConfirmed,
+                'verified_by' => auth()->id(),
+                'verified_at' => now(),
+            ]);
+
+            $this->applyVerifiedSupplierQuotationFields($document, $fields, $items);
+
+            Audit::record('supplier_quotation_details_verified', $extraction, $before, [
+                'document_id' => $document->id,
+                'status' => 'verified',
+                'verified_by' => auth()->id(),
+                'verified_field_keys' => array_keys($verifiedFields),
+                'verification_method' => $extraction->verification_method,
+            ]);
+        });
+
+        return back()->with('status', $this->externalDocumentExtraction->verificationSuccessMessage($document));
+    }
+
+    private function applyVerifiedSupplierQuotationFields(Document $document, array $fields, array $items): void
+    {
+        if ($items !== []) {
+            $this->syncItems($document, $items);
+        }
+
+        $payload = $this->externalDocumentExtraction->supplierQuotationPayload($fields);
+
+        if ($payload !== []) {
+            $document->update($payload);
+        }
     }
 
     private function applyVerifiedSupplierInvoiceFields(Document $document, array $fields): void

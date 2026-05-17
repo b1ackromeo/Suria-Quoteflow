@@ -32,10 +32,6 @@
             <h1 id="dashboard-title">Operations today</h1>
             <p>{{ $companyProfile->displayName() }}: work queue, cash exposure, and sales to purchasing movement.</p>
         </div>
-        <div class="dashboard-title-snapshot" aria-label="Open work">
-            <span>Open work</span>
-            <strong>{{ number_format($todayWorkItemCount) }} items</strong>
-        </div>
     </header>
 
     <div class="dashboard-command-grid">
@@ -136,6 +132,24 @@
         </div>
 
         <aside class="dashboard-side-stack" aria-label="Dashboard charts and shortcuts">
+            <section class="dashboard-command-panel dashboard-quick-create-panel" aria-labelledby="quick-create-heading">
+                <div class="dashboard-panel-heading">
+                    <div>
+                        <h2 id="quick-create-heading">Quick create</h2>
+                        <p>Start a new document without leaving the dashboard.</p>
+                    </div>
+                </div>
+                <div class="quick-create-list">
+                    @foreach($quickActions as $action)
+                        <a class="quick-action-link" href="{{ $action['route'] }}" aria-label="{{ $action['aria'] ?? $action['label'] }}">
+                            <x-icon :name="$action['icon']" class="nav-icon" aria-hidden="true" />
+                            <span>{{ $action['label'] }}</span>
+                            <x-icon name="arrow" class="h-4 w-4" aria-hidden="true" />
+                        </a>
+                    @endforeach
+                </div>
+            </section>
+
             <section class="dashboard-command-panel dashboard-financial-panel" aria-labelledby="financial-exposure-heading">
                 <div class="dashboard-panel-heading">
                     <div>
@@ -176,24 +190,6 @@
                             @endforeach
                         </div>
                     </div>
-                </div>
-            </section>
-
-            <section class="dashboard-command-panel dashboard-quick-create-panel" aria-labelledby="quick-create-heading">
-                <div class="dashboard-panel-heading">
-                    <div>
-                        <h2 id="quick-create-heading">Quick create</h2>
-                        <p>Start a new document without leaving the dashboard.</p>
-                    </div>
-                </div>
-                <div class="quick-create-list">
-                    @foreach($quickActions as $action)
-                        <a class="quick-action-link" href="{{ $action['route'] }}">
-                            <x-icon :name="$action['icon']" class="nav-icon" aria-hidden="true" />
-                            <span>{{ $action['label'] }}</span>
-                            <x-icon name="arrow" class="h-4 w-4" aria-hidden="true" />
-                        </a>
-                    @endforeach
                 </div>
             </section>
         </aside>

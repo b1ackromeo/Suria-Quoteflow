@@ -164,11 +164,11 @@ class DashboardController extends Controller
             'invoiceAging' => $invoiceAging,
             'monthlyMovement' => $monthlyMovement,
             'quickActions' => [
-                ['label' => 'Create quotation', 'icon' => 'quote', 'route' => route('documents.create', 'customer-quotations')],
-                ['label' => 'Create customer invoice', 'icon' => 'receipt', 'route' => route('documents.create', 'customer-invoices')],
-                ['label' => 'Create purchase request', 'icon' => 'purchase', 'route' => route('documents.create', 'purchase-requests')],
-                ['label' => 'Create purchase order', 'icon' => 'purchase', 'route' => route('documents.create', 'supplier-pos')],
-                ['label' => 'Record goods receipt', 'icon' => 'receipt', 'route' => route('documents.create', 'goods-receipts')],
+                ['label' => 'Quotation', 'aria' => 'Create quotation', 'icon' => 'quote', 'route' => route('documents.create', 'customer-quotations')],
+                ['label' => 'Customer invoice', 'aria' => 'Create customer invoice', 'icon' => 'receipt', 'route' => route('documents.create', 'customer-invoices')],
+                ['label' => 'Purchase request', 'aria' => 'Create purchase request', 'icon' => 'purchase', 'route' => route('documents.create', 'purchase-requests')],
+                ['label' => 'Purchase order', 'aria' => 'Create purchase order', 'icon' => 'purchase', 'route' => route('documents.create', 'supplier-pos')],
+                ['label' => 'Goods receipt', 'aria' => 'Record goods receipt', 'icon' => 'receipt', 'route' => route('documents.create', 'goods-receipts')],
             ],
         ]);
     }
