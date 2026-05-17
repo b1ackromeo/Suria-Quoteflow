@@ -171,7 +171,7 @@
         <div>
             <p class="studio-section-kicker">Source path</p>
             <h2 id="purchase-request-source-heading" class="studio-section-title">Start from supplier quotation</h2>
-            <p class="studio-section-copy">Upload the supplier quotation first. OCR will read the quote fields and line items after the draft PR is saved, then the verified quote lines will populate the PR line items.</p>
+            <p class="studio-section-copy">Upload the supplier quotation first. OCR will read the quote fields and line items after the draft PR is created, then the verified quote lines will populate the PR line items.</p>
         </div>
         <div class="source-choice-grid">
             <label class="source-choice-card">
@@ -191,8 +191,12 @@
         </div>
         <label class="form-label" data-pr-quote-upload-wrap>Supplier quotation PDF or image
             <input class="form-input file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-bold file:text-slate-700 hover:file:bg-slate-200" type="file" name="source_attachment" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff" data-pr-quote-upload>
-            <span class="mt-1 block text-xs font-semibold text-slate-500">Upload the supplier quotation here before saving the PR draft. The file will be attached as supplier_quote and OCR will run after save.</span>
+            <span class="mt-1 block text-xs font-semibold text-slate-500">Choose the supplier quotation, then click Create draft & run OCR.</span>
         </label>
+        <div class="flex flex-wrap items-center gap-3" data-pr-run-ocr-wrap>
+            <button class="btn btn-primary" type="submit" disabled data-pr-run-ocr>Create draft & run OCR</button>
+            <span class="text-xs font-semibold text-slate-500" data-pr-run-ocr-help>Choose a supplier quotation file to enable OCR.</span>
+        </div>
         <label class="form-label">Source note
             <textarea class="form-input min-h-20" name="source_note" placeholder="Required only for quote exception. Example: emergency purchase approved before supplier quote was received."></textarea>
             <span class="mt-1 block text-xs font-semibold text-slate-500">For normal supplier quote upload, this note is optional.</span>
@@ -207,6 +211,10 @@
 
     const uploadWrap = panel.querySelector('[data-pr-quote-upload-wrap]');
     const uploadInput = panel.querySelector('[data-pr-quote-upload]');
+    const runOcrWrap = panel.querySelector('[data-pr-run-ocr-wrap]');
+    const runOcrButton = panel.querySelector('[data-pr-run-ocr]');
+    const runOcrHelp = panel.querySelector('[data-pr-run-ocr-help]');
+    const heroSubmit = form.querySelector('.workspace-pane-header button[type="submit"]');
     const lineRows = () => Array.from(form.querySelectorAll('#line-items tbody tr'));
 
     function firstLineFields() {
@@ -261,7 +269,19 @@
         const hasUpload = !!uploadInput.files?.length;
 
         uploadWrap.classList.toggle('hidden', isException);
+        runOcrWrap.classList.toggle('hidden', isException);
         uploadInput.disabled = isException;
+        runOcrButton.disabled = isException || !hasUpload;
+
+        if (heroSubmit) {
+            heroSubmit.textContent = isException ? 'Save quote exception PR' : (hasUpload ? 'Create draft & run OCR' : 'Save manual draft');
+        }
+
+        if (runOcrHelp) {
+            runOcrHelp.textContent = hasUpload
+                ? 'This will create a draft PR, attach the quotation, and start OCR.'
+                : 'Choose a supplier quotation file to enable OCR.';
+        }
 
         if (!isException && hasUpload) {
             applyQuoteUploadPlaceholder();
