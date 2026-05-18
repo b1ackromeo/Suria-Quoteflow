@@ -89,7 +89,7 @@ Example:
 
 ```text
 Before: Choose whether the supplier invoice is matched against a receiving record, a purchase order, or an approved direct supplier invoice exception.
-After: How should this invoice be matched?
+After: Select matching basis
 ```
 
 ### 5. Accessibility needs tightening

@@ -52,7 +52,7 @@ Do not put long instructions in the default path unless the action is risky.
 
 ## Rewrite patterns
 
-### Source path questions
+### Document basis questions
 
 Before:
 
@@ -63,7 +63,7 @@ Choose whether the supplier invoice is matched against a receiving record, a pur
 After:
 
 ```text
-How should this invoice be matched?
+Select matching basis
 ```
 
 ### Exception path copy
@@ -233,7 +233,7 @@ Use helper text for explanation.
 Good:
 
 ```text
-Source note
+Reason / note
 Explain why this direct exception is allowed.
 ```
 
@@ -242,6 +242,18 @@ Bad:
 ```text
 Internal note explaining why this source path is allowed or how the matching source was selected
 ```
+
+## Form Section Language
+
+Form sections must use the language of the document being prepared. Do not use internal build labels such as `Source path`, `Party and dates`, or `Money and terms`. Avoid generic visible `source` wording when a user-facing phrase such as `Quote basis`, `Billing basis`, `Order basis`, or `Matching basis` is clearer.
+
+Use document-specific labels:
+
+- Customer quotation: Customer request, Customer and quote details, Pricing and terms, Quoted items, Scope and terms
+- Supplier quotation: Quote basis, Supplier and quote details, Pricing and terms, Quoted items, Supplier notes and terms
+- Purchase request: Supplier quote, Supplier and request details, Budget and terms, Requested items, Justification and notes
+- Purchase order: Order basis, Supplier and PO details, Order value and terms, Order items, Delivery terms
+- Supplier invoice: Matching basis, Supplier and invoice details, Payment terms, Invoice lines, Invoice notes
 
 ## Tone for finance controls
 
@@ -276,3 +288,58 @@ OCR verified the invoice.
 ```
 
 The user verifies. OCR only assists.
+
+## OCR Page Copy Standard
+
+OCR scanning pages should use active-task language, not internal extraction language.
+
+Use:
+
+```text
+Verify supplier quote evidence
+Include in PR
+Check extracted invoice details
+Review customer PO details
+Confirm payment proof
+Re-run OCR
+```
+
+Avoid:
+
+```text
+OCR verified
+Extraction complete
+Source path
+Imported metadata
+Processed file payload
+```
+
+When OCR is unverified, the page should tell the user exactly what to do next:
+
+```text
+OCR extracted a draft from the supplier quotation. Check the fields and line items against the file, then verify the evidence.
+```
+
+Do not repeat captured values in multiple places. If the quote terms are editable in the OCR form, do not also show a separate terms summary card with the same text. If the selected attachment and preview already identify the source file, do not add another visible "previewing" header.
+
+When a quotation has more lines than the user plans to buy, use selection language:
+
+```text
+Select
+3 selected
+Only selected quote lines become PR items.
+```
+
+Do not repeat a visible word beside every checkbox in a line table when the column header already explains the control.
+
+If OCR confidence is weak, say what needs checking:
+
+```text
+Check the supplier name and total before verifying this quote.
+```
+
+Keep manual fallback copy positive and operational:
+
+```text
+OCR could not read enough detail. Enter the supplier quote details from the file, then verify the evidence.
+```

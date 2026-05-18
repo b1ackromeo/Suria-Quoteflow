@@ -29,7 +29,7 @@
     $supplierInvoiceMatching = $supplierInvoiceMatching ?? null;
     $supplierInvoiceCanMatch = (bool) ($supplierInvoiceMatching['passes'] ?? false);
     $supplierInvoiceMatchingBlockers = $supplierInvoiceMatching['blocking_messages'] ?? [];
-    $canSubmitForApproval = in_array($document->status, ['draft', 'rejected'], true);
+    $baseCanSubmitForApproval = in_array($document->status, ['draft', 'rejected'], true);
     $supplierQuoteAttachment = $document->attachments->firstWhere('category', 'supplier_quote');
     $supplierQuoteExtraction = $supplierQuoteAttachment?->extraction;
     $hasSupplierQuotePreview = $document->type === 'purchase_request'
@@ -46,6 +46,7 @@
     $purchaseRequestApprovalReady = $document->type !== 'purchase_request'
         || $hasSupplierQuoteException
         || $hasVerifiedSupplierQuoteEvidence;
+    $canSubmitForApproval = $baseCanSubmitForApproval && $purchaseRequestApprovalReady;
     $canDecideDocument = auth()->user()->canApprove() && $document->status === 'pending_approval';
     $canApproveDocument = $canDecideDocument && $purchaseRequestApprovalReady;
     $canRejectDocument = $canDecideDocument;
@@ -128,7 +129,23 @@
         : 'Supplier procurement process';
     $paidAmount = (float) $document->payments->sum('amount');
     $balanceDue = max(0, (float) $document->total - $paidAmount);
+    $hasActiveSupplierQuoteCapture = $document->type === 'purchase_request'
+        && $supplierQuoteAttachment
+        && $supplierQuoteExtraction
+        && $supplierQuoteExtraction->status !== 'verified';
+    $supplierQuoteReviewFields = $supplierQuoteExtraction?->verified_fields ?? $supplierQuoteExtraction?->extracted_fields ?? [];
+    $supplierQuoteReviewTotal = $supplierQuoteReviewFields['total'] ?? null;
+    $supplierQuoteReviewAmount = null;
+    if (filled($supplierQuoteReviewTotal)) {
+        $supplierQuoteReviewNumber = preg_replace('/[^\d.\-]/', '', (string) $supplierQuoteReviewTotal);
+        if ($supplierQuoteReviewNumber !== '' && is_numeric($supplierQuoteReviewNumber)) {
+            $supplierQuoteReviewAmount = $document->currency.' '.number_format((float) $supplierQuoteReviewNumber, 2);
+        }
+    }
     $nextAction = match (true) {
+        $document->type === 'purchase_request' && in_array($document->status, ['draft', 'rejected'], true) && $supplierQuoteExtraction?->status === 'processed' => 'Confirm the supplier quote details before submitting this purchase request for approval.',
+        $document->type === 'purchase_request' && in_array($document->status, ['draft', 'rejected'], true) && $supplierQuoteExtraction?->status === 'failed' => 'Enter the supplier quote details from the uploaded file, then confirm the quote details.',
+        $document->type === 'purchase_request' && in_array($document->status, ['draft', 'rejected'], true) && $hasVerifiedSupplierQuoteEvidence => 'Submit this purchase request for approval.',
         $document->type === 'purchase_request' && in_array($document->status, ['draft', 'rejected'], true) => 'Upload and verify supplier quote evidence, or record a quote exception reason, before requesting approval.',
         $document->type === 'purchase_request' && $document->status === 'pending_approval' && $hasSupplierQuoteException => 'Manager must confirm this quote exception before approving the purchase request.',
         $document->type === 'purchase_request' && $document->status === 'pending_approval' && ! $hasVerifiedSupplierQuoteEvidence => 'Verify the supplier quote evidence before approving this purchase request.',
@@ -173,7 +190,7 @@
             if ($supplierQuoteExtraction?->status === 'verified') {
                 $readinessItems[] = ['state' => 'ready', 'label' => 'Supplier quote verified', 'message' => 'The uploaded supplier quote has been checked and can support approval.'];
             } elseif ($supplierQuoteExtraction?->status === 'processed') {
-                $readinessItems[] = ['state' => 'waiting', 'label' => 'Quote OCR ready', 'message' => 'Verify the extracted supplier quote details before approval.'];
+                $readinessItems[] = ['state' => 'waiting', 'label' => 'Quote details ready for review', 'message' => 'Confirm the extracted supplier quote details before approval.'];
             } elseif ($supplierQuoteExtraction?->status === 'failed') {
                 $readinessItems[] = ['state' => 'blocked', 'label' => 'Manual quote verification needed', 'message' => 'OCR could not read the quote. Check the uploaded file and verify the quote details manually.'];
             } else {
@@ -214,8 +231,8 @@
     }
 @endphp
 
-<div class="document-open-workspace" style="grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);">
-    <aside class="document-open-side-panel" style="border-top: 0; border-right: 1px solid #e2e8f0;" aria-label="Document workspace and actions">
+<div class="document-open-workspace @if($document->type === 'purchase_request' && $supplierQuoteAttachment) document-open-workspace-source @endif">
+    <section class="document-open-side-panel document-workspace-panel" aria-label="Document workspace and actions">
         <div class="document-open-heading">
             <div class="min-w-0">
                 <p class="document-pane-kicker">{{ $processLabel }}</p>
@@ -224,49 +241,65 @@
             </div>
             <div class="document-open-summary">
                 <span class="status-chip status-{{ $document->status }}">{{ $document->statusDisplay() }}</span>
-                <strong>{{ $document->currency }} {{ number_format($document->total, 2) }}</strong>
+                @if($hasActiveSupplierQuoteCapture)
+                    <strong>{{ $supplierQuoteReviewAmount ? 'Detected quote '.$supplierQuoteReviewAmount : 'Quote total pending review' }}</strong>
+                @else
+                    <strong>{{ $document->currency }} {{ number_format($document->total, 2) }}</strong>
+                @endif
             </div>
         </div>
 
-        <section class="document-side-card document-next-step-card">
-            <div class="document-side-card-heading">
-                <p class="document-pane-kicker">Next action</p>
-                <span>{{ $document->statusDisplay() }}</span>
-            </div>
-            <h2>{{ $nextAction }}</h2>
-            @if($nextDocumentLinks !== [])
-                <div class="mt-4 grid gap-2">
-                    @foreach($nextDocumentLinks as $link)
-                        <a class="btn btn-primary w-full" href="{{ $link['route'] }}">{{ $link['label'] }}</a>
+        @if($hasActiveSupplierQuoteCapture)
+            @include('documents.partials.external-document-preview', [
+                'document' => $document,
+                'meta' => $meta,
+                'sourcePanelMode' => 'capture',
+            ])
+        @endif
+
+        @if(! $hasActiveSupplierQuoteCapture)
+            <section class="document-side-card document-next-step-card">
+                <div class="document-side-card-heading">
+                    <p class="document-pane-kicker">Next action</p>
+                    <span>{{ $document->statusDisplay() }}</span>
+                </div>
+                <h2>{{ $nextAction }}</h2>
+                @if($nextDocumentLinks !== [])
+                    <div class="mt-4 grid gap-2">
+                        @foreach($nextDocumentLinks as $link)
+                            <a class="btn btn-primary w-full" href="{{ $link['route'] }}">{{ $link['label'] }}</a>
+                        @endforeach
+                    </div>
+                @endif
+            </section>
+        @endif
+
+        @if(! $hasActiveSupplierQuoteCapture)
+            <section class="document-side-card document-readiness-card">
+                <h2 class="panel-title">Before next action</h2>
+                <div class="document-readiness-list">
+                    @foreach($readinessItems as $item)
+                        <article class="document-readiness-item readiness-state-{{ $item['state'] }}">
+                            <strong>{{ $item['label'] }}</strong>
+                            <p>{{ $item['message'] }}</p>
+                        </article>
                     @endforeach
                 </div>
-            @endif
-        </section>
 
-        <section class="document-side-card document-readiness-card">
-            <h2 class="panel-title">Readiness and blockers</h2>
-            <div class="document-readiness-list">
-                @foreach($readinessItems as $item)
-                    <article class="document-readiness-item readiness-state-{{ $item['state'] }}">
-                        <strong>{{ $item['label'] }}</strong>
-                        <p>{{ $item['message'] }}</p>
-                    </article>
-                @endforeach
-            </div>
-
-            @if($document->type === 'supplier_invoice' && $supplierInvoiceMatching)
-                <div class="document-checklist-summary">
-                    <h3>Supplier invoice matching checklist</h3>
-                    @foreach($supplierInvoiceMatching['checks'] as $check)
-                        <div class="document-checklist-row {{ $check['passed'] ? 'is-passed' : 'is-blocked' }}">
-                            <span>{{ $check['passed'] ? 'Passed' : 'Blocked' }}</span>
-                            <strong>{{ $check['label'] }}</strong>
-                            <p>{{ $check['message'] }}</p>
-                        </div>
-                    @endforeach
-                </div>
-            @endif
-        </section>
+                @if($document->type === 'supplier_invoice' && $supplierInvoiceMatching)
+                    <div class="document-checklist-summary">
+                        <h3>Supplier invoice matching checklist</h3>
+                        @foreach($supplierInvoiceMatching['checks'] as $check)
+                            <div class="document-checklist-row {{ $check['passed'] ? 'is-passed' : 'is-blocked' }}">
+                                <span>{{ $check['passed'] ? 'Passed' : 'Blocked' }}</span>
+                                <strong>{{ $check['label'] }}</strong>
+                                <p>{{ $check['message'] }}</p>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </section>
+        @endif
 
         @if($hasWorkflowActions)
             <section class="document-side-card document-action-stack">
@@ -282,7 +315,7 @@
                 @elseif($canDecideDocument && $document->type === 'purchase_request' && ! $purchaseRequestApprovalReady)
                     <div class="document-readiness-item readiness-state-blocked">
                         <strong>Approval locked</strong>
-                        <p>Verify supplier quote evidence before approving this purchase request.</p>
+                        <p>Confirm the supplier quote details before approving this purchase request.</p>
                     </div>
                 @endif
                 @if($canRejectDocument)
@@ -316,93 +349,97 @@
             </section>
         @endif
 
-        <section class="document-side-card">
-            <h2 class="panel-title">Key facts</h2>
-            <dl class="document-detail-list">
-                @foreach($detailRows as $row)
-                    <div>
-                        <dt>{{ $row['label'] }}</dt>
-                        <dd>{{ $row['value'] }}</dd>
+        @if(! $hasActiveSupplierQuoteCapture)
+            <section class="document-side-card">
+                <h2 class="panel-title">Document details</h2>
+                <dl class="document-detail-list">
+                    @foreach($detailRows as $row)
+                        <div>
+                            <dt>{{ $row['label'] }}</dt>
+                            <dd>{{ $row['value'] }}</dd>
+                        </div>
+                    @endforeach
+                </dl>
+                @if($document->delivery_to || $document->source_note)
+                    <div class="document-side-notes">
+                        @if($document->delivery_to)
+                            <div>
+                                <strong>Delivery / service location</strong>
+                                <p>{{ $document->delivery_to }}</p>
+                            </div>
+                        @endif
+                        @if($document->source_note)
+                            <div>
+                                <strong>Reason / note</strong>
+                                <p>{{ $document->source_note }}</p>
+                            </div>
+                        @endif
                     </div>
-                @endforeach
-            </dl>
-            @if($document->delivery_to || $document->source_note)
-                <div class="document-side-notes">
-                    @if($document->delivery_to)
-                        <div>
-                            <strong>Delivery / service location</strong>
-                            <p>{{ $document->delivery_to }}</p>
-                        </div>
-                    @endif
-                    @if($document->source_note)
-                        <div>
-                            <strong>Source note</strong>
-                            <p>{{ $document->source_note }}</p>
-                        </div>
-                    @endif
-                </div>
-            @endif
-        </section>
+                @endif
+            </section>
 
-        <section class="document-side-card document-chain-card">
-            <h2 class="panel-title">Related chain</h2>
-            <dl class="document-detail-list">
-                <div>
-                    <dt>Source</dt>
-                    <dd>{{ $document->sourceTypeDisplay() }}</dd>
-                </div>
-                <div>
-                    <dt>Related document</dt>
-                    <dd>{{ $document->relatedDocument?->document_number ?? 'None' }}</dd>
-                </div>
-            </dl>
-            @include('documents.partials.workflow-timeline', ['meta' => $meta, 'document' => $document])
-        </section>
+            <section class="document-side-card document-chain-card">
+                <h2 class="panel-title">Workflow</h2>
+                <dl class="document-detail-list">
+                    <div>
+                        <dt>Source</dt>
+                        <dd>{{ $document->sourceTypeDisplay() }}</dd>
+                    </div>
+                    <div>
+                        <dt>Related document</dt>
+                        <dd>{{ $document->relatedDocument?->document_number ?? 'None' }}</dd>
+                    </div>
+                </dl>
+                @include('documents.partials.workflow-timeline', ['meta' => $meta, 'document' => $document])
+            </section>
+        @endif
 
-        <section class="document-side-card">
-            <div class="document-side-section-heading">
-                <h2 class="panel-title">Evidence and attachments</h2>
-                <span>{{ $document->attachments->count() }} file{{ $document->attachments->count() === 1 ? '' : 's' }}</span>
-            </div>
-            <div class="document-attachment-list">
-                @forelse($document->attachments as $attachment)
-                    <a href="{{ $attachment->isPreviewable() ? route('attachments.preview', $attachment) : route('attachments.download', $attachment) }}" @if($attachment->isPreviewable()) target="_blank" rel="noopener" @endif>
-                        <span>{{ $attachment->original_name }}</span>
-                        <strong>
-                            {{ str_replace('_', ' ', ucfirst($attachment->category ?? 'supporting_document')) }}{{ $attachment->isPreviewable() ? ' · Previewable' : '' }}
-                            @if($attachment->extraction?->status)
-                                · OCR {{ str_replace('_', ' ', $attachment->extraction->status) }}
-                            @endif
-                        </strong>
-                    </a>
-                @empty
-                    <p>No attachments.</p>
-                @endforelse
-            </div>
-            @if($canWrite)
-                <form method="post" action="{{ route('documents.attachments.store', $document) }}" enctype="multipart/form-data" class="document-upload-form">
-                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                    <label class="form-label">Attachment category
-                        <select class="form-input" name="category">
-                            <option value="supporting_document">Supporting document</option>
-                            <option value="customer_po">PO received</option>
-                            <option value="supplier_quote" @selected(in_array($document->type, ['purchase_request', 'supplier_quotation'], true))>Supplier quotation</option>
-                            <option value="delivery_evidence">Delivery / service evidence</option>
-                            <option value="invoice_copy" @selected($document->type === 'supplier_invoice')>Invoice copy</option>
-                            <option value="delivery_order">Delivery order</option>
-                            <option value="service_report">Service report</option>
-                            <option value="uat_document">UAT / acceptance document</option>
-                            <option value="installation_report">Installation report</option>
-                            <option value="completion_photo">Completion photo</option>
-                            <option value="email_approval">Email approval</option>
-                            <option value="payment_proof">Payment proof</option>
-                        </select>
-                    </label>
-                    <input class="form-input file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-bold file:text-slate-700 hover:file:bg-slate-200" type="file" name="attachment" required>
-                    <button type="submit" class="btn btn-secondary w-full">Upload</button>
-                </form>
-            @endif
-        </section>
+        @if(! $hasActiveSupplierQuoteCapture)
+            <section class="document-side-card">
+                <div class="document-side-section-heading">
+                    <h2 class="panel-title">Evidence and attachments</h2>
+                    <span>{{ $document->attachments->count() }} file{{ $document->attachments->count() === 1 ? '' : 's' }}</span>
+                </div>
+                <div class="document-attachment-list">
+                    @forelse($document->attachments as $attachment)
+                        <a href="{{ $attachment->isPreviewable() ? route('attachments.preview', $attachment) : route('attachments.download', $attachment) }}" @if($attachment->isPreviewable()) target="_blank" rel="noopener" @endif>
+                            <span>{{ $attachment->original_name }}</span>
+                            <strong>
+                                {{ str_replace('_', ' ', ucfirst($attachment->category ?? 'supporting_document')) }}{{ $attachment->isPreviewable() ? ' · Previewable' : '' }}
+                                @if($attachment->extraction?->status)
+                                    · OCR {{ str_replace('_', ' ', $attachment->extraction->status) }}
+                                @endif
+                            </strong>
+                        </a>
+                    @empty
+                        <p>No attachments.</p>
+                    @endforelse
+                </div>
+                @if($canWrite)
+                    <form method="post" action="{{ route('documents.attachments.store', $document) }}" enctype="multipart/form-data" class="document-upload-form">
+                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                        <label class="form-label">Attachment category
+                            <select class="form-input" name="category">
+                                <option value="supporting_document">Supporting document</option>
+                                <option value="customer_po">PO received</option>
+                                <option value="supplier_quote" @selected(in_array($document->type, ['purchase_request', 'supplier_quotation'], true))>Supplier quotation</option>
+                                <option value="delivery_evidence">Delivery / service evidence</option>
+                                <option value="invoice_copy" @selected($document->type === 'supplier_invoice')>Invoice copy</option>
+                                <option value="delivery_order">Delivery order</option>
+                                <option value="service_report">Service report</option>
+                                <option value="uat_document">UAT / acceptance document</option>
+                                <option value="installation_report">Installation report</option>
+                                <option value="completion_photo">Completion photo</option>
+                                <option value="email_approval">Email approval</option>
+                                <option value="payment_proof">Payment proof</option>
+                            </select>
+                        </label>
+                        <input class="form-input file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-bold file:text-slate-700 hover:file:bg-slate-200" type="file" name="attachment" required>
+                        <button type="submit" class="btn btn-secondary w-full">Upload</button>
+                    </form>
+                @endif
+            </section>
+        @endif
 
         @if($document->billingStages->isNotEmpty())
             <details class="document-side-card document-side-disclosure">
@@ -434,6 +471,7 @@
             </details>
         @endif
 
+        @unless($hasActiveSupplierQuoteCapture)
         <details class="document-side-card document-side-disclosure">
             <summary>
                 <span>Line items</span>
@@ -449,7 +487,7 @@
                         <tr>
                             <td>
                                 <strong>{{ $item->description }}</strong>
-                                <span>{{ number_format($item->quantity, 3) }} {{ $item->unit }} x {{ $document->currency }} {{ number_format($item->unit_price, 2) }}</span>
+                                <span>{{ \App\Models\Document::formatQuantity($item->quantity) }} {{ $item->unit }} x {{ $document->currency }} {{ number_format($item->unit_price, 2) }}</span>
                             </td>
                             <td class="text-right">{{ $document->currency }} {{ number_format((float) $item->quantity * (float) $item->unit_price, 2) }}</td>
                         </tr>
@@ -461,81 +499,92 @@
                 </table>
             </div>
         </details>
+        @endunless
 
-        <details class="document-side-card document-side-disclosure">
-            <summary>
-                <span>Notes and terms</span>
-                <strong>Commercial text</strong>
-            </summary>
-            <div class="document-side-notes">
-                <div>
-                    <strong>Notes</strong>
-                    <p>{{ $document->notes ?: 'No notes.' }}</p>
+        @if(! $hasActiveSupplierQuoteCapture)
+            <details class="document-side-card document-side-disclosure">
+                <summary>
+                    <span>Commercial notes</span>
+                    <strong>Notes / terms</strong>
+                </summary>
+                <div class="document-side-notes">
+                    <div>
+                        <strong>Notes</strong>
+                        <p>{{ $document->notes ?: 'No notes.' }}</p>
+                    </div>
+                    <div>
+                        <strong>Terms</strong>
+                        <p>{{ $document->terms ?: 'No terms.' }}</p>
+                    </div>
                 </div>
-                <div>
-                    <strong>Terms</strong>
-                    <p>{{ $document->terms ?: 'No terms.' }}</p>
-                </div>
-            </div>
-        </details>
+            </details>
+        @endif
 
-        <details class="document-side-card document-side-disclosure">
-            <summary>
-                <span>Payments</span>
-                <strong>{{ $document->currency }} {{ number_format($balanceDue, 2) }} balance</strong>
-            </summary>
-            <div class="document-compact-table">
-                <table>
-                    <thead><tr><th>Reference</th><th class="text-right">Amount</th></tr></thead>
-                    <tbody>
-                    @forelse($document->payments as $payment)
-                        <tr>
-                            <td>
-                                <strong>{{ $payment->reference }}</strong>
-                                <span>{{ optional($payment->payment_date)->format('d M Y') }} · {{ ucfirst($payment->direction) }}</span>
-                            </td>
-                            <td class="text-right">{{ $document->currency }} {{ number_format($payment->amount, 2) }}</td>
-                        </tr>
+        @if(! $hasActiveSupplierQuoteCapture)
+            <details class="document-side-card document-side-disclosure">
+                <summary>
+                    <span>Payments</span>
+                    <strong>{{ $document->currency }} {{ number_format($balanceDue, 2) }} balance</strong>
+                </summary>
+                <div class="document-compact-table">
+                    <table>
+                        <thead><tr><th>Reference</th><th class="text-right">Amount</th></tr></thead>
+                        <tbody>
+                        @forelse($document->payments as $payment)
+                            <tr>
+                                <td>
+                                    <strong>{{ $payment->reference }}</strong>
+                                    <span>{{ optional($payment->payment_date)->format('d M Y') }} · {{ ucfirst($payment->direction) }}</span>
+                                </td>
+                                <td class="text-right">{{ $document->currency }} {{ number_format($payment->amount, 2) }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="2">No payments recorded.</td></tr>
+                        @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+        @endif
+
+        @if(! $hasActiveSupplierQuoteCapture)
+            <details class="document-side-card document-side-disclosure">
+                <summary>
+                    <span>Approval history</span>
+                    <strong>{{ $document->approvals->count() }} event{{ $document->approvals->count() === 1 ? '' : 's' }}</strong>
+                </summary>
+                <div class="document-approval-list">
+                    @forelse($document->approvals as $approval)
+                        <article>
+                            <strong>{{ ucfirst($approval->status) }}</strong>
+                            <span>Requested by {{ $approval->requester?->name ?? 'Unknown' }}</span>
+                            @if($approval->decider)
+                                <span>Decided by {{ $approval->decider->name }}</span>
+                            @endif
+                            @if($approval->comment)
+                                <p>{{ $approval->comment }}</p>
+                            @endif
+                        </article>
                     @empty
-                        <tr><td colspan="2">No payments recorded.</td></tr>
+                        <p>No approval events.</p>
                     @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </details>
+                </div>
+            </details>
+        @endif
+    </section>
 
-        <details class="document-side-card document-side-disclosure">
-            <summary>
-                <span>Approval history</span>
-                <strong>{{ $document->approvals->count() }} event{{ $document->approvals->count() === 1 ? '' : 's' }}</strong>
-            </summary>
-            <div class="document-approval-list">
-                @forelse($document->approvals as $approval)
-                    <article>
-                        <strong>{{ ucfirst($approval->status) }}</strong>
-                        <span>Requested by {{ $approval->requester?->name ?? 'Unknown' }}</span>
-                        @if($approval->decider)
-                            <span>Decided by {{ $approval->decider->name }}</span>
-                        @endif
-                        @if($approval->comment)
-                            <p>{{ $approval->comment }}</p>
-                        @endif
-                    </article>
-                @empty
-                    <p>No approval events.</p>
-                @endforelse
-            </div>
-        </details>
-    </aside>
-
-    <section class="document-open-preview-pane" style="border-right: 0;" aria-label="Source preview and assisted capture">
+    <section class="document-open-preview-pane document-source-panel" aria-label="Uploaded source file">
         <div class="document-open-preview-body">
             @if($previewMode === 'generated')
                 @include('documents.partials.generated-pdf-output-preview', ['document' => $document, 'meta' => $meta, 'isActive' => true])
             @elseif($previewMode === 'supplier_invoice')
                 @include('documents.partials.supplier-invoice-file-preview', ['document' => $document, 'meta' => $meta])
             @elseif($previewMode === 'external')
-                @include('documents.partials.external-document-preview', ['document' => $document, 'meta' => $meta])
+                @include('documents.partials.external-document-preview', [
+                    'document' => $document,
+                    'meta' => $meta,
+                    'sourcePanelMode' => $document->type === 'purchase_request' && $supplierQuoteAttachment ? 'preview' : 'full',
+                ])
             @else
                 <article class="document-preview-empty">
                     <p class="document-pane-kicker">Document preview</p>

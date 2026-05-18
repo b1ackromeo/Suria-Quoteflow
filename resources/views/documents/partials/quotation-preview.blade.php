@@ -137,7 +137,7 @@
                                     <p class="mt-1 text-[11px] font-medium text-slate-500">{{ $item->product->name }}</p>
                                 @endif
                             </td>
-                            <td class="px-3 py-3 text-right align-top">{{ number_format((float) $item->quantity, 3) }}</td>
+                            <td class="px-3 py-3 text-right align-top">{{ \App\Models\Document::formatQuantity($item->quantity) }}</td>
                             <td class="px-3 py-3 align-top">{{ $item->unit }}</td>
                             <td class="px-3 py-3 text-right align-top">{{ number_format((float) $item->unit_price, 2) }}</td>
                             <td class="px-3 py-3 text-right align-top font-bold">{{ number_format((float) $item->line_total, 2) }}</td>

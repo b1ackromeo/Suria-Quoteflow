@@ -332,6 +332,10 @@ class TesseractInvoiceExtractor
             }
         }
 
+        if ($isQuotation && filled($fields['commercial_terms'] ?? null)) {
+            $score += 4;
+        }
+
         $items = array_values(array_filter($fields['items'] ?? [], 'is_array'));
         $score += min(count($items) * 5, 25);
 
@@ -430,6 +434,7 @@ class TesseractInvoiceExtractor
             'tax_total' => $this->findAmount($text, ['sst', 'service\s*tax', 'tax']),
             'total' => $this->findAmount($text, ['grand\s*total', 'quote\s*total', 'quotation\s*total', 'total\s*amount', 'amount\s*due', '\btotal\b']),
             'payment_terms' => $this->findPaymentTerms($text),
+            'commercial_terms' => $this->findCommercialTerms($text),
         ];
 
         $items = $this->findLineItems($text);
@@ -589,6 +594,59 @@ class TesseractInvoiceExtractor
         }
 
         return $this->findValue($text, ['payment\s*terms?']);
+    }
+
+    private function findCommercialTerms(string $text): ?string
+    {
+        $lines = collect(preg_split('/\R+/', $text))
+            ->map(fn ($line) => trim((string) preg_replace('/\s+/', ' ', $line)))
+            ->values();
+
+        $capture = false;
+        $terms = [];
+
+        foreach ($lines as $line) {
+            if ($line === '') {
+                if ($capture && $terms !== []) {
+                    break;
+                }
+
+                continue;
+            }
+
+            if (! $capture && preg_match('/^(terms?\s*(?:&|and)?\s*conditions?|commercial\s*terms?|terms|delivery|warranty|validity|remarks?|notes?|exclusions?)\b/i', $line)) {
+                $capture = true;
+            }
+
+            if (! $capture) {
+                continue;
+            }
+
+            if (preg_match('/^(?:prepared\s+by|authorized|signature|bank\s+details|subtotal|tax|grand\s+total|total\s+amount|we\s+trust|we\s+hope|thank\s+you|yours\s+faithfully|yours\s+sincerely)\b/i', $line)) {
+                break;
+            }
+
+            if (preg_match('/^(?:[0-9]+\.?\s+)?[A-Za-z"].*\s+[0-9]+(?:\.[0-9]{1,3})?\s+[A-Za-z][A-Za-z0-9\/-]{0,19}\s+(?:MYR|RM)?\s*[0-9][0-9,]*(?:\.[0-9]{2})/i', $line)) {
+                continue;
+            }
+
+            $line = preg_replace('/^\s*[-*•]\s*/u', '', $line);
+            $line = preg_replace('/^(terms?\s*(?:&|and)?\s*conditions?|commercial\s*terms?)\s*[:=\-]*\s*/i', '', (string) $line);
+
+            if (trim((string) $line) !== '') {
+                $terms[] = trim((string) $line);
+            }
+
+            if (strlen(implode("\n", $terms)) >= 1200) {
+                break;
+            }
+        }
+
+        if ($terms === []) {
+            return null;
+        }
+
+        return Str::limit(implode("\n", array_unique($terms)), 1200, '');
     }
 
     private function findLineItems(string $text): array

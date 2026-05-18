@@ -156,6 +156,38 @@ Examples:
 [Close document]
 ```
 
+## OCR-assisted capture pages
+
+Use this standard for every page where QuoteFlow scans an uploaded business document, including supplier quotation evidence, customer PO files, goods receipt evidence, supplier invoices, and payment proof.
+
+When OCR has produced a draft that is not verified yet, the page's active job is verification. The user should not have to hunt through the normal document command center to find the OCR task.
+
+Required layout:
+
+```text
+1. Keep the normal sidebar and top search shell.
+2. Show the document header and status.
+3. Put the OCR assisted capture task in the main workspace immediately.
+4. Show extracted fields and extracted line items once, as editable review fields.
+5. Let the user include or exclude extracted line items before they become document lines.
+6. Show the source PDF/image in a readable preview panel.
+7. Keep Verify evidence and Re-run OCR visible near the capture task.
+8. After verification, return the record to the normal command-center hierarchy.
+```
+
+Business-relevant text from the uploaded document must stay visible for review. This includes payment terms, validity, delivery, warranty, exclusions, supplier remarks, commercial notes, and terms and conditions. If QuoteFlow can structure the value, show it as an editable captured field. If structure is uncertain, preserve it as extracted notes or low-confidence evidence.
+
+Anti-redundancy rules:
+
+- do not repeat the same OCR field in both a summary card and an editable field
+- do not show a selected attachment summary beside the same source preview unless it adds a decision or blocker
+- do not show empty Payments, Approval history, Commercial notes, or generic Workflow cards while the unverified OCR task is active
+- do not squeeze the PDF/image preview beside a cramped OCR form inside the same narrow panel
+- do not bury Verify evidence below history, attachments, or unrelated details
+- do not treat OCR line items as final document line items until the user verifies the evidence
+- do not force every extracted quotation line into purchasing; only included/selected lines should be synced into the document
+- do not expose database precision in purchasing fields; show `3` instead of `3.000`, while preserving meaningful fractional quantities such as `1.5` or `0.125`
+
 ## Supplier invoice layout
 
 Supplier invoice pages need explicit control states:
@@ -189,19 +221,23 @@ Keep the one-page studio layout, but make it feel guided.
 Recommended sections:
 
 ```text
-1. Source
-2. Party and dates
-3. Money and terms
-4. Items
-5. Notes and evidence
+1. Document basis, named for the work
+   Examples: Customer request, Supplier quote, Purchase order, Matching basis
+2. Customer / supplier / document details
+   Examples: Customer and quote details, Supplier and invoice details
+3. Pricing / budget / payment terms
+   Examples: Pricing and terms, Budget and terms, Payment terms
+4. Document lines
+   Examples: Quoted items, Requested items, Order items, Invoice lines
+5. Scope, justification, delivery, or commercial notes
 ```
 
 Add a progress/readiness summary where practical:
 
 ```text
-Source: selected
-Party: missing
-Items: 3 lines
+Supplier quote: uploaded
+Customer details: missing
+Quoted items: 3 lines
 Terms: standard
 Ready to save: no
 ```

@@ -272,6 +272,28 @@ class Document extends Model
         return 'Not specified';
     }
 
+    public static function formatQuantity(mixed $value, string $default = '0'): string
+    {
+        if (! filled($value)) {
+            return $default;
+        }
+
+        $text = trim((string) $value);
+        $normalized = str_replace(',', '', $text);
+
+        if (! is_numeric($normalized)) {
+            return $text;
+        }
+
+        $number = (float) $normalized;
+
+        if (abs($number - round($number)) < 0.00001) {
+            return (string) (int) round($number);
+        }
+
+        return rtrim(rtrim(number_format($number, 3, '.', ''), '0'), '.');
+    }
+
     public function statusDisplay(): string
     {
         if ($this->type === 'customer_po' && $this->status === 'issued') {

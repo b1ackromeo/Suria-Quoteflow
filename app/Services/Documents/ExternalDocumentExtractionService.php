@@ -36,7 +36,7 @@ class ExternalDocumentExtractionService
     public function uploadProcessedMessage(Document $document): string
     {
         return match ($document->type) {
-            'purchase_request', 'supplier_quotation' => 'Attachment uploaded. Quote OCR draft is ready for verification.',
+            'purchase_request', 'supplier_quotation' => 'Attachment uploaded. Supplier quote details are ready for review.',
             default => 'Attachment uploaded. OCR extraction draft is ready for verification.',
         };
     }
@@ -52,7 +52,7 @@ class ExternalDocumentExtractionService
     public function readyMessage(Document $document): string
     {
         return match ($document->type) {
-            'purchase_request', 'supplier_quotation' => 'Quote OCR draft is ready. Verify the fields before using the quote for purchasing.',
+            'purchase_request', 'supplier_quotation' => 'Supplier quote details are ready for review. Confirm the fields before using the quote for purchasing.',
             default => 'OCR extraction draft is ready. Verify the fields before approval.',
         };
     }
@@ -60,7 +60,7 @@ class ExternalDocumentExtractionService
     public function verificationSuccessMessage(Document $document): string
     {
         return match ($document->type) {
-            'purchase_request' => 'Supplier quote evidence verified.',
+            'purchase_request' => 'Supplier quote details confirmed.',
             'supplier_quotation' => 'Supplier quotation details verified.',
             default => 'Supplier invoice extraction verified.',
         };
@@ -83,6 +83,7 @@ class ExternalDocumentExtractionService
                 'tax_total' => 'Tax amount',
                 'total' => 'Quote total',
                 'payment_terms' => 'Payment terms',
+                'commercial_terms' => 'Terms and conditions',
             ],
             default => [],
         };
@@ -100,6 +101,7 @@ class ExternalDocumentExtractionService
                 'tax_total' => number_format((float) $document->tax_total, 2, '.', ''),
                 'total' => number_format((float) $document->total, 2, '.', ''),
                 'payment_terms' => $document->paymentTermsDisplay(),
+                'commercial_terms' => $document->terms,
             ],
             default => [],
         };
@@ -125,6 +127,10 @@ class ExternalDocumentExtractionService
 
         foreach (array_values($items) as $item) {
             if (! is_array($item)) {
+                continue;
+            }
+
+            if (array_key_exists('included', $item) && ! filter_var($item['included'], FILTER_VALIDATE_BOOLEAN)) {
                 continue;
             }
 
@@ -189,6 +195,10 @@ class ExternalDocumentExtractionService
 
         if (filled($fields['payment_terms'] ?? null)) {
             $payload['payment_terms_label'] = $fields['payment_terms'];
+        }
+
+        if (filled($fields['commercial_terms'] ?? null)) {
+            $payload['terms'] = $fields['commercial_terms'];
         }
 
         return $payload;

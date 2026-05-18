@@ -47,6 +47,9 @@ Operations hardware kit 5 set MYR 2,250.00
 Service coordination 1 job MYR 180.00
 Total: MYR 2,430.00
 Payment Terms: 30 days from invoice date
+Terms & Conditions:
+Delivery: Ex-stock subject to availability.
+Warranty: Supplier standard warranty applies.
 TEXT, 'supplier_quotation');
 
         $this->assertSame('N2N System', $fields['supplier_name']);
@@ -54,6 +57,8 @@ TEXT, 'supplier_quotation');
         $this->assertSame('2026-05-14', $fields['quote_date']);
         $this->assertSame('2026-06-13', $fields['valid_until']);
         $this->assertSame('2430.00', $fields['total']);
+        $this->assertStringContainsString('Delivery: Ex-stock subject to availability.', $fields['commercial_terms']);
+        $this->assertStringContainsString('Warranty: Supplier standard warranty applies.', $fields['commercial_terms']);
         $this->assertCount(2, $fields['items']);
         $this->assertSame('Operations hardware kit', $fields['items'][0]['description']);
         $this->assertSame('450.00', $fields['items'][0]['unit_price']);
@@ -79,6 +84,9 @@ Price NETT
 Delivery: TBA.
 Terms CASH
 Validity 1 Days.
+We trust that our offer will meet your favorable and look forward to receive your valuable order soon Thank you,
+GREAT LITE ELECTRIC (M) SDN BHD.
+CY LEE
 TEXT, 'supplier_quotation');
 
         $this->assertSame('GREAT LITE ELECTRIC (M) SDN BHD', $fields['supplier_name']);
@@ -87,6 +95,11 @@ TEXT, 'supplier_quotation');
         $this->assertSame('2026-04-18', $fields['valid_until']);
         $this->assertSame('6833.50', $fields['total']);
         $this->assertSame('CASH', $fields['payment_terms']);
+        $this->assertStringContainsString('Price NETT', $fields['commercial_terms']);
+        $this->assertStringContainsString('Delivery: TBA.', $fields['commercial_terms']);
+        $this->assertStringContainsString('Validity 1 Days.', $fields['commercial_terms']);
+        $this->assertStringNotContainsString('We trust that our offer', $fields['commercial_terms']);
+        $this->assertStringNotContainsString('CY LEE', $fields['commercial_terms']);
         $this->assertCount(3, $fields['items']);
         $this->assertSame('3.000', $fields['items'][0]['quantity']);
         $this->assertSame('1380.00', $fields['items'][0]['unit_price']);

@@ -177,6 +177,15 @@ Rules:
 - fail gracefully with manual verification fallback
 - do not block the entire business workflow on OCR success
 
+OCR scanning page loading rules:
+
+- never load uploaded file contents directly into Blade
+- use authenticated preview/download URLs for PDF/image evidence
+- render only the active source preview, not hidden previews for every attachment
+- keep unverified OCR pages focused on the capture task instead of rendering large unrelated history sections
+- re-run OCR only from an explicit user action, not during normal page render
+- preserve extracted business terms as structured fields or review notes without duplicating the same text in multiple cards
+
 ## Loading smoothness rules
 
 Every page should provide immediate visual structure.

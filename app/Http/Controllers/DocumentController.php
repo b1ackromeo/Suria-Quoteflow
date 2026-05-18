@@ -146,7 +146,7 @@ class DocumentController extends Controller
                 $extraction = $this->storeExtractionDraft($attachment, $extractor);
 
                 if ($extraction?->status === 'processed') {
-                    $message = $meta['singular'].' created. Quote OCR draft is ready for verification.';
+                    $message = $meta['singular'].' created. Supplier quote details are ready for review.';
                 } elseif ($extraction?->status === 'failed') {
                     $message = $meta['singular'].' created. OCR could not read the supplier quote; verify the quote details manually from the source file.';
                 }
@@ -237,10 +237,12 @@ class DocumentController extends Controller
         $blockingIssues = $this->supplierInvoiceVerification->blockingIssues($document);
         if (
             $document->type === 'purchase_request'
-            && ! $this->hasSupplierQuoteEvidence($document)
+            && ! $this->hasVerifiedSupplierQuoteEvidence($document)
             && ! $this->hasSupplierQuoteException($document)
         ) {
-            $blockingIssues[] = 'Upload the supplier quotation file, or choose Quote exception and add a reason, before submitting this purchase request for approval.';
+            $blockingIssues[] = $this->hasSupplierQuoteEvidence($document)
+                ? 'Verify the supplier quote evidence before submitting this purchase request for approval.'
+                : 'Upload the supplier quotation file and verify it, or choose Quote exception and add a reason, before submitting this purchase request for approval.';
         }
 
         if ($blockingIssues !== []) {
@@ -750,6 +752,7 @@ class DocumentController extends Controller
             'fields.tax_total' => ['nullable', 'string', 'max:80'],
             'fields.total' => ['nullable', 'string', 'max:80'],
             'fields.payment_terms' => ['nullable', 'string', 'max:255'],
+            'fields.commercial_terms' => ['nullable', 'string', 'max:5000'],
             'items' => ['nullable', 'array'],
             'items.*.description' => ['nullable', 'string', 'max:255'],
             'items.*.quantity' => ['nullable', 'string', 'max:80'],
@@ -757,6 +760,7 @@ class DocumentController extends Controller
             'items.*.unit_price' => ['nullable', 'string', 'max:80'],
             'items.*.line_total' => ['nullable', 'string', 'max:80'],
             'items.*.tax_rate' => ['nullable', 'string', 'max:80'],
+            'items.*.included' => ['nullable', 'boolean'],
             'supplier_confirmed' => ['accepted'],
             'recorded_total_confirmed' => ['nullable', 'boolean'],
             'verification_notes' => ['nullable', 'string', 'max:2000'],
@@ -773,6 +777,12 @@ class DocumentController extends Controller
         $items = $this->externalDocumentExtraction->normalizeItems($data['items'] ?? []);
         $recordedTotalConfirmed = $request->boolean('recorded_total_confirmed');
         $verificationNotes = $request->string('verification_notes')->trim()->toString() ?: null;
+
+        if ($document->type === 'purchase_request' && $items === []) {
+            throw ValidationException::withMessages([
+                'items' => 'Select at least one quote line or add a line before verifying this purchase request.',
+            ]);
+        }
 
         if (! filled($fields['total'] ?? null) && $items === [] && ! $recordedTotalConfirmed) {
             throw ValidationException::withMessages([
@@ -801,7 +811,9 @@ class DocumentController extends Controller
                 'verified_at' => now(),
             ]);
 
-            if ($document->type === 'supplier_quotation') {
+            if ($document->type === 'purchase_request') {
+                $this->applyVerifiedPurchaseRequestQuoteFields($document, $fields, $items);
+            } elseif ($document->type === 'supplier_quotation') {
                 $this->applyVerifiedSupplierQuotationFields($document, $fields, $items);
             }
 
@@ -824,6 +836,26 @@ class DocumentController extends Controller
         }
 
         $payload = $this->externalDocumentExtraction->supplierQuotationPayload($fields);
+
+        if ($payload !== []) {
+            $document->update($payload);
+        }
+    }
+
+    private function applyVerifiedPurchaseRequestQuoteFields(Document $document, array $fields, array $items): void
+    {
+        if ($items !== []) {
+            $this->syncItems($document, $items);
+        }
+
+        $payload = $this->externalDocumentExtraction->supplierQuotationPayload($fields);
+        $payload = array_merge($payload, [
+            'source_type' => 'supplier_quote',
+        ]);
+
+        if ($items !== []) {
+            unset($payload['subtotal'], $payload['tax_total'], $payload['total']);
+        }
 
         if ($payload !== []) {
             $document->update($payload);
@@ -1122,6 +1154,10 @@ class DocumentController extends Controller
             ? ['nullable', 'file', 'max:8192', 'mimes:pdf,jpg,jpeg,png,webp,bmp,tif,tiff']
             : ['prohibited'];
 
+        $isPurchaseRequestSupplierQuote = $meta['type'] === 'purchase_request'
+            && ($request->input('source_type') ?: 'supplier_quote') === 'supplier_quote';
+        $itemsRule = $isPurchaseRequestSupplierQuote ? ['nullable', 'array'] : ['required', 'array'];
+
         $data = $request->validate([
             'external_reference' => ['nullable', 'string', 'max:255'],
             'customer_id' => ['nullable', 'exists:customers,id'],
@@ -1144,7 +1180,7 @@ class DocumentController extends Controller
             'notes' => ['nullable', 'string'],
             'terms' => ['nullable', 'string'],
             'source_attachment' => $sourceAttachmentRules,
-            'items' => ['required', 'array'],
+            'items' => $itemsRule,
             'items.*.product_id' => ['nullable', 'exists:products,id'],
             'items.*.description' => ['nullable', 'string', 'max:255'],
             'items.*.quantity' => ['nullable', 'numeric', $quantityMinRule, 'max:999999999'],
@@ -1194,6 +1230,12 @@ class DocumentController extends Controller
             ]);
         }
 
+        if ($meta['type'] === 'purchase_request' && ($data['source_type'] ?? null) === 'supplier_quote' && $request->routeIs('documents.store') && ! $request->hasFile('source_attachment')) {
+            throw ValidationException::withMessages([
+                'source_attachment' => 'Upload the supplier quotation before creating the supplier quote review.',
+            ]);
+        }
+
         if ($meta['type'] === 'goods_receipt' && ($data['source_type'] ?? null) === 'supplier_po' && empty($data['related_document_id'])) {
             throw ValidationException::withMessages(['related_document_id' => 'Select the issued purchase order this receipt is recorded against, or choose Direct receipt exception.']);
         }
@@ -1225,15 +1267,24 @@ class DocumentController extends Controller
             throw ValidationException::withMessages(['related_document_id' => 'Select an issued supplier purchase order before recording receiving.']);
         }
 
-        $data['items'] = collect($data['items'])
+        $data['items'] = collect($data['items'] ?? [])
             ->filter(fn ($item) => filled($item['description'] ?? null))
             ->values()
             ->all();
 
         if ($data['items'] === []) {
+            if ($meta['type'] === 'purchase_request' && ($data['source_type'] ?? null) === 'supplier_quote') {
+                return $this->finishValidatedPayload($data, $meta);
+            }
+
             throw ValidationException::withMessages(['items' => 'Add at least one line item.']);
         }
 
+        return $this->finishValidatedPayload($data, $meta);
+    }
+
+    private function finishValidatedPayload(array $data, array $meta): array
+    {
         $data['payment_terms_type'] = $data['payment_terms_type'] ?? 'standard';
         $data['payment_due_days'] = $data['payment_due_days'] ?? null;
 

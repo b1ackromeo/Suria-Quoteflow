@@ -49,14 +49,26 @@
     $secondaryDateLabel = $isQuotation ? 'Valid until' : ($meta['type'] === 'supplier_po' ? 'Delivery date' : ($meta['type'] === 'customer_po' ? 'Completion target' : ($isInvoice ? 'Due date' : 'Required by')));
     $secondaryDateFallback = $isQuotation ? 'Valid until' : 'Not set';
     $referenceFallback = match (true) {
-        $isQuotation => 'Inquiry / RFQ reference',
+        $meta['type'] === 'customer_quotation' => 'Inquiry / RFQ reference',
+        $meta['type'] === 'supplier_quotation' => 'Supplier quote reference',
         $meta['type'] === 'customer_po' => 'PO number received from customer',
         $meta['type'] === 'supplier_po' => 'Supplier quote / purchase request reference',
         $isInvoice => 'PO / delivery / billing reference',
         default => 'Reference',
     };
-    $scopeLabel = $isQuotation ? 'Project Scope Summary' : ($isPo ? 'Order Scope / Delivery Notes' : ($isInvoice ? 'Billing Summary' : 'Notes'));
-    $scopeFallback = $isQuotation ? 'Project scope summary will appear here.' : ($isPo ? 'Order notes or delivery instructions will appear here.' : 'Billing notes will appear here.');
+    $scopeLabel = match (true) {
+        $meta['type'] === 'supplier_quotation' => 'Supplier Quote Summary',
+        $isQuotation => 'Project Scope Summary',
+        $isPo => 'Order Scope / Delivery Notes',
+        $isInvoice => 'Billing Summary',
+        default => 'Notes',
+    };
+    $scopeFallback = match (true) {
+        $meta['type'] === 'supplier_quotation' => 'Supplier quote summary will appear here.',
+        $isQuotation => 'Project scope summary will appear here.',
+        $isPo => 'Order notes or delivery instructions will appear here.',
+        default => 'Billing notes will appear here.',
+    };
     $lineDescriptionLabel = $isPo ? 'Ordered item / scope' : ($isInvoice ? 'Invoice description' : 'Description');
     $emptyLineCopy = $isQuotation ? 'Add line items to preview the quotation value.' : ($isPo ? 'Add ordered items to preview the PO value.' : 'Add billable items to preview the invoice value.');
     $scheduleTitle = $isInvoice ? 'Progress Billing Summary' : 'Payment Schedule';

@@ -697,10 +697,10 @@
                 <tr>
                     <td>{{ $loop->iteration }}</td>
                     <td><span class="desc">{{ $item->description }}</span></td>
-                    <td class="right">{{ number_format((float) $orderedQty, 3) }}</td>
-                    <td class="right">{{ number_format((float) $item->quantity, 3) }}</td>
-                    <td class="right">{{ number_format((float) $item->quantity, 3) }}</td>
-                    <td class="right">{{ number_format($exceptionQty, 3) }}</td>
+                    <td class="right">{{ \App\Models\Document::formatQuantity($orderedQty) }}</td>
+                    <td class="right">{{ \App\Models\Document::formatQuantity($item->quantity) }}</td>
+                    <td class="right">{{ \App\Models\Document::formatQuantity($item->quantity) }}</td>
+                    <td class="right">{{ \App\Models\Document::formatQuantity($exceptionQty) }}</td>
                     <td>{{ $item->unit }}</td>
                     <td>{{ $exceptionQty > 0 ? 'Partial / check balance' : 'Accepted' }}</td>
                 </tr>
@@ -884,7 +884,7 @@
             <tr>
                 <td>{{ $loop->iteration }}</td>
                 <td><span class="desc">{{ $item->description }}</span></td>
-                <td class="right">{{ number_format($item->quantity, 3) }}</td>
+                <td class="right">{{ \App\Models\Document::formatQuantity($item->quantity) }}</td>
                 <td>{{ $item->unit }}</td>
                 <td class="right">{{ number_format($item->unit_price, 2) }}</td>
                 <td class="right">{{ number_format((float) $item->quantity * (float) $item->unit_price, 2) }}</td>

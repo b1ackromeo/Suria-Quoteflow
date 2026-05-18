@@ -442,6 +442,23 @@ PDF/image uploaded
 
 Do not promise that OCR alone can perfectly read every supplier/customer layout. The product guarantee is that uploads remain usable and reviewable, extraction uses multiple bounded strategies, weak drafts can be corrected, and manual verification remains a first-class path.
 
+OCR-assisted page standard:
+
+```text
+Uploaded supplier/customer PDF or image
+  -> local OCR/text extraction creates an untrusted draft
+  -> document show page treats verification as the active task
+  -> extracted fields, line items, terms, and notes are shown once as editable review data
+  -> user can include or exclude extracted lines that should become structured document items
+  -> source PDF/image stays readable beside or near the capture task
+  -> user verifies/corrects the evidence
+  -> verified values update the structured document record and audit trail
+```
+
+Until verification is complete, do not present OCR values as final document truth. Temporary placeholder document items may exist only to satisfy current validation, and must be replaced by verified included/selected captured line items when the user verifies the evidence.
+
+All OCR scanning pages should avoid duplicate evidence blocks. If terms, delivery, validity, or supplier remarks were extracted, they belong in the assisted capture review state, not repeated again in generic commercial notes or summary cards unless a later workflow needs that verified data.
+
 ## Payment architecture
 
 Payments belong to documents.
