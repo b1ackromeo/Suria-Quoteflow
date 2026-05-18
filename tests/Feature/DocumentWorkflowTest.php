@@ -1872,6 +1872,26 @@ class DocumentWorkflowTest extends TestCase
             'auditable_id' => $extraction->id,
         ]);
 
+        $verifiedShow = $this->get(route('documents.show', $purchaseRequest));
+        $verifiedShow->assertOk();
+        $verifiedShow->assertSee('Submit this purchase request for approval.');
+        $verifiedShow->assertSee('Submit for approval');
+        $verifiedShow->assertSee('Requested items');
+        $verifiedShow->assertSee('Operations hardware kit');
+        $verifiedShow->assertSee('Delivery charges');
+        $verifiedShow->assertSee('Supplier terms');
+        $verifiedShow->assertSee('Delivery: Ex-stock subject to availability.');
+        $verifiedShow->assertSee('Document details');
+        $verifiedShow->assertSee('Supplier quotation file');
+        $verifiedShow->assertDontSee('Before next action');
+        $verifiedShow->assertDontSee('Primary actions');
+        $verifiedShow->assertDontSee('Workflow');
+        $verifiedShow->assertDontSee('Evidence and attachments');
+        $verifiedShow->assertDontSee('Attachment category');
+        $verifiedShow->assertDontSee('Commercial notes');
+        $verifiedShow->assertDontSee('No payments recorded.');
+        $verifiedShow->assertDontSee('No approval events.');
+
         $this->post(route('documents.submit', $purchaseRequest))
             ->assertRedirect();
         $this->assertSame('pending_approval', $purchaseRequest->refresh()->status);

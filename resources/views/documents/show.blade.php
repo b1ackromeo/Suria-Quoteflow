@@ -133,6 +133,12 @@
         && $supplierQuoteAttachment
         && $supplierQuoteExtraction
         && $supplierQuoteExtraction->status !== 'verified';
+    $hasVerifiedSupplierQuoteWorkspace = $document->type === 'purchase_request'
+        && $supplierQuoteAttachment
+        && $supplierQuoteExtraction?->status === 'verified';
+    $canUseInlineSubmitAction = $hasVerifiedSupplierQuoteWorkspace && $canSubmitForApproval;
+    $showGenericCommandSections = ! $hasActiveSupplierQuoteCapture && ! $hasVerifiedSupplierQuoteWorkspace;
+    $hasCommercialText = filled($document->notes) || filled($document->terms);
     $supplierQuoteReviewFields = $supplierQuoteExtraction?->verified_fields ?? $supplierQuoteExtraction?->extracted_fields ?? [];
     $supplierQuoteReviewTotal = $supplierQuoteReviewFields['total'] ?? null;
     $supplierQuoteReviewAmount = null;
@@ -264,6 +270,12 @@
                     <span>{{ $document->statusDisplay() }}</span>
                 </div>
                 <h2>{{ $nextAction }}</h2>
+                @if($canUseInlineSubmitAction)
+                    <form method="post" action="{{ route('documents.submit', $document) }}" class="mt-4">
+                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-primary w-full">Submit for approval</button>
+                    </form>
+                @endif
                 @if($nextDocumentLinks !== [])
                     <div class="mt-4 grid gap-2">
                         @foreach($nextDocumentLinks as $link)
@@ -274,7 +286,7 @@
             </section>
         @endif
 
-        @if(! $hasActiveSupplierQuoteCapture)
+        @if($showGenericCommandSections)
             <section class="document-side-card document-readiness-card">
                 <h2 class="panel-title">Before next action</h2>
                 <div class="document-readiness-list">
@@ -301,7 +313,7 @@
             </section>
         @endif
 
-        @if($hasWorkflowActions)
+        @if($hasWorkflowActions && ! $canUseInlineSubmitAction)
             <section class="document-side-card document-action-stack">
                 <h2 class="panel-title">Primary actions</h2>
                 @if($canRecordPayment)
@@ -350,6 +362,58 @@
         @endif
 
         @if(! $hasActiveSupplierQuoteCapture)
+            @if($hasVerifiedSupplierQuoteWorkspace)
+                <section class="document-side-card document-pr-items-card">
+                    <div class="document-side-section-heading">
+                        <h2 class="panel-title">Requested items</h2>
+                        <span>{{ $document->items->count() }} line{{ $document->items->count() === 1 ? '' : 's' }}</span>
+                    </div>
+                    <div class="document-compact-table">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th class="text-right">Qty</th>
+                                <th>Unit</th>
+                                <th class="text-right">Amount</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @foreach($document->items as $item)
+                                <tr>
+                                    <td><strong>{{ $item->description }}</strong></td>
+                                    <td class="text-right">{{ \App\Models\Document::formatQuantity($item->quantity) }}</td>
+                                    <td>{{ $item->unit }}</td>
+                                    <td class="text-right">{{ $document->currency }} {{ number_format((float) $item->quantity * (float) $item->unit_price, 2) }}</td>
+                                </tr>
+                            @endforeach
+                            </tbody>
+                            <tfoot>
+                            <tr><th colspan="3">Total</th><td class="text-right">{{ $document->currency }} {{ number_format($document->total, 2) }}</td></tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </section>
+
+                @if($hasCommercialText)
+                    <section class="document-side-card document-side-notes">
+                        <h2 class="panel-title">Supplier terms</h2>
+                        @if($document->terms)
+                            <div>
+                                <strong>Terms and conditions</strong>
+                                <p>{{ $document->terms }}</p>
+                            </div>
+                        @endif
+                        @if($document->notes)
+                            <div>
+                                <strong>Notes</strong>
+                                <p>{{ $document->notes }}</p>
+                            </div>
+                        @endif
+                    </section>
+                @endif
+            @endif
+
             <section class="document-side-card">
                 <h2 class="panel-title">Document details</h2>
                 <dl class="document-detail-list">
@@ -378,6 +442,7 @@
                 @endif
             </section>
 
+            @if($showGenericCommandSections)
             <section class="document-side-card document-chain-card">
                 <h2 class="panel-title">Workflow</h2>
                 <dl class="document-detail-list">
@@ -392,9 +457,10 @@
                 </dl>
                 @include('documents.partials.workflow-timeline', ['meta' => $meta, 'document' => $document])
             </section>
+            @endif
         @endif
 
-        @if(! $hasActiveSupplierQuoteCapture)
+        @if($showGenericCommandSections)
             <section class="document-side-card">
                 <div class="document-side-section-heading">
                     <h2 class="panel-title">Evidence and attachments</h2>
@@ -471,7 +537,7 @@
             </details>
         @endif
 
-        @unless($hasActiveSupplierQuoteCapture)
+        @unless($hasActiveSupplierQuoteCapture || $hasVerifiedSupplierQuoteWorkspace)
         <details class="document-side-card document-side-disclosure">
             <summary>
                 <span>Line items</span>
@@ -501,7 +567,7 @@
         </details>
         @endunless
 
-        @if(! $hasActiveSupplierQuoteCapture)
+        @if($showGenericCommandSections)
             <details class="document-side-card document-side-disclosure">
                 <summary>
                     <span>Commercial notes</span>
@@ -520,7 +586,7 @@
             </details>
         @endif
 
-        @if(! $hasActiveSupplierQuoteCapture)
+        @if($showGenericCommandSections)
             <details class="document-side-card document-side-disclosure">
                 <summary>
                     <span>Payments</span>
@@ -547,7 +613,7 @@
             </details>
         @endif
 
-        @if(! $hasActiveSupplierQuoteCapture)
+        @if($showGenericCommandSections || ($hasVerifiedSupplierQuoteWorkspace && $document->approvals->isNotEmpty()))
             <details class="document-side-card document-side-disclosure">
                 <summary>
                     <span>Approval history</span>

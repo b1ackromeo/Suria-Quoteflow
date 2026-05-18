@@ -2076,6 +2076,11 @@
         @apply p-2;
     }
 
+    .document-open-workspace-source .document-open-preview-body .external-document-pdf-viewer,
+    .document-open-workspace-source .document-open-preview-body .external-document-image-viewer {
+        @apply h-[calc(100vh-13.5rem)] min-h-[30rem];
+    }
+
     .document-workspace-panel {
         @apply min-w-0;
     }
@@ -2098,6 +2103,10 @@
 
     .document-action-stack {
         @apply space-y-2;
+    }
+
+    .document-pr-items-card .document-compact-table {
+        @apply mt-3;
     }
 
     .document-readiness-list {
