@@ -1,15 +1,14 @@
 @extends('layouts.app', [
     'title' => $user->exists ? 'Edit User' : 'New User',
     'contentMode' => 'fullscreen',
-    'showDateControl' => false,
 ])
 
 @section('content')
 @php
     $roleNotes = [
-        'admin' => 'Full system setup, users, approvals, and company identity.',
-        'manager' => 'Approvals, workflow review, reports, and operational oversight.',
-        'sales' => 'Customer quotations, PO received records, and customer invoices.',
+        'admin' => 'Full system setup, users, approvals, and company profile.',
+        'manager' => 'Approvals, document review, reports, and operational oversight.',
+        'sales' => 'Customer quotations, customer PO records, and customer invoices.',
         'procurement' => 'Supplier quotations, purchase orders, and goods/service receipts.',
         'accounts' => 'Customer invoices, supplier invoices, payments, and reports.',
         'viewer' => 'Read-only access to permitted operational records.',

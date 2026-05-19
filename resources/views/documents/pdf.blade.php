@@ -68,7 +68,7 @@
 
     $title = match ($document->type) {
         'customer_quotation', 'supplier_quotation' => 'QUOTATION',
-        'customer_po' => 'PO RECEIVED',
+        'customer_po' => 'CUSTOMER PO RECEIVED',
         'supplier_po' => 'PURCHASE ORDER',
         'customer_invoice', 'supplier_invoice' => 'INVOICE',
         'goods_receipt' => $receiptDocumentTitle,
@@ -77,12 +77,12 @@
     };
     $documentContext = match ($document->type) {
         'customer_quotation' => 'Customer sales document',
-        'customer_po' => 'Customer purchase order record',
+        'customer_po' => 'Customer PO received',
         'customer_invoice' => 'Customer billing document',
         'purchase_request' => 'Procurement request',
         'supplier_quotation' => 'Supplier quotation record',
         'supplier_po' => 'Supplier order document',
-        'goods_receipt' => $receiptKind === 'service' ? 'Service acceptance document' : ($receiptKind === 'goods' ? 'Goods receiving document' : 'Receiving and acceptance document'),
+        'goods_receipt' => $receiptKind === 'service' ? 'Service acceptance document' : ($receiptKind === 'goods' ? 'Goods receipt document' : 'Goods receipt and acceptance document'),
         'supplier_invoice' => 'Supplier invoice record',
         default => 'Business document',
     };
@@ -721,7 +721,7 @@
                 <tr>
                     <td>{{ $receiptEvidenceLabels[$attachment->category] ?? str($attachment->category ?: 'supporting_document')->replace('_', ' ')->title() }}</td>
                     <td>{{ $attachment->original_name }}</td>
-                    <td>{{ $attachment->isPreviewable() ? 'Previewable evidence' : 'Stored reference' }}</td>
+                    <td>{{ $attachment->isPreviewable() ? 'Preview available' : 'Stored reference' }}</td>
                 </tr>
             @empty
                 <tr>
@@ -809,7 +809,7 @@
                 </td>
                 <td class="col-gap"></td>
                 <td style="width: 48%;">
-                    <div class="section-title">{{ $isInvoice ? 'Invoice Details' : ($isQuotation ? 'Quotation Details' : ($isCustomerPo ? 'PO Received Details' : 'Document Details')) }}</div>
+                    <div class="section-title">{{ $isInvoice ? 'Invoice Details' : ($isQuotation ? 'Quotation Details' : ($isCustomerPo ? 'Customer PO Details' : 'Document Details')) }}</div>
                     <div class="details">
                         <table class="detail-row">
                             @if($isQuotation)
@@ -829,7 +829,7 @@
                                 @endif
                                 <tr><td class="label">Payment Term</td><td class="value">{{ $document->paymentTermsDisplay() }}</td></tr>
                             @elseif($isCustomerPo)
-                                <tr><td class="label">PO Received No.</td><td class="value">{{ $document->document_number }}</td></tr>
+                                <tr><td class="label">Customer PO No.</td><td class="value">{{ $document->document_number }}</td></tr>
                                 <tr><td class="label">Date Received</td><td class="value">{{ optional($document->issue_date)->format('d M Y') }}</td></tr>
                                 <tr><td class="label">Completion Target</td><td class="value">{{ optional($document->due_date)->format('d M Y') ?: '-' }}</td></tr>
                                 <tr><td class="label">PO Ref.</td><td class="value">{{ $document->external_reference ?: '-' }}</td></tr>

@@ -101,14 +101,14 @@ class ReportController extends Controller
             ],
             'cashMovementBars' => [
                 [
-                    'label' => 'Collected',
+                    'label' => 'Customer payments received',
                     'amount' => $incomingPayments,
                     'previous' => $previousIncomingPayments,
                     'percent' => $this->chartPercent($incomingPayments, $cashPeak),
                     'tone' => 'collected',
                 ],
                 [
-                    'label' => 'Paid out',
+                    'label' => 'Supplier payments made',
                     'amount' => $outgoingPayments,
                     'previous' => $previousOutgoingPayments,
                     'percent' => $this->chartPercent($outgoingPayments, $cashPeak),
@@ -146,12 +146,12 @@ class ReportController extends Controller
             $handle = fopen('php://output', 'w');
 
             if ($report === 'payments') {
-                fputcsv($handle, ['Date', 'Direction', 'Document', 'Amount', 'Method', 'Reference']);
+                fputcsv($handle, ['Date', 'Payment Type', 'Document', 'Amount', 'Method', 'Reference']);
                 Payment::with('document')->orderBy('payment_date')->chunk(200, function ($payments) use ($handle) {
                     foreach ($payments as $payment) {
                         fputcsv($handle, [
                             optional($payment->payment_date)->format('Y-m-d'),
-                            $payment->direction,
+                            $payment->typeDisplay(),
                             $payment->document?->document_number,
                             $payment->amount,
                             $payment->method,

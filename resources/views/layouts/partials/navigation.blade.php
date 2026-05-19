@@ -49,7 +49,7 @@
             <a class="nav-link {{ request()->routeIs('suppliers.*') ? 'nav-link-active' : '' }}" href="{{ route('suppliers.index') }}"><x-icon name="customers" class="nav-icon" aria-hidden="true" /><span>Suppliers</span></a>
         @endif
         @if(auth()->user()->hasRole('admin', 'manager', 'sales', 'procurement'))
-            <a class="nav-link {{ request()->routeIs('products.*') ? 'nav-link-active' : '' }}" href="{{ route('products.index') }}"><x-icon name="products" class="nav-icon" aria-hidden="true" /><span>Products & Services</span></a>
+            <a class="nav-link {{ request()->routeIs('products.*') ? 'nav-link-active' : '' }}" href="{{ route('products.index') }}"><x-icon name="products" class="nav-icon" aria-hidden="true" /><span>Products and services</span></a>
         @endif
     </div>
 
@@ -58,9 +58,9 @@
             <p class="nav-heading">Control</p>
             @if(auth()->user()->hasRole('admin'))
                 <a class="nav-link {{ request()->routeIs('users.*') ? 'nav-link-active' : '' }}" href="{{ route('users.index') }}"><x-icon name="admin" class="nav-icon" aria-hidden="true" /><span>Users</span></a>
-                <a class="nav-link {{ request()->routeIs('company-profiles.*') ? 'nav-link-active' : '' }}" href="{{ route('company-profiles.index') }}"><x-icon name="admin" class="nav-icon" aria-hidden="true" /><span>Company Identity</span></a>
+                <a class="nav-link {{ request()->routeIs('company-profiles.*') ? 'nav-link-active' : '' }}" href="{{ route('company-profiles.index') }}"><x-icon name="admin" class="nav-icon" aria-hidden="true" /><span>Company profile</span></a>
             @endif
-            <a class="nav-link {{ request()->routeIs('audit.*') ? 'nav-link-active' : '' }}" href="{{ route('audit.index') }}"><x-icon name="admin" class="nav-icon" aria-hidden="true" /><span>Audit Trail</span></a>
+            <a class="nav-link {{ request()->routeIs('audit.*') ? 'nav-link-active' : '' }}" href="{{ route('audit.index') }}"><x-icon name="admin" class="nav-icon" aria-hidden="true" /><span>Audit log</span></a>
         </div>
     @endif
 </nav>

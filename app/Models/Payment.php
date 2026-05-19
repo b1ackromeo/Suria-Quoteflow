@@ -35,4 +35,11 @@ class Payment extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function typeDisplay(): string
+    {
+        return $this->direction === 'incoming'
+            ? 'Customer payment received'
+            : 'Supplier payment made';
+    }
 }

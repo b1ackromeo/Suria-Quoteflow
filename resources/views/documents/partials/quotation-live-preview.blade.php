@@ -6,21 +6,21 @@
     $documentTitle = match ($meta['type']) {
         'customer_quotation' => 'QUOTATION',
         'supplier_quotation' => 'SUPPLIER QUOTATION',
-        'customer_po' => 'PO RECEIVED',
+        'customer_po' => 'CUSTOMER PO RECEIVED',
         'supplier_po' => 'PURCHASE ORDER',
         'customer_invoice', 'supplier_invoice' => 'INVOICE',
         'purchase_request' => 'PURCHASE REQUEST',
-        'goods_receipt' => 'RECEIVING RECORD',
+        'goods_receipt' => 'GOODS RECEIPT',
         default => strtoupper($meta['singular'] ?? 'DOCUMENT'),
     };
     $documentKicker = match ($meta['type']) {
         'customer_quotation' => 'Customer sales document',
-        'customer_po' => 'Customer purchase order record',
+        'customer_po' => 'Customer PO received',
         'customer_invoice' => 'Customer billing document',
         'purchase_request' => 'Procurement request',
         'supplier_quotation' => 'Supplier quotation record',
         'supplier_po' => 'Supplier order document',
-        'goods_receipt' => 'Receiving and acceptance document',
+        'goods_receipt' => 'Goods receipt and acceptance document',
         'supplier_invoice' => 'Supplier invoice record',
         default => 'Business document',
     };
@@ -50,29 +50,29 @@
     $secondaryDateFallback = $isQuotation ? 'Valid until' : 'Not set';
     $referenceFallback = match (true) {
         $meta['type'] === 'customer_quotation' => 'Inquiry / RFQ reference',
-        $meta['type'] === 'supplier_quotation' => 'Supplier quote reference',
+        $meta['type'] === 'supplier_quotation' => 'Supplier quotation reference',
         $meta['type'] === 'customer_po' => 'PO number received from customer',
-        $meta['type'] === 'supplier_po' => 'Supplier quote / purchase request reference',
+        $meta['type'] === 'supplier_po' => 'Supplier quotation / purchase request reference',
         $isInvoice => 'PO / delivery / billing reference',
         default => 'Reference',
     };
     $scopeLabel = match (true) {
-        $meta['type'] === 'supplier_quotation' => 'Supplier Quote Summary',
-        $isQuotation => 'Project Scope Summary',
-        $isPo => 'Order Scope / Delivery Notes',
-        $isInvoice => 'Billing Summary',
+        $meta['type'] === 'supplier_quotation' => 'Supplier quotation summary',
+        $isQuotation => 'Project scope summary',
+        $isPo => 'Order scope / delivery notes',
+        $isInvoice => 'Billing summary',
         default => 'Notes',
     };
     $scopeFallback = match (true) {
-        $meta['type'] === 'supplier_quotation' => 'Supplier quote summary will appear here.',
+        $meta['type'] === 'supplier_quotation' => 'Supplier quotation summary will appear here.',
         $isQuotation => 'Project scope summary will appear here.',
         $isPo => 'Order notes or delivery instructions will appear here.',
         default => 'Billing notes will appear here.',
     };
     $lineDescriptionLabel = $isPo ? 'Ordered item / scope' : ($isInvoice ? 'Invoice description' : 'Description');
     $emptyLineCopy = $isQuotation ? 'Add line items to preview the quotation value.' : ($isPo ? 'Add ordered items to preview the PO value.' : 'Add billable items to preview the invoice value.');
-    $scheduleTitle = $isInvoice ? 'Progress Billing Summary' : 'Payment Schedule';
-    $totalLabel = $isQuotation ? 'Quotation Total' : ($isPo ? 'PO Total' : ($isInvoice ? 'Invoice Total' : 'Document Total'));
+    $scheduleTitle = $isInvoice ? 'Progress billing summary' : 'Payment schedule';
+    $totalLabel = $isQuotation ? 'Quotation total' : ($isPo ? 'PO total' : ($isInvoice ? 'Invoice total' : 'Document total'));
 @endphp
 
 <article

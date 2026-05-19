@@ -1,16 +1,15 @@
 @extends('layouts.app', [
     'title' => 'Users',
     'contentMode' => 'fullscreen',
-    'showDateControl' => false,
 ])
 
 @php
     $roleFilter = $roleFilter ?? null;
     $statusFilter = $statusFilter ?? null;
     $roleNotes = [
-        'admin' => 'Full system setup, users, approvals, and company identity.',
-        'manager' => 'Approvals, workflow review, reports, and operational oversight.',
-        'sales' => 'Customer quotations, PO received records, and customer invoices.',
+        'admin' => 'Full system setup, users, approvals, and company profile.',
+        'manager' => 'Approvals, document review, reports, and operational oversight.',
+        'sales' => 'Customer quotations, customer PO records, and customer invoices.',
         'procurement' => 'Supplier quotations, purchase orders, and goods/service receipts.',
         'accounts' => 'Customer invoices, supplier invoices, payments, and reports.',
         'viewer' => 'Read-only access to permitted operational records.',
@@ -65,7 +64,7 @@
         <section class="access-panel">
             <div class="access-panel-header">
                 <div>
-                    <h2>User access list</h2>
+                    <h2>Users and permissions</h2>
                     <p>Open an account to update role, active status, or password.</p>
                 </div>
                 <span class="issuer-mini">{{ $summary['approvers'] }} active approver{{ $summary['approvers'] === 1 ? '' : 's' }}</span>

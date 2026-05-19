@@ -140,15 +140,15 @@ class DocumentController extends Controller
 
         if ($sourceAttachment instanceof UploadedFile) {
             $attachment = $this->storeUploadedAttachment($document, $sourceAttachment, 'supplier_quote');
-            $message = $meta['singular'].' created. Supplier quote file uploaded.';
+            $message = $meta['singular'].' created. Supplier quotation file uploaded.';
 
             if ($this->externalDocumentExtraction->shouldAutoExtract($attachment)) {
                 $extraction = $this->storeExtractionDraft($attachment, $extractor);
 
                 if ($extraction?->status === 'processed') {
-                    $message = $meta['singular'].' created. Supplier quote details are ready for review.';
+                    $message = $meta['singular'].' created. Supplier quotation details are ready for review.';
                 } elseif ($extraction?->status === 'failed') {
-                    $message = $meta['singular'].' created. OCR could not read the supplier quote; verify the quote details manually from the source file.';
+                    $message = $meta['singular'].' created. OCR could not read the supplier quotation; verify the quotation details manually from the uploaded file.';
                 }
             }
 
@@ -241,8 +241,8 @@ class DocumentController extends Controller
             && ! $this->hasSupplierQuoteException($document)
         ) {
             $blockingIssues[] = $this->hasSupplierQuoteEvidence($document)
-                ? 'Verify the supplier quote evidence before submitting this purchase request for approval.'
-                : 'Upload the supplier quotation file and verify it, or choose Quote exception and add a reason, before submitting this purchase request for approval.';
+                ? 'Verify the supplier quotation evidence before submitting this purchase request for approval.'
+                : 'Upload the supplier quotation file and verify it, or choose Quotation exception and add a reason, before submitting this purchase request for approval.';
         }
 
         if ($blockingIssues !== []) {
@@ -277,12 +277,12 @@ class DocumentController extends Controller
             if ($this->hasSupplierQuoteException($document)) {
                 if (! filled($comment)) {
                     throw ValidationException::withMessages([
-                        'comment' => 'Add an approval comment confirming this quote exception.',
+                        'comment' => 'Add an approval comment confirming this quotation exception.',
                     ]);
                 }
             } elseif (! $this->hasVerifiedSupplierQuoteEvidence($document)) {
                 throw ValidationException::withMessages([
-                    'approval' => 'Verify the supplier quote evidence before approving this purchase request.',
+                    'approval' => 'Verify the supplier quotation evidence before approving this purchase request.',
                 ]);
             }
         }
@@ -359,7 +359,7 @@ class DocumentController extends Controller
             'cancel' => ['draft', 'rejected', 'approved', 'issued'],
         ];
 
-        abort_unless($this->transitionAppliesToDocument($document, $action), 422, 'This workflow action does not apply to this document type.');
+        abort_unless($this->transitionAppliesToDocument($document, $action), 422, 'This action does not apply to this document type.');
         abort_unless(in_array($document->status, $allowed[$action], true), 422, 'This status change is not allowed.');
 
         $matchingOverride = null;
@@ -765,8 +765,8 @@ class DocumentController extends Controller
             'recorded_total_confirmed' => ['nullable', 'boolean'],
             'verification_notes' => ['nullable', 'string', 'max:2000'],
         ], [
-            'fields.quote_number.required' => 'Enter the supplier quote number before verifying.',
-            'fields.quote_date.required' => 'Enter the quote date before verifying.',
+            'fields.quote_number.required' => 'Enter the supplier quotation number before verifying.',
+            'fields.quote_date.required' => 'Enter the quotation date before verifying.',
             'supplier_confirmed.accepted' => 'Confirm the quotation supplier matches this supplier record.',
         ]);
 
@@ -780,13 +780,13 @@ class DocumentController extends Controller
 
         if ($document->type === 'purchase_request' && $items === []) {
             throw ValidationException::withMessages([
-                'items' => 'Select at least one quote line or add a line before verifying this purchase request.',
+                'items' => 'Select at least one quotation line or add a line before verifying this purchase request.',
             ]);
         }
 
         if (! filled($fields['total'] ?? null) && $items === [] && ! $recordedTotalConfirmed) {
             throw ValidationException::withMessages([
-                'recorded_total_confirmed' => 'Enter quote lines, enter the quote total, or confirm the recorded total was checked.',
+                'recorded_total_confirmed' => 'Enter quotation lines, enter the quotation total, or confirm the recorded total was checked.',
             ]);
         }
 
@@ -1226,13 +1226,13 @@ class DocumentController extends Controller
 
         if ($meta['type'] === 'purchase_request' && ($data['source_type'] ?? null) === 'quote_exception' && ! filled($data['source_note'] ?? null)) {
             throw ValidationException::withMessages([
-                'source_note' => 'Add the quote exception reason before saving this purchase request.',
+                'source_note' => 'Add the quotation exception reason before saving this purchase request.',
             ]);
         }
 
         if ($meta['type'] === 'purchase_request' && ($data['source_type'] ?? null) === 'supplier_quote' && $request->routeIs('documents.store') && ! $request->hasFile('source_attachment')) {
             throw ValidationException::withMessages([
-                'source_attachment' => 'Upload the supplier quotation before creating the supplier quote review.',
+                'source_attachment' => 'Upload the supplier quotation before creating the supplier quotation review.',
             ]);
         }
 
@@ -1247,11 +1247,11 @@ class DocumentController extends Controller
             $allowedRelatedTypes = $this->allowedRelatedTypes($meta['type']);
 
             if (! $relatedDocument || $relatedDocument->direction !== $meta['direction']) {
-                throw ValidationException::withMessages(['related_document_id' => 'Select a related document from the same workflow.']);
+                throw ValidationException::withMessages(['related_document_id' => 'Select a related document from the same document chain.']);
             }
 
             if ($allowedRelatedTypes !== [] && ! in_array($relatedDocument->type, $allowedRelatedTypes, true)) {
-                throw ValidationException::withMessages(['related_document_id' => 'Select a valid source document for this workflow step.']);
+                throw ValidationException::withMessages(['related_document_id' => 'Select a valid related document for this step.']);
             }
 
             if ($meta['party'] === 'customer' && (int) $relatedDocument->customer_id !== (int) ($data['customer_id'] ?? 0)) {
@@ -1312,7 +1312,7 @@ class DocumentController extends Controller
     private function directExceptionSourceNoteMessage(string $sourceType): string
     {
         return match ($sourceType) {
-            'direct_customer_po' => 'Add a reason for this direct PO received.',
+            'direct_customer_po' => 'Add a reason for this direct customer PO.',
             'direct_invoice' => 'Add a reason for this direct customer invoice.',
             'direct_supplier_po' => 'Add a reason for this direct purchase order.',
             'direct_receipt' => 'Add a reason for this direct receipt.',

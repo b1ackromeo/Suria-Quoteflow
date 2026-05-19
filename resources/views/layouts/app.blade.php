@@ -15,34 +15,32 @@
 @auth
     @php
         $contentMode = $contentMode ?? 'default';
-        $showDateControl = $showDateControl ?? request()->routeIs('documents.*', 'reports.*', 'payments.*');
-        $showApprovalShortcut = $showApprovalShortcut ?? ! request()->routeIs('dashboard');
         $companyProfile = $layoutCompanyProfile;
         $moduleRoute = request()->route('module');
         $isModule = fn ($module) => request()->routeIs('documents.*') && $moduleRoute === $module;
         $primaryNav = [
             ['label' => 'Dashboard', 'icon' => 'dashboard', 'route' => route('dashboard'), 'active' => request()->routeIs('dashboard')],
-            ['label' => 'Reports', 'icon' => 'reports', 'route' => route('reports.index'), 'active' => request()->routeIs('reports.*')],
+            ['label' => 'Finance reports', 'icon' => 'reports', 'route' => route('reports.index'), 'active' => request()->routeIs('reports.*')],
         ];
         if (auth()->user()->hasRole('admin', 'manager', 'accounts')) {
             $primaryNav[] = ['label' => 'Payments', 'icon' => 'payments', 'route' => route('payments.index'), 'active' => request()->routeIs('payments.*')];
         }
         $salesLinks = [
-            ['label' => 'Customer Quotations', 'icon' => 'quote', 'module' => 'customer-quotations'],
-            ['label' => 'PO Received', 'icon' => 'purchase', 'module' => 'customer-pos'],
-            ['label' => 'Customer Invoices', 'icon' => 'receipt', 'module' => 'customer-invoices'],
+            ['label' => 'Customer quotations', 'icon' => 'quote', 'module' => 'customer-quotations'],
+            ['label' => 'Customer POs received', 'icon' => 'purchase', 'module' => 'customer-pos'],
+            ['label' => 'Customer invoices', 'icon' => 'receipt', 'module' => 'customer-invoices'],
         ];
         $procurementLinks = [
-            ['label' => 'Purchase Requests', 'icon' => 'quote', 'module' => 'purchase-requests'],
-            ['label' => 'Supplier Quotations', 'icon' => 'quote', 'module' => 'supplier-quotations'],
-            ['label' => 'Purchase Orders', 'icon' => 'purchase', 'module' => 'supplier-pos'],
-            ['label' => 'Receiving Records', 'icon' => 'receipt', 'module' => 'goods-receipts'],
-            ['label' => 'Supplier Invoices', 'icon' => 'receipt', 'module' => 'supplier-invoices'],
+            ['label' => 'Purchase requests', 'icon' => 'quote', 'module' => 'purchase-requests'],
+            ['label' => 'Supplier quotations', 'icon' => 'quote', 'module' => 'supplier-quotations'],
+            ['label' => 'Purchase orders', 'icon' => 'purchase', 'module' => 'supplier-pos'],
+            ['label' => 'Goods receipts', 'icon' => 'receipt', 'module' => 'goods-receipts'],
+            ['label' => 'Supplier invoices', 'icon' => 'receipt', 'module' => 'supplier-invoices'],
         ];
         $taskLinks = [
             ['label' => 'Pending approvals', 'icon' => 'admin', 'route' => route('approvals.pending'), 'active' => request()->routeIs('approvals.pending')],
-            ['label' => 'Verify invoices', 'icon' => 'receipt', 'route' => route('documents.index', ['module' => 'supplier-invoices', 'status' => 'draft']), 'active' => $isModule('supplier-invoices') && request('status') === 'draft'],
-            ['label' => 'Match invoices', 'icon' => 'purchase', 'route' => route('documents.index', ['module' => 'supplier-invoices', 'status' => 'approved']), 'active' => $isModule('supplier-invoices') && request('status') === 'approved'],
+            ['label' => 'Verify supplier invoices', 'icon' => 'receipt', 'route' => route('documents.index', ['module' => 'supplier-invoices', 'status' => 'draft']), 'active' => $isModule('supplier-invoices') && request('status') === 'draft'],
+            ['label' => 'Match supplier invoices', 'icon' => 'purchase', 'route' => route('documents.index', ['module' => 'supplier-invoices', 'status' => 'approved']), 'active' => $isModule('supplier-invoices') && request('status') === 'approved'],
         ];
         if (auth()->user()->hasRole('admin', 'manager', 'accounts')) {
             $taskLinks[] = ['label' => 'Payments', 'icon' => 'payments', 'route' => route('payments.index'), 'active' => request()->routeIs('payments.*')];
@@ -100,19 +98,6 @@
                         <input type="search" name="q" value="{{ request('q') }}" placeholder="Search document no., customer, supplier, item, amount..." aria-label="Search Suria QuoteFlow">
                         <button type="submit" class="sr-only">Search</button>
                     </form>
-                    @if($showDateControl)
-                        <div class="date-control">
-                            <x-icon name="calendar" class="h-4 w-4 text-slate-500" aria-hidden="true" />
-                            <span>{{ now()->startOfMonth()->format('d M Y') }} - {{ now()->format('d M Y') }}</span>
-                            <x-icon name="chevron" class="h-4 w-4 text-slate-400" aria-hidden="true" />
-                        </div>
-                    @endif
-                    @if($showApprovalShortcut)
-                        <a class="icon-button notification-button" href="{{ route('approvals.pending') }}" aria-label="Pending approvals">
-                            <x-icon name="bell" class="h-5 w-5" aria-hidden="true" />
-                            <span>{{ \App\Models\Approval::where('status', 'pending')->count() }}</span>
-                        </a>
-                    @endif
                     @yield('header_actions')
                 </div>
             </header>

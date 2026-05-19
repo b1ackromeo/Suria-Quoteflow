@@ -10,7 +10,7 @@
 >
     @include('documents.partials.business-document-header', [
         'companyProfile' => $companyProfile,
-        'documentKicker' => 'Material receiving record',
+        'documentKicker' => 'Goods receipt record',
         'documentTitle' => 'GOODS RECEIPT NOTE',
         'documentNumber' => $document->document_number ?: 'Draft receipt',
         'kickerAttributes' => 'data-receipt-label="subtitle"',

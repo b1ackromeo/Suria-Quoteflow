@@ -1,4 +1,4 @@
-<div class="sidebar-workspace" aria-label="Current workspace">
+<div class="sidebar-workspace" aria-label="Current company">
     <img src="{{ $companyProfile->logoUrl() }}" alt="{{ $companyProfile->displayName() }}">
     <span class="min-w-0">
         <span class="sidebar-workspace-name">{{ $companyProfile->displayName() }}</span>

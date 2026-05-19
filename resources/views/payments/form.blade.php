@@ -1,4 +1,12 @@
-@extends('layouts.app', ['title' => 'Record Payment'])
+@extends('layouts.app', [
+    'title' => $document->direction === 'outgoing' ? 'Record customer payment' : 'Record supplier payment',
+])
+
+@php
+    $paymentTitle = $document->direction === 'outgoing'
+        ? 'Record customer payment'
+        : 'Record supplier payment';
+@endphp
 
 @section('content')
 <form method="post" action="{{ route('payments.store', $document) }}" class="panel max-w-3xl space-y-5">
@@ -25,7 +33,7 @@
         <textarea class="form-input min-h-28" name="notes">{{ old('notes') }}</textarea>
     </label>
     <div class="flex gap-3">
-        <button class="btn btn-primary" type="submit">Save payment</button>
+        <button class="btn btn-primary" type="submit">{{ $paymentTitle }}</button>
         <a class="btn btn-secondary" href="{{ route('documents.show', $document) }}">Cancel</a>
     </div>
 </form>

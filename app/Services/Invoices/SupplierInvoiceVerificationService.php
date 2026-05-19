@@ -14,9 +14,9 @@ class SupplierInvoiceVerificationService
     public const METHOD_EXTERNAL = 'external';
 
     public const METHOD_LABELS = [
-        self::METHOD_OCR_ASSISTED => 'OCR-assisted',
-        self::METHOD_MANUAL => 'Manual',
-        self::METHOD_EXTERNAL => 'External',
+        self::METHOD_OCR_ASSISTED => 'Assisted review',
+        self::METHOD_MANUAL => 'Manual review',
+        self::METHOD_EXTERNAL => 'Uploaded file review',
     ];
 
     public function isVerified(Document $document): bool

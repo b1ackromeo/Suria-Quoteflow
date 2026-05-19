@@ -36,15 +36,15 @@ class ExternalDocumentExtractionService
     public function uploadProcessedMessage(Document $document): string
     {
         return match ($document->type) {
-            'purchase_request', 'supplier_quotation' => 'Attachment uploaded. Supplier quote details are ready for review.',
-            default => 'Attachment uploaded. OCR extraction draft is ready for verification.',
+            'purchase_request', 'supplier_quotation' => 'Attachment uploaded. Supplier quotation details are ready for review.',
+            default => 'Attachment uploaded. Extracted details are ready for review.',
         };
     }
 
     public function uploadFailedMessage(Document $document): string
     {
         return match ($document->type) {
-            'purchase_request', 'supplier_quotation' => 'Attachment uploaded. OCR could not read the supplier quotation; verify the quote details manually from the source file.',
+            'purchase_request', 'supplier_quotation' => 'Attachment uploaded. OCR could not read the supplier quotation; verify the quotation details manually from the uploaded file.',
             default => 'Attachment uploaded. OCR extraction could not run yet; check the extraction message on the invoice page.',
         };
     }
@@ -52,15 +52,15 @@ class ExternalDocumentExtractionService
     public function readyMessage(Document $document): string
     {
         return match ($document->type) {
-            'purchase_request', 'supplier_quotation' => 'Supplier quote details are ready for review. Confirm the fields before using the quote for purchasing.',
-            default => 'OCR extraction draft is ready. Verify the fields before approval.',
+            'purchase_request', 'supplier_quotation' => 'Supplier quotation details are ready for review. Confirm the fields before using the quotation for purchasing.',
+            default => 'Extracted details are ready for review. Verify the fields before approval.',
         };
     }
 
     public function verificationSuccessMessage(Document $document): string
     {
         return match ($document->type) {
-            'purchase_request' => 'Supplier quote details confirmed.',
+            'purchase_request' => 'Supplier quotation details confirmed.',
             'supplier_quotation' => 'Supplier quotation details verified.',
             default => 'Supplier invoice extraction verified.',
         };
@@ -76,12 +76,12 @@ class ExternalDocumentExtractionService
         return match ($document->type) {
             'purchase_request', 'supplier_quotation' => [
                 'supplier_name' => 'Supplier name',
-                'quote_number' => 'Supplier quote no.',
-                'quote_date' => 'Quote date',
+                'quote_number' => 'Supplier quotation no.',
+                'quote_date' => 'Quotation date',
                 'valid_until' => 'Valid until',
                 'subtotal' => 'Subtotal',
                 'tax_total' => 'Tax amount',
-                'total' => 'Quote total',
+                'total' => 'Quotation total',
                 'payment_terms' => 'Payment terms',
                 'commercial_terms' => 'Terms and conditions',
             ],

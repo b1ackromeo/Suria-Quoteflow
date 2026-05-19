@@ -1,7 +1,6 @@
 @extends('layouts.app', [
-    'title' => 'Products & Services',
+    'title' => 'Products and services',
     'contentMode' => 'fullscreen',
-    'showDateControl' => false,
 ])
 
 @php
@@ -17,7 +16,7 @@
     <section class="directory-page-header">
         <div class="min-w-0">
             <p class="document-pane-kicker">Item library</p>
-            <h1 class="document-pane-title">Products & Services</h1>
+            <h1 class="document-pane-title">Products and services</h1>
             <p class="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
                 Maintain the product and service descriptions that appear on quotations, purchase orders, and invoices.
             </p>
@@ -59,7 +58,7 @@
         <section class="product-library-panel">
             <div class="product-library-panel-header">
                 <div>
-                    <h2>Reusable products and services</h2>
+                    <h2>Products and services</h2>
                 </div>
                 <span class="issuer-mini">{{ $products->total() }} shown</span>
             </div>
@@ -93,7 +92,7 @@
                                     <dd>{{ $product->unit }}</dd>
                                 </div>
                                 <div>
-                                    <dt>Default price used on documents</dt>
+                                    <dt>Default document price</dt>
                                     <dd>MYR {{ number_format($product->selling_price, 2) }}</dd>
                                 </div>
                             </dl>

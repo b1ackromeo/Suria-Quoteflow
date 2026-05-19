@@ -1,16 +1,16 @@
-@extends('layouts.app', ['title' => 'Company Identity'])
+@extends('layouts.app', ['title' => 'Company profile'])
 
 @section('header_actions')
-<a class="btn btn-primary" href="{{ route('company-profiles.edit', $company) }}">Edit Company Identity</a>
+<a class="btn btn-primary" href="{{ route('company-profiles.edit', $company) }}">Edit company profile</a>
 @endsection
 
 @section('content')
 <div class="grid gap-5 xl:grid-cols-[1fr_22rem]">
     <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <p class="text-xs font-bold uppercase tracking-wide text-[#0a4f93]">Document issuer profile</p>
-        <h1 class="mt-2 text-2xl font-bold tracking-tight text-slate-950">Company Identity</h1>
+        <h1 class="mt-2 text-2xl font-bold tracking-tight text-slate-950">Company profile</h1>
         <p class="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
-            This is the company identity used by Suria QuoteFlow for the app context, document previews, quotation, purchase order, invoice, and generated PDF headers.
+            This company profile is used by Suria QuoteFlow for the app context, document previews, quotations, purchase orders, invoices, and generated PDF headers.
         </p>
     </section>
 

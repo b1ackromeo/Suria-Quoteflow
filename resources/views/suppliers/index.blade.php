@@ -1,7 +1,6 @@
 @extends('layouts.app', [
     'title' => 'Suppliers',
     'contentMode' => 'fullscreen',
-    'showDateControl' => false,
 ])
 
 @php
@@ -18,7 +17,7 @@
 <div class="fullscreen-workspace supplier-directory-workspace">
     <section class="directory-page-header">
         <div class="min-w-0">
-            <p class="document-pane-kicker">Supplier Directory</p>
+            <p class="document-pane-kicker">Supplier directory</p>
             <h1 class="document-pane-title">Suppliers</h1>
             <p class="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
                 Supplier records used for quotations, purchase orders, goods or service receipts, supplier invoices, and payment follow-up.
@@ -110,7 +109,7 @@
                         </div>
 
                         <div class="supplier-directory-term">
-                            <span>Default invoice term</span>
+                            <span>Default payment term</span>
                             <strong>{{ $supplier->payment_terms_days }} days after invoice</strong>
                             <p>Used only as a simple default. Staged terms are set on the purchase order or supplier invoice.</p>
                         </div>

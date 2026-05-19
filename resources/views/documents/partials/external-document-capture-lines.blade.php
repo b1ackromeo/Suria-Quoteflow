@@ -19,7 +19,7 @@
             @endunless
         </div>
     </div>
-    <p class="external-document-line-selection-note">Only selected quote lines become PR items.</p>
+    <p class="external-document-line-selection-note">Only selected quotation lines become purchase request items.</p>
     <div class="external-document-capture-lines" data-quote-line-list>
         <div class="external-document-capture-line external-document-capture-line-heading" aria-hidden="true">
             <span>Select</span>
@@ -57,7 +57,7 @@
                 <input type="hidden" name="items[{{ $index }}][tax_rate]" value="{{ $item['tax_rate'] ?? '0' }}">
             </div>
         @empty
-            <p class="supplier-invoice-extraction-note">No quote line items were detected. Add the supplier quote lines here before confirming.</p>
+            <p class="supplier-invoice-extraction-note">No quotation line items were detected. Add the supplier quotation lines here before confirming.</p>
         @endforelse
     </div>
 </div>

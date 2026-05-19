@@ -32,7 +32,7 @@ class PaymentEligibilityService
 
         return match ($document->type) {
             'customer_invoice' => 'Payment is available after this customer invoice is issued.',
-            'supplier_invoice' => 'Supplier payment is locked until this invoice is matched.',
+            'supplier_invoice' => 'Match this supplier invoice before recording payment.',
             default => 'Payment is not available for this document status.',
         };
     }

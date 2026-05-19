@@ -1,7 +1,6 @@
 @extends('layouts.app', [
-    'title' => $product->exists ? 'Edit Product / Service' : 'New Product / Service',
+    'title' => $product->exists ? 'Edit product or service' : 'New product or service',
     'contentMode' => 'fullscreen',
-    'showDateControl' => false,
 ])
 
 @php
@@ -23,8 +22,8 @@
 
     <section class="directory-page-header">
         <div class="min-w-0">
-            <p class="document-pane-kicker">Products & Services</p>
-            <h1 class="document-pane-title">{{ $isEditing ? 'Edit Item' : 'New Item' }}</h1>
+            <p class="document-pane-kicker">Products and services</p>
+            <h1 class="document-pane-title">{{ $isEditing ? 'Edit item' : 'New item' }}</h1>
             <p class="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
                 Set up the reusable description, unit, and pricing defaults for quotations, purchase orders, and invoices.
             </p>

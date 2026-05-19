@@ -1,4 +1,4 @@
-@extends('layouts.app', ['title' => 'Edit Company Identity'])
+@extends('layouts.app', ['title' => 'Edit company profile'])
 
 @section('content')
 <form method="post" action="{{ $company->exists ? route('company-profiles.update', $company) : route('company-profiles.store') }}" enctype="multipart/form-data" class="space-y-6">
@@ -9,8 +9,8 @@
 
     <section class="panel space-y-5">
         <div>
-            <p class="text-xs font-bold uppercase tracking-wide text-[#0a4f93]">Company identity setup</p>
-            <h1 class="mt-2 text-xl font-bold tracking-tight text-slate-950">Edit Company Identity</h1>
+            <p class="text-xs font-bold uppercase tracking-wide text-[#0a4f93]">Company profile setup</p>
+            <h1 class="mt-2 text-xl font-bold tracking-tight text-slate-950">Edit company profile</h1>
             <p class="panel-subtitle">This company name, logo, and contact details appear in the app context, document previews, and generated PDF documents.</p>
         </div>
 
@@ -54,13 +54,13 @@
                 <label class="form-label mt-4">Upload logo
                     <input class="form-input" type="file" name="logo" accept="image/*">
                 </label>
-                <p class="mt-3 text-xs font-semibold leading-5 text-slate-500">Use a square PNG/JPG logo. Existing documents will immediately use this company identity.</p>
+                <p class="mt-3 text-xs font-semibold leading-5 text-slate-500">Use a square PNG/JPG logo. Existing documents will immediately use this company profile.</p>
             </aside>
         </div>
     </section>
 
     <div class="flex flex-wrap gap-3">
-        <button class="btn btn-primary" type="submit">Save company identity</button>
+        <button class="btn btn-primary" type="submit">Save company profile</button>
         <a class="btn btn-secondary" href="{{ route('company-profiles.index') }}">Cancel</a>
     </div>
 </form>

@@ -38,25 +38,25 @@
         ->values();
     $verificationMethod = $extraction?->verification_method ?: ($extraction?->status === 'failed' ? 'manual' : 'ocr_assisted');
     $verificationMethodLabel = match ($verificationMethod) {
-        'ocr_assisted' => 'OCR-assisted',
-        'external' => 'External',
-        default => 'Manual',
+        'ocr_assisted' => 'Assisted review',
+        'external' => 'Uploaded file review',
+        default => 'Manual review',
     };
 
     $previewTitle = match ($document->type) {
         'customer_po' => 'Customer PO received',
         'supplier_quotation' => 'Supplier quotation received',
         'purchase_request' => $primaryAttachment?->category === 'supplier_quote' ? 'Supplier quotation preview' : 'Purchase request record',
-        'goods_receipt' => 'Receiving evidence record',
-        default => 'Received document record',
+        'goods_receipt' => 'Goods receipt evidence',
+        default => 'Uploaded document',
     };
 
     $fileInstruction = match ($document->type) {
-        'customer_po' => 'Upload the customer PO file as PO received so the team can review the customer-issued document.',
+        'customer_po' => 'Upload the customer PO file so the team can review the customer-issued document.',
         'supplier_quotation' => 'Upload the supplier quotation PDF or image so procurement can review the supplier-issued offer.',
-        'purchase_request' => 'Upload the supplier quotation PDF or image before approval, or record a quote exception reason on the request.',
+        'purchase_request' => 'Upload the supplier quotation PDF or image before approval, or record a quotation exception reason on the request.',
         'goods_receipt' => 'Upload delivery order for material receipts, or service report/UAT evidence for service acceptance.',
-        default => 'Upload supporting evidence so the request can be reviewed with the source document.',
+        default => 'Upload supporting evidence so the request can be reviewed with the document.',
     };
 
     $partyLabel = match ($document->type) {
@@ -67,8 +67,8 @@
 
     $referenceLabel = match ($document->type) {
         'customer_po' => 'Customer PO no.',
-        'supplier_quotation' => 'Supplier quote no.',
-        'purchase_request' => $primaryAttachment?->category === 'supplier_quote' ? 'Supplier quote no.' : 'Request ref',
+        'supplier_quotation' => 'Supplier quotation no.',
+        'purchase_request' => $primaryAttachment?->category === 'supplier_quote' ? 'Supplier quotation no.' : 'Request ref',
         'goods_receipt' => 'Evidence reference',
         default => 'Reference',
     };
@@ -85,17 +85,17 @@
     $renderPreview = in_array($sourcePanelMode, ['preview', 'full'], true);
     $captureFormId = 'supplier-quote-verification-form-'.$document->id;
     $lineItemsFirst = $document->type === 'purchase_request';
-    $confirmQuoteButtonLabel = $document->type === 'purchase_request' ? 'Verify supplier quote evidence' : 'Verify supplier quote';
-    $captureKicker = $document->type === 'purchase_request' ? 'Next action' : 'Supplier quote review';
-    $captureTitle = $document->type === 'purchase_request' ? 'Verify supplier quote evidence' : 'Verify supplier quote';
+    $confirmQuoteButtonLabel = $document->type === 'purchase_request' ? 'Verify supplier quotation evidence' : 'Verify supplier quotation';
+    $captureKicker = $document->type === 'purchase_request' ? 'Next action' : 'Supplier quotation review';
+    $captureTitle = $document->type === 'purchase_request' ? 'Verify supplier quotation evidence' : 'Verify supplier quotation';
     $captureCopy = $lineItemsFirst
-        ? 'OCR extracted a draft. Correct the supplier, terms, and quote lines before these become the PR items.'
-        : 'OCR extracted a draft. Correct the quote fields, terms, and line items before verification.';
+        ? 'QuoteFlow extracted these details from the uploaded supplier quotation. Correct the supplier, terms, and quotation lines before they become purchase request items.'
+        : 'QuoteFlow extracted these details from the uploaded supplier quotation. Correct the quotation fields, terms, and line items before verification.';
     $previewLabel = match ($document->type) {
         'purchase_request', 'supplier_quotation' => 'Supplier quotation file',
         'customer_po' => 'Customer PO file',
         'goods_receipt' => 'Receiving evidence file',
-        default => 'Source file',
+        default => 'Uploaded file',
     };
 @endphp
 
@@ -112,11 +112,11 @@
                     @if($extraction?->verified_at)
                         <span class="supplier-invoice-extraction-state is-verified">{{ $verificationMethodLabel }} · {{ $extraction->verified_at->format('d M Y, g:i A') }}</span>
                     @elseif($extraction?->status === 'processed')
-                        <span class="supplier-invoice-extraction-state is-ready">OCR draft ready</span>
+                        <span class="supplier-invoice-extraction-state is-ready">Details ready for review</span>
                     @elseif($extraction?->status === 'failed')
                         <span class="supplier-invoice-extraction-state is-failed">Manual review needed</span>
                     @else
-                        <span class="supplier-invoice-extraction-state">Not extracted</span>
+                        <span class="supplier-invoice-extraction-state">Details not read yet</span>
                     @endif
                     @if($canVerifyExtraction && $extraction && $extraction->status !== 'verified')
                         <button type="submit" form="{{ $captureFormId }}" class="btn btn-primary">{{ $confirmQuoteButtonLabel }}</button>
@@ -128,7 +128,7 @@
                 <p class="supplier-invoice-extraction-note">{{ $fileInstruction }}</p>
             @elseif(! $extraction)
                 <div class="external-document-capture-toolbar">
-                        <p>Run OCR to prepare editable quote fields, terms, and line items from the uploaded supplier quotation.</p>
+                        <p>Run OCR to prepare editable quotation fields, terms, and line items from the uploaded supplier quotation.</p>
                     @if($primaryAttachment->canBeExtracted() && $canVerifyExtraction)
                         <form method="post" action="{{ route('attachments.extract', $primaryAttachment) }}">
                             @csrf
@@ -139,8 +139,8 @@
             @else
                 @if($extraction->status === 'failed')
                     <div class="supplier-invoice-extraction-error">
-                        <strong>OCR could not read this supplier quote.</strong>
-                        <span>{{ $extraction->error_message ?: 'Verify the quote details manually from the uploaded source file.' }}</span>
+                        <strong>OCR could not read this supplier quotation.</strong>
+                        <span>{{ $extraction->error_message ?: 'Verify the quotation details manually from the uploaded file.' }}</span>
                     </div>
                 @endif
 
@@ -149,7 +149,7 @@
                     @method('PUT')
 
                     @if($lineItemsFirst)
-                        <div class="external-document-capture-facts" aria-label="Extracted supplier quote fields">
+                        <div class="external-document-capture-facts" aria-label="Extracted supplier quotation fields">
                             <span>Supplier <strong>{{ $verifiedFields['supplier_name'] ?? $extractedFields['supplier_name'] ?? $document->supplier?->name ?? '-' }}</strong></span>
                             <span>Quote <strong>{{ $verifiedFields['quote_number'] ?? $extractedFields['quote_number'] ?? $document->external_reference ?? '-' }}</strong></span>
                             <span>Total <strong>{{ filled($verifiedFields['total'] ?? $extractedFields['total'] ?? null) ? $document->currency.' '.number_format((float) ($verifiedFields['total'] ?? $extractedFields['total']), 2) : '-' }}</strong></span>
@@ -207,7 +207,7 @@
 
                 @if(filled($extraction->raw_text))
                     <details class="supplier-invoice-ocr-text">
-                        <summary>OCR evidence text</summary>
+                        <summary>Extracted text from file</summary>
                         <pre>{{ \Illuminate\Support\Str::limit($extraction->raw_text, 2500) }}</pre>
                     </details>
                 @endif
@@ -253,7 +253,7 @@
             </section>
         @else
             <section class="external-document-record-only">
-                <h4>No previewable source file uploaded yet</h4>
+                <h4>No supporting file uploaded yet</h4>
                 <p>{{ $fileInstruction }}</p>
             </section>
         @endif

@@ -11,9 +11,9 @@
     $supplierInvoiceVerification = $supplierInvoiceVerification ?? null;
     $verificationMethod = $extraction?->verification_method ?: ($extraction?->status === 'verified' ? 'ocr_assisted' : 'manual');
     $verificationMethodLabel = match ($verificationMethod) {
-        'ocr_assisted' => 'OCR-assisted',
-        'external' => 'External',
-        default => 'Manual',
+        'ocr_assisted' => 'Assisted review',
+        'external' => 'Uploaded file review',
+        default => 'Manual review',
     };
     $fieldLabels = [
         'supplier_name' => 'Supplier name',
@@ -52,9 +52,9 @@
     @else
         <div class="supplier-invoice-preview-header">
             <div>
-                <p class="document-pane-kicker">Incoming supplier document</p>
+                <p class="document-pane-kicker">Supplier invoice file</p>
                 <h3>Supplier invoice review</h3>
-                <p>The supplier file is the source. OCR only prepares a draft; a user must verify the fields before approval.</p>
+                <p>Check the uploaded invoice against the extracted details before approval.</p>
             </div>
             <span class="status-chip status-{{ $document->status }}">{{ $document->statusDisplay() }}</span>
         </div>
@@ -93,9 +93,9 @@
                         @elseif($extraction?->status === 'processed')
                             <span class="supplier-invoice-extraction-state is-ready">Ready to verify</span>
                         @elseif($extraction?->status === 'failed')
-                            <span class="supplier-invoice-extraction-state is-failed">OCR failed</span>
+                            <span class="supplier-invoice-extraction-state is-failed">Review manually</span>
                         @else
-                            <span class="supplier-invoice-extraction-state">Not extracted</span>
+                            <span class="supplier-invoice-extraction-state">Details not read yet</span>
                         @endif
 
                         @if($invoiceAttachment->canBeExtracted() && $canVerifyExtraction)
@@ -137,7 +137,7 @@
                     <h4>Supplier invoice details</h4>
                 </div>
                 @if($extraction?->verified_at)
-                    <span>{{ $verificationMethodLabel }} verification · {{ $extraction->verified_at->format('d M Y, g:i A') }}</span>
+                    <span>{{ $verificationMethodLabel }} · {{ $extraction->verified_at->format('d M Y, g:i A') }}</span>
                 @endif
             </div>
 
@@ -177,13 +177,13 @@
                     </label>
 
                     @if($canVerifyExtraction && $extraction->status !== 'verified')
-                        <button type="submit" class="btn btn-primary supplier-invoice-verify-button">Verify and update invoice record</button>
+                        <button type="submit" class="btn btn-primary supplier-invoice-verify-button">Verify invoice details</button>
                     @endif
                 </form>
 
                 @if(filled($extraction->raw_text))
                     <details class="supplier-invoice-ocr-text">
-                        <summary>OCR text used for this draft</summary>
+                        <summary>Extracted text from file</summary>
                         <pre>{{ \Illuminate\Support\Str::limit($extraction->raw_text, 2500) }}</pre>
                     </details>
                 @endif
@@ -192,7 +192,7 @@
             @if($canVerifyExtraction && $extraction?->status !== 'verified')
                 <div class="supplier-invoice-extraction-error">
                     <strong>Manual verification fallback</strong>
-                    <span>Use this when OCR is unavailable, failed, or the extracted draft is not reliable. Manual and external verification require notes.</span>
+                    <span>Use this when OCR is unavailable, failed, or the extracted details are not reliable. Manual review requires notes.</span>
                 </div>
                 <form method="post" action="{{ route('documents.supplier-invoice-verification.verify', $document) }}" class="supplier-invoice-extraction-form">
                     @csrf
@@ -200,8 +200,8 @@
                     <label>
                         <span>Verification method</span>
                         <select class="form-input" name="verification_method">
-                            <option value="manual" @selected(old('verification_method', 'manual') === 'manual')>Manual</option>
-                            <option value="external" @selected(old('verification_method') === 'external')>External</option>
+                            <option value="manual" @selected(old('verification_method', 'manual') === 'manual')>Manual review</option>
+                            <option value="external" @selected(old('verification_method') === 'external')>Uploaded file review</option>
                         </select>
                     </label>
                     @foreach($fieldLabels as $key => $label)
@@ -234,9 +234,9 @@
     @else
         <section class="supplier-invoice-empty-preview">
             <h4>No supplier invoice file uploaded yet</h4>
-            <p>Upload the supplier's invoice PDF or invoice image as <strong>Invoice copy</strong>. The file will appear here for OCR extraction, human verification, matching, and approval.</p>
+            <p>Upload the supplier invoice PDF or image as <strong>Invoice copy</strong>. The file will appear here for OCR, human verification, matching, and approval.</p>
             @if($attachments->isNotEmpty())
-                <p class="mt-2">This record has attachments, but none are previewable PDF or image files.</p>
+                <p class="mt-2">This record has attachments, but none can be previewed as PDF or image files.</p>
             @endif
         </section>
     @endif
@@ -258,10 +258,10 @@
 
     @unless($previewOnly)
     <section class="supplier-invoice-match-summary">
-        <h4>System matching summary</h4>
+        <h4>Matching summary</h4>
         <dl>
             <div>
-                <dt>Source</dt>
+                <dt>How created</dt>
                 <dd>{{ $document->sourceTypeDisplay() }}</dd>
             </div>
             <div>

@@ -185,7 +185,7 @@
             <section class="panel">
                 <div class="panel-header">
                     <div>
-                        <h2 class="panel-title">Products & Services</h2>
+                        <h2 class="panel-title">Products and services</h2>
                         <p class="panel-subtitle">Item name, SKU, type, description, or unit.</p>
                     </div>
                     <span class="status-chip status-draft">{{ $products->count() }}</span>

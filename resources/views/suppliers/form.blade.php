@@ -1,7 +1,6 @@
 @extends('layouts.app', [
     'title' => $supplier->exists ? 'Edit Supplier' : 'New Supplier',
     'contentMode' => 'fullscreen',
-    'showDateControl' => false,
 ])
 
 @php
@@ -27,8 +26,8 @@
 
     <section class="directory-page-header">
         <div class="min-w-0">
-            <p class="document-pane-kicker">Supplier Directory</p>
-            <h1 class="document-pane-title">{{ $isEditing ? 'Edit Supplier' : 'New Supplier' }}</h1>
+            <p class="document-pane-kicker">Supplier directory</p>
+            <h1 class="document-pane-title">{{ $isEditing ? 'Edit supplier' : 'New supplier' }}</h1>
             <p class="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
                 Keep supplier identity, contact, address, and default terms ready for procurement documents and invoice matching.
             </p>
@@ -82,7 +81,7 @@
                         <input class="form-input" name="tax_number" value="{{ old('tax_number', $supplier->tax_number) }}" data-supplier-tax placeholder="Company registration or tax reference">
                     </label>
                     <label class="form-label md:col-span-2 xl:col-span-2">
-                        Default invoice term (days)
+                        Default payment term (days)
                         <span class="mt-1 block text-xs font-semibold leading-5 text-slate-500">Simple day-based default only. Staged terms are set on the purchase order or supplier invoice.</span>
                         <input class="form-input" type="number" name="payment_terms_days" value="{{ old('payment_terms_days', $supplier->payment_terms_days) }}" data-supplier-term min="0" max="365" required>
                     </label>
@@ -129,8 +128,8 @@
 
         <aside class="supplier-preview-pane">
             <section class="supplier-preview-card">
-                <p class="document-pane-kicker">Record preview</p>
-                <h2>Supplier record preview</h2>
+                <p class="document-pane-kicker">Supplier preview</p>
+                <h2>Supplier preview</h2>
                 <div class="supplier-preview-block">
                     <div class="supplier-preview-heading">
                         <div class="supplier-directory-avatar" data-preview-initial>{{ mb_substr(old('name', $supplier->name) ?: 'S', 0, 1) }}</div>
@@ -159,7 +158,7 @@
                             <dd data-preview-phone>{{ old('phone', $supplier->phone) ?: 'No phone' }}</dd>
                         </div>
                         <div>
-                            <dt>Default invoice term</dt>
+                            <dt>Default payment term</dt>
                             <dd><span data-preview-term>{{ old('payment_terms_days', $supplier->payment_terms_days) }}</span> days after invoice</dd>
                         </div>
                     </dl>

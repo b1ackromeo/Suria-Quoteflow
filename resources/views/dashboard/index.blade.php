@@ -1,8 +1,6 @@
 @extends('layouts.app', [
     'title' => 'Dashboard',
     'contentMode' => 'dashboard',
-    'showDateControl' => false,
-    'showApprovalShortcut' => false,
 ])
 
 @php
@@ -11,14 +9,14 @@
         [
             'key' => 'sales',
             'title' => 'Customer sales',
-            'note' => 'Quotation to customer payment',
+            'note' => 'Customer quotation to payment',
             'route' => route('documents.index', 'customer-quotations'),
             'action' => 'Open sales records',
         ],
         [
             'key' => 'purchasing',
             'title' => 'Supplier purchasing',
-            'note' => 'Request to supplier payment',
+            'note' => 'Purchase request to supplier payment',
             'route' => route('documents.index', 'purchase-requests'),
             'action' => 'Open purchasing records',
         ],
@@ -113,8 +111,8 @@
                                 <div class="dashboard-movement-bars" aria-label="{{ $month['label'] }} movement">
                                     <span class="movement-bar movement-customer" title="Customer invoices: RM {{ number_format($month['customer_invoices'], 2) }}" style="height: {{ $month['customer_invoices_percent'] }}%"></span>
                                     <span class="movement-bar movement-supplier" title="Supplier invoices: RM {{ number_format($month['supplier_invoices'], 2) }}" style="height: {{ $month['supplier_invoices_percent'] }}%"></span>
-                                    <span class="movement-bar movement-incoming" title="Incoming payments: RM {{ number_format($month['incoming_payments'], 2) }}" style="height: {{ $month['incoming_payments_percent'] }}%"></span>
-                                    <span class="movement-bar movement-outgoing" title="Outgoing payments: RM {{ number_format($month['outgoing_payments'], 2) }}" style="height: {{ $month['outgoing_payments_percent'] }}%"></span>
+                                    <span class="movement-bar movement-incoming" title="Customer payments received: RM {{ number_format($month['incoming_payments'], 2) }}" style="height: {{ $month['incoming_payments_percent'] }}%"></span>
+                                    <span class="movement-bar movement-outgoing" title="Supplier payments made: RM {{ number_format($month['outgoing_payments'], 2) }}" style="height: {{ $month['outgoing_payments_percent'] }}%"></span>
                                 </div>
                                 <span>{{ $month['label'] }}</span>
                             </div>
@@ -124,8 +122,8 @@
                     <div class="dashboard-movement-legend" aria-label="Movement chart legend">
                         <span><i class="movement-customer"></i> Customer invoices</span>
                         <span><i class="movement-supplier"></i> Supplier invoices</span>
-                        <span><i class="movement-incoming"></i> Incoming paid</span>
-                        <span><i class="movement-outgoing"></i> Outgoing paid</span>
+                        <span><i class="movement-incoming"></i> Customer payments received</span>
+                        <span><i class="movement-outgoing"></i> Supplier payments made</span>
                     </div>
                 </div>
             </section>

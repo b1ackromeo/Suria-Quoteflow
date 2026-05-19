@@ -16,64 +16,64 @@ class Document extends Model
     public const TYPES = [
         'customer-quotations' => [
             'type' => 'customer_quotation',
-            'label' => 'Customer Quotations',
-            'singular' => 'Customer Quotation',
+            'label' => 'Customer quotations',
+            'singular' => 'Customer quotation',
             'prefix' => 'CQ',
             'direction' => 'outgoing',
             'party' => 'customer',
         ],
         'customer-pos' => [
             'type' => 'customer_po',
-            'label' => 'PO Received',
-            'singular' => 'PO Received',
+            'label' => 'Customer POs received',
+            'singular' => 'Customer PO received',
             'prefix' => 'CPO',
             'direction' => 'outgoing',
             'party' => 'customer',
         ],
         'customer-invoices' => [
             'type' => 'customer_invoice',
-            'label' => 'Customer Invoices',
-            'singular' => 'Customer Invoice',
+            'label' => 'Customer invoices',
+            'singular' => 'Customer invoice',
             'prefix' => 'INV',
             'direction' => 'outgoing',
             'party' => 'customer',
         ],
         'purchase-requests' => [
             'type' => 'purchase_request',
-            'label' => 'Purchase Requests',
-            'singular' => 'Purchase Request',
+            'label' => 'Purchase requests',
+            'singular' => 'Purchase request',
             'prefix' => 'PR',
             'direction' => 'incoming',
             'party' => 'supplier_optional',
         ],
         'supplier-quotations' => [
             'type' => 'supplier_quotation',
-            'label' => 'Supplier Quotations',
-            'singular' => 'Supplier Quotation',
+            'label' => 'Supplier quotations',
+            'singular' => 'Supplier quotation',
             'prefix' => 'SQ',
             'direction' => 'incoming',
             'party' => 'supplier',
         ],
         'supplier-pos' => [
             'type' => 'supplier_po',
-            'label' => 'Purchase Orders',
-            'singular' => 'Purchase Order',
+            'label' => 'Purchase orders',
+            'singular' => 'Purchase order',
             'prefix' => 'SPO',
             'direction' => 'incoming',
             'party' => 'supplier',
         ],
         'goods-receipts' => [
             'type' => 'goods_receipt',
-            'label' => 'Receiving Records',
-            'singular' => 'Receiving Record',
+            'label' => 'Goods receipts',
+            'singular' => 'Goods receipt',
             'prefix' => 'GR',
             'direction' => 'incoming',
             'party' => 'supplier',
         ],
         'supplier-invoices' => [
             'type' => 'supplier_invoice',
-            'label' => 'Supplier Invoices',
-            'singular' => 'Supplier Invoice',
+            'label' => 'Supplier invoices',
+            'singular' => 'Supplier invoice',
             'prefix' => 'SIN',
             'direction' => 'incoming',
             'party' => 'supplier',
@@ -82,14 +82,14 @@ class Document extends Model
 
     public const STATUSES = [
         'draft' => 'Draft',
-        'pending_approval' => 'Pending Approval',
+        'pending_approval' => 'Pending approval',
         'approved' => 'Approved',
         'rejected' => 'Rejected',
         'issued' => 'Issued',
-        'fulfilled' => 'Delivered / Completed',
+        'fulfilled' => 'Delivered / completed',
         'received' => 'Received',
         'matched' => 'Matched',
-        'part_paid' => 'Part Paid',
+        'part_paid' => 'Part paid',
         'paid' => 'Paid',
         'closed' => 'Closed',
         'cancelled' => 'Cancelled',
@@ -152,7 +152,7 @@ class Document extends Model
                 && ! $document->hasSupplierQuoteException()
             ) {
                 throw ValidationException::withMessages([
-                    'approval' => 'Verify the supplier quote evidence, or record a quote exception reason, before submitting this purchase request for approval.',
+                    'approval' => 'Verify the supplier quotation evidence, or record a quotation exception reason, before submitting this purchase request for approval.',
                 ]);
             }
         });
@@ -262,7 +262,7 @@ class Document extends Model
         }
 
         if ($this->payment_terms_type === 'milestone') {
-            return 'Milestone-Based';
+            return 'Milestone based';
         }
 
         if ($this->payment_due_days !== null) {
@@ -307,16 +307,16 @@ class Document extends Model
     {
         return match ($this->source_type) {
             'quotation' => 'From approved quotation',
-            'direct_customer_po' => 'Direct PO received',
-            'customer_po' => 'From PO received',
+            'direct_customer_po' => 'Direct customer PO',
+            'customer_po' => 'From customer PO',
             'direct_invoice' => 'Direct invoice',
             'progress_claim' => 'Progress claim',
             'purchase_request' => 'From purchase request',
             'supplier_quote' => 'From supplier quotation',
-            'quote_exception' => 'Quote exception',
+            'quote_exception' => 'Quotation exception',
             'direct_supplier_po' => 'Direct purchase order',
             'supplier_po' => 'From purchase order',
-            'goods_receipt' => 'From receiving record',
+            'goods_receipt' => 'From goods receipt',
             'direct_supplier_invoice' => 'Direct supplier invoice',
             default => $this->related_document_id ? 'Linked document' : 'Not specified',
         };

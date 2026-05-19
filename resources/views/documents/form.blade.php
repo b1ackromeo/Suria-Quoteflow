@@ -55,25 +55,25 @@
     $sourceOptions = match ($meta['type']) {
         'customer_po' => [
             'quotation' => ['title' => 'From approved quotation', 'copy' => 'Use when the customer PO follows an approved quotation.'],
-            'direct_customer_po' => ['title' => 'Direct PO received', 'copy' => 'Use only when no quotation is required. Add a reason.'],
+            'direct_customer_po' => ['title' => 'Direct customer PO', 'copy' => 'Use only when no quotation is required. Add a reason.'],
         ],
         'customer_invoice' => [
-            'customer_po' => ['title' => 'From PO received', 'copy' => 'Bill against a customer PO already recorded.'],
+            'customer_po' => ['title' => 'From customer PO', 'copy' => 'Bill against a customer PO already recorded.'],
             'progress_claim' => ['title' => 'Progress claim', 'copy' => 'Use for the current billing stage.'],
             'direct_invoice' => ['title' => 'Direct invoice', 'copy' => 'Use only when billing is allowed without a recorded PO. Add a reason.'],
         ],
         'supplier_po' => [
-            'supplier_quote' => ['title' => 'From supplier quotation', 'copy' => 'Order from an accepted supplier quote.'],
+            'supplier_quote' => ['title' => 'From supplier quotation', 'copy' => 'Order from an accepted supplier quotation.'],
             'purchase_request' => ['title' => 'From purchase request', 'copy' => 'Order from an approved internal request.'],
             'direct_supplier_po' => ['title' => 'Direct purchase order', 'copy' => 'Use only when no supplier quotation or purchase request is required. Add a reason.'],
         ],
         'supplier_quotation' => [
-            'purchase_request' => ['title' => 'From purchase request', 'copy' => 'Quote requested for an approved purchase request.'],
-            'supplier_quote' => ['title' => 'Previous supplier quotation / revision', 'copy' => 'Record a revised quote from the same supplier.'],
+            'purchase_request' => ['title' => 'From purchase request', 'copy' => 'Quotation requested for an approved purchase request.'],
+            'supplier_quote' => ['title' => 'Previous supplier quotation / revision', 'copy' => 'Record a revised quotation from the same supplier.'],
         ],
         'purchase_request' => [
-            'supplier_quote' => ['title' => 'Supplier quotation upload', 'copy' => 'Normal path. OCR reads the quote after the draft PR is created.'],
-            'quote_exception' => ['title' => 'Quote exception', 'copy' => 'Use only when no supplier quotation is available. Add a reason and enter lines manually.'],
+            'supplier_quote' => ['title' => 'Supplier quotation upload', 'copy' => 'Upload the supplier quotation. Quotation details will be extracted after the draft purchase request is created.'],
+            'quote_exception' => ['title' => 'Quotation exception', 'copy' => 'Use only when no supplier quotation is available. Add a reason and enter lines manually.'],
         ],
         'goods_receipt' => [
             'supplier_po' => ['title' => 'Against issued purchase order', 'copy' => 'Normal receiving path. Start from the issued PO.'],
@@ -92,18 +92,18 @@
         : ($isQuotationDocument ? 'Billing condition' : 'Invoice condition');
     $notesLabel = match (true) {
         $isCustomerQuotation => 'Project scope summary',
-        $isSupplierQuotation => 'Supplier quote summary',
+        $isSupplierQuotation => 'Supplier quotation summary',
         default => 'Notes',
     };
     $referenceLabel = match (true) {
         $isCustomerQuotation => 'Customer inquiry / reference',
-        $isSupplierQuotation => 'Supplier quote no. / reference',
+        $isSupplierQuotation => 'Supplier quotation no. / reference',
         $isGoodsReceipt => 'Delivery order reference',
         default => 'Reference',
     };
     $referencePlaceholder = match ($meta['type']) {
         'customer_quotation' => 'Inquiry number, RFQ, email subject',
-        'supplier_quotation' => 'Supplier quote number, RFQ, or email subject',
+        'supplier_quotation' => 'Supplier quotation number, RFQ, or email subject',
         'customer_po' => 'PO number received from customer',
         'customer_invoice' => 'PO, delivery, or billing reference',
         'supplier_po' => 'Supplier quotation, purchase request, or supplier reference',
@@ -115,8 +115,8 @@
         'customer_quotation' => 'Previous quotation / revision',
         'customer_po' => 'Related quotation',
         'customer_invoice' => 'Related PO / quotation',
-        'supplier_quotation' => 'Purchase request / previous supplier quote',
-        'supplier_po' => 'Purchase request / supplier quote',
+        'supplier_quotation' => 'Purchase request / previous supplier quotation',
+        'supplier_po' => 'Purchase request / supplier quotation',
         'goods_receipt' => 'Issued purchase order',
         'supplier_invoice' => 'Receipt / purchase order',
         default => 'Related document',
@@ -136,17 +136,17 @@
         $isGoodsReceipt => 'Received date',
         default => 'Issue date',
     };
-    $paymentPanelTitle = $isQuotationDocument ? 'Commercial Terms' : ($isGoodsReceipt ? 'Receiving Controls' : 'Payment and Progress Billing');
+    $paymentPanelTitle = $isQuotationDocument ? 'Commercial terms' : ($isGoodsReceipt ? 'Receipt controls' : 'Payment and billing');
     $paymentPanelSubtitle = match (true) {
         $isCustomerQuotation => 'Start with simple quotation terms. Add milestones only for staged billing.',
-        $isSupplierQuotation => 'Record the payment terms quoted by the supplier. Add milestones only for staged supplier billing.',
+        $isSupplierQuotation => 'Record the payment terms quoted by the supplier. Add milestones only for staged supplier invoices.',
         $isPoDocument => 'Use fixed payment terms for simple orders, or milestone-based conditions for staged procurement and delivery.',
         $isGoodsReceipt => 'A receipt is not a payment document. Confirm what was received or accepted, then attach evidence after saving.',
         $meta['type'] === 'supplier_invoice' => 'Capture the supplier stated payment terms, or use milestone-based matching when the supplier bills by progress stage.',
         $isInvoiceDocument => 'Use fixed days for simple invoices, or milestone-based terms for staged project billing.',
         default => 'Use fixed terms for simple records, or milestone-based terms for staged project work.',
     };
-    $summaryTotalLabel = $isQuotationDocument ? 'Quotation Total' : ($isSupplierPo ? 'PO Total' : ($isGoodsReceipt ? 'Received Qty' : ($meta['type'] === 'supplier_invoice' ? 'Recorded Total' : ($isInvoiceDocument ? 'Invoice Total' : 'Document Total'))));
+    $summaryTotalLabel = $isQuotationDocument ? 'Quotation total' : ($isSupplierPo ? 'PO total' : ($isGoodsReceipt ? 'Received quantity' : ($meta['type'] === 'supplier_invoice' ? 'Recorded total' : ($isInvoiceDocument ? 'Invoice total' : 'Document total'))));
     $showBillingStages = old('payment_terms_type', $document->payment_terms_type ?? 'standard') === 'milestone' || ($isInvoiceDocument && $document->billingStages->isNotEmpty());
     $documentTaxRate = old('document_tax_rate');
     if ($documentTaxRate === null) {
@@ -154,7 +154,7 @@
     }
     $documentNoun = match (true) {
         $isQuotationDocument => 'quotation',
-        $meta['type'] === 'customer_po' => 'PO received',
+        $meta['type'] === 'customer_po' => 'customer PO',
         $meta['type'] === 'supplier_po' => 'purchase order',
         $isGoodsReceipt => 'receipt record',
         $isPurchaseRequest => 'purchase request',
@@ -165,7 +165,7 @@
     $studioAction = match (true) {
         $document->exists => 'Edit '.$documentNoun,
         $isSupplierQuotation => 'New supplier quotation',
-        $meta['type'] === 'customer_po' => 'Record PO received',
+        $meta['type'] === 'customer_po' => 'Record customer PO',
         $meta['type'] === 'supplier_po' => 'Create purchase order',
         $isGoodsReceipt => 'Record goods receipt',
         default => 'New '.$documentNoun,
@@ -176,15 +176,15 @@
         $meta['type'] === 'customer_po' => 'Record the customer PO, linked quotation, dates, site, and billing condition.',
         $meta['type'] === 'supplier_po' => 'Prepare the PO from an approved record or a direct exception with a reason.',
         $isGoodsReceipt => 'Start from the issued PO, then record received goods or accepted services.',
-        $isPurchaseRequest => 'Upload the supplier quotation, run OCR, then verify the captured quote before approval.',
+        $isPurchaseRequest => 'Upload the supplier quotation, run OCR, then review the extracted quotation before approval.',
         $meta['type'] === 'supplier_invoice' => 'Record invoice details now. Upload the supplier file after saving.',
         $isInvoiceDocument => 'Enter billing details, terms, items, and progress information.',
-        default => 'Enter the workflow details and check the preview before saving.',
+        default => 'Enter the document details and check the preview before saving.',
     };
     $sourceStepTitle = match ($meta['type']) {
         'customer_quotation' => 'Customer request',
-        'supplier_quotation' => 'Quote basis',
-        'purchase_request' => 'Supplier quote',
+        'supplier_quotation' => 'Quotation basis',
+        'purchase_request' => 'Supplier quotation',
         'customer_po' => 'Customer PO',
         'supplier_po' => 'Order basis',
         'customer_invoice' => 'Billing basis',
@@ -193,8 +193,8 @@
         default => 'Linked record',
     };
     $stepOneTitle = match ($meta['type']) {
-        'customer_quotation' => 'Customer and quote details',
-        'supplier_quotation' => 'Supplier and quote details',
+        'customer_quotation' => 'Customer and quotation details',
+        'supplier_quotation' => 'Supplier and quotation details',
         'purchase_request' => 'Supplier and request details',
         'customer_po' => 'Customer PO details',
         'supplier_po' => 'Supplier and PO details',
@@ -205,7 +205,7 @@
     };
     $stepOneCopy = match (true) {
         $isCustomerQuotation => 'Set the customer, reference, validity, site, and delivery location.',
-        $isSupplierQuotation => 'Set the supplier, quote reference, validity, project/site, and delivery location.',
+        $isSupplierQuotation => 'Set the supplier, quotation reference, validity, project/site, and delivery location.',
         $meta['type'] === 'customer_po' => 'Set the customer, PO reference, dates, site, and service location.',
         $meta['type'] === 'supplier_po' => 'Set the supplier, PO dates, site, and ship-to details.',
         $isGoodsReceipt => 'Set the supplier, purchase order, evidence reference, date, and location.',
@@ -234,7 +234,7 @@
     };
     $stepThreeCopy = match (true) {
         $isCustomerQuotation => 'Add quoted products or services. Tax is set at document level.',
-        $isSupplierQuotation => 'Record the supplier quoted items or services. Tax is set at document level.',
+        $isSupplierQuotation => 'Record the supplier quotation items or services. Tax is set at document level.',
         $isPoDocument => 'Add ordered products or services. Tax is set at document level.',
         $isGoodsReceipt => 'Confirm received, short, or rejected quantities. No pricing is recorded here.',
         $meta['type'] === 'supplier_invoice' => 'Record billed lines for verification, matching, and payment checks.',
@@ -262,19 +262,20 @@
         default => 'Add notes, instructions, and terms.',
     };
     $livePreviewTitle = match (true) {
-        $isQuotationDocument => 'Quotation Preview',
-        $meta['type'] === 'customer_po' => 'PO Received Preview',
-        $meta['type'] === 'supplier_po' => 'Purchase Order Preview',
-        $isGoodsReceipt => 'Goods Receipt Preview',
-        $meta['type'] === 'supplier_invoice' => 'Supplier Invoice File',
-        $isInvoiceDocument => 'Invoice Preview',
-        default => 'Document Preview',
+        $isCustomerQuotation => 'Customer quotation preview',
+        $isSupplierQuotation => 'Supplier quotation preview',
+        $meta['type'] === 'customer_po' => 'Customer PO preview',
+        $meta['type'] === 'supplier_po' => 'Purchase order preview',
+        $isGoodsReceipt => 'Goods receipt preview',
+        $meta['type'] === 'supplier_invoice' => 'Supplier invoice file',
+        $meta['type'] === 'customer_invoice' => 'Customer invoice preview',
+        default => 'Document preview',
     };
     $previewReferenceFallback = match (true) {
         $isCustomerQuotation => 'Inquiry / RFQ reference',
-        $isSupplierQuotation => 'Supplier quote reference',
+        $isSupplierQuotation => 'Supplier quotation reference',
         $meta['type'] === 'customer_po' => 'PO number received from customer',
-        $meta['type'] === 'supplier_po' => 'Supplier quote / purchase request reference',
+        $meta['type'] === 'supplier_po' => 'Supplier quotation / purchase request reference',
         $isGoodsReceipt => 'Delivery order reference',
         $meta['type'] === 'supplier_invoice' => 'Supplier invoice no. / delivery reference',
         $isInvoiceDocument => 'PO / delivery / billing reference',
@@ -282,19 +283,19 @@
     };
     $previewScopeFallback = match (true) {
         $isCustomerQuotation => 'Project scope summary will appear here.',
-        $isSupplierQuotation => 'Supplier quote summary will appear here.',
+        $isSupplierQuotation => 'Supplier quotation summary will appear here.',
         $meta['type'] === 'customer_po' => 'Received PO notes, delivery instructions, or service requirements will appear here.',
         $meta['type'] === 'supplier_po' => 'Order notes or delivery instructions will appear here.',
         $isGoodsReceipt => 'Receiving, inspection, shortage, rejection, or damage remarks will appear here.',
-        $meta['type'] === 'supplier_invoice' => 'Supplier billing notes or matching remarks will appear here.',
+        $meta['type'] === 'supplier_invoice' => 'Supplier invoice notes or matching remarks will appear here.',
         $isInvoiceDocument => 'Billing notes will appear here.',
         default => 'Notes will appear here.',
     };
     $previewSecondaryDateFallback = $isQuotationDocument ? 'Valid until' : 'Not set';
     $sourceQuestion = match ($meta['type']) {
-        'customer_po' => 'How was this PO received?',
+        'customer_po' => 'How was this customer PO received?',
         'customer_quotation' => 'Link customer request',
-        'supplier_quotation' => 'What is this supplier quote for?',
+        'supplier_quotation' => 'What is this supplier quotation for?',
         'supplier_po' => 'Select order basis',
         'purchase_request' => 'Upload supplier quotation',
         'customer_invoice' => 'Select billing basis',
@@ -310,17 +311,17 @@
     $sourceNotePlaceholder = match ($meta['type']) {
         'customer_po' => 'Example: Customer sent PO directly under existing rate card; quotation not required.',
         'supplier_po' => 'Example: Urgent replacement part approved by manager before supplier quotation was received.',
-        'purchase_request' => 'Required only for quote exception. Example: urgent purchase approved before a supplier quotation was available.',
+        'purchase_request' => 'Required only for quotation exception. Example: urgent purchase approved before a supplier quotation was available.',
         'customer_invoice' => 'Example: Customer approved billing by email; no PO is required for this job.',
         'goods_receipt' => 'Example: Delivery arrived before PO was available; manager approved direct receipt.',
         'supplier_invoice' => 'Example: Utility bill does not require PO or receipt matching; approved by finance lead.',
         default => 'Add any note that helps the next user understand this record.',
     };
     $sourceNoteHelper = match ($meta['type']) {
-        'supplier_quotation' => 'Optional. Add context for the purchase request or revised supplier quote.',
-        'customer_po' => 'Required for direct PO received. Explain why no quotation is used.',
+        'supplier_quotation' => 'Optional. Add context for the purchase request or revised supplier quotation.',
+        'customer_po' => 'Required for direct customer PO. Explain why no quotation is used.',
         'supplier_po' => 'Required for direct purchase order. Explain why no supplier quotation or purchase request is used.',
-        'purchase_request' => 'Required for quote exception. Normal PRs should upload the supplier quotation first.',
+        'purchase_request' => 'Required for quotation exception. Normal purchase requests should upload the supplier quotation first.',
         'customer_invoice' => 'Required for direct invoice. Explain why billing is allowed without a recorded PO.',
         'goods_receipt' => 'Required for direct receipt. Normal receiving must use an issued purchase order.',
         'supplier_invoice' => 'Required for direct supplier invoice. Explain why no PO or receipt is required.',
@@ -388,7 +389,7 @@
                     @elseif($meta['type'] === 'supplier_po')
                         Choose the approved record. Direct purchase order needs a reason.
                     @elseif($meta['type'] === 'supplier_quotation')
-                        Link the supplier quote to a purchase request or an earlier supplier quote.
+                        Link the supplier quotation to a purchase request or an earlier supplier quotation.
                     @elseif($meta['type'] === 'supplier_invoice')
                         Match to a receipt, match to a PO, or record an approved direct exception.
                     @elseif($meta['type'] === 'customer_po')
@@ -416,13 +417,13 @@
             @if($isPurchaseRequest && ! $document->exists)
                 <div class="purchase-request-ocr-panel" data-pr-quote-upload-panel>
                     <div class="min-w-0">
-                        <p class="studio-section-kicker">Supplier quote upload</p>
-                        <h3>Create PR draft from quotation</h3>
-                        <p>Upload the supplier quotation PDF or image. QuoteFlow creates the PR draft, runs OCR, then opens quote verification.</p>
+                        <p class="studio-section-kicker">Supplier quotation upload</p>
+                        <h3>Create purchase request draft from quotation</h3>
+                        <p>Upload the supplier quotation PDF or image. QuoteFlow creates the purchase request draft, runs OCR, then opens quotation verification.</p>
                     </div>
                     <label class="form-label" data-pr-quote-upload-wrap>Supplier quotation PDF or image
                         <input class="form-input file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-bold file:text-slate-700 hover:file:bg-slate-200" type="file" name="source_attachment" accept=".pdf,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff" data-pr-source-attachment @required($isPrQuoteUploadCreate) @disabled(! $isPrQuoteUploadCreate)>
-                        <span class="mt-1 block text-xs font-semibold text-slate-500">Manual PR lines are created only after you verify the quote evidence.</span>
+                        <span class="mt-1 block text-xs font-semibold text-slate-500">Purchase request lines are created only after you verify the quotation evidence.</span>
                     </label>
                     <div class="flex flex-wrap items-center gap-3">
                         <button class="btn btn-primary" type="submit" data-pr-primary-submit @disabled($isPrQuoteUploadCreate)>Create draft & run OCR</button>
@@ -530,7 +531,7 @@
         <section class="receiving-evidence-note">
             <div>
                 <p class="studio-section-kicker">Evidence after save</p>
-                <p class="mt-1 text-sm font-semibold text-slate-700">Upload delivery order, packing list, service report, UAT sign-off, photos, or handover proof on the saved receiving record.</p>
+                <p class="mt-1 text-sm font-semibold text-slate-700">Upload delivery order, packing list, service report, UAT sign-off, photos, or handover proof on the saved goods receipt.</p>
             </div>
             <span class="status-chip status-draft">Required before invoice matching</span>
         </section>
@@ -610,7 +611,7 @@
                                 <input class="form-input" name="billing_stages[{{ $index }}][stage_name]" value="{{ $stage['stage_name'] ?? '' }}" placeholder="Progress Claim 1">
                             </label>
                             <label class="form-label xl:col-span-2">{{ $conditionHeading }}
-                                <input class="form-input" name="billing_stages[{{ $index }}][condition_label]" value="{{ $stage['condition_label'] ?? '' }}" placeholder="{{ $isSupplierPo ? 'Accepted by '.$companyProfile->displayName() : 'Upon PO received / written acceptance' }}">
+                                <input class="form-input" name="billing_stages[{{ $index }}][condition_label]" value="{{ $stage['condition_label'] ?? '' }}" placeholder="{{ $isSupplierPo ? 'Accepted by '.$companyProfile->displayName() : 'Upon customer PO / written acceptance' }}">
                             </label>
                             <label class="form-label">%
                                 <input class="form-input" type="number" step="0.01" min="0" max="100" name="billing_stages[{{ $index }}][percentage]" value="{{ $stage['percentage'] ?? '' }}">
@@ -822,9 +823,9 @@
         <div class="mx-auto max-w-[46rem]">
             @if($meta['type'] === 'supplier_invoice')
                 <article class="supplier-invoice-intake-preview">
-                    <p class="document-pane-kicker">Incoming supplier document</p>
+                    <p class="document-pane-kicker">Supplier invoice</p>
                     <h3>Upload supplier PDF or image after saving</h3>
-                    <p>The supplier invoice is an incoming document from the supplier. This screen records the supplier, invoice number, matching basis, amount, and payment status so the uploaded supplier file can be reviewed against the system record.</p>
+                    <p>Record the supplier, invoice number, matching basis, amount, and payment status. After saving, upload the supplier file so accounts can compare it with this record.</p>
                     <dl>
                         <div>
                             <dt>Supplier</dt>
@@ -937,7 +938,7 @@
                 <input class="form-input" data-name="stage_name" placeholder="Progress Claim 1">
             </label>
             <label class="form-label xl:col-span-2">{{ $conditionHeading }}
-                <input class="form-input" data-name="condition_label" placeholder="{{ $isSupplierPo ? 'Accepted by '.$companyProfile->displayName() : 'Upon PO received / written acceptance' }}">
+                <input class="form-input" data-name="condition_label" placeholder="{{ $isSupplierPo ? 'Accepted by '.$companyProfile->displayName() : 'Upon customer PO / written acceptance' }}">
             </label>
             <label class="form-label">%
                 <input class="form-input" data-name="percentage" type="number" step="0.01" min="0" max="100">
@@ -1135,8 +1136,8 @@ function receiptLabels(mode = 'goods') {
     const labels = {
         goods: {
             paneTitle: 'Goods Receipt Preview',
-            paneCopy: 'This is the receiving record used later for supplier invoice matching. It does not show pricing, tax, or payment terms.',
-            subtitle: 'Material receiving record',
+            paneCopy: 'This goods receipt is used later for supplier invoice matching. It does not show pricing, tax, or payment terms.',
+            subtitle: 'Goods receipt record',
             documentTitle: 'GOODS RECEIPT NOTE',
             partyLabel: 'Supplier',
             referenceInputLabel: 'Delivery order reference',
@@ -1196,10 +1197,10 @@ function receiptLabels(mode = 'goods') {
             evidenceCopy: 'Service report, UAT sign-off, completion report, installation photos, handover notes, or other acceptance proof required before invoice matching.',
         },
         mixed: {
-            paneTitle: 'Receiving and Acceptance Preview',
-            paneCopy: 'This is the receiving and service acceptance record used later for supplier invoice matching. It does not show pricing, tax, or payment terms.',
-            subtitle: 'Goods receiving and service acceptance record',
-            documentTitle: 'RECEIVING & ACCEPTANCE RECORD',
+            paneTitle: 'Goods receipt and acceptance preview',
+            paneCopy: 'This goods receipt and service acceptance record is used later for supplier invoice matching. It does not show pricing, tax, or payment terms.',
+            subtitle: 'Goods receipt and service acceptance record',
+            documentTitle: 'GOODS RECEIPT & ACCEPTANCE RECORD',
             partyLabel: 'Supplier / service provider',
             referenceInputLabel: 'Delivery / service evidence reference',
             referenceLabel: 'Evidence reference',
@@ -1221,7 +1222,7 @@ function receiptLabels(mode = 'goods') {
             previewDescriptionHeader: 'Received / accepted item or service',
             previewReceivedHeader: 'Received / accepted',
             previewExceptionHeader: 'Exception',
-            emptyLineCopy: 'Add received or accepted lines to preview the receiving record.',
+            emptyLineCopy: 'Add received or accepted lines to preview the goods receipt.',
             lineFallback: 'Receipt line',
             evidenceTitle: 'Evidence to attach after save',
             evidenceCopy: 'Delivery order, service report, UAT sign-off, installation report, completion photos, handover notes, or other proof required before invoice matching.',
@@ -1262,7 +1263,7 @@ function syncQuotationPreview() {
     const structure = document.querySelector('[data-payment-structure]')?.value || 'standard';
     const paymentDays = formValue('[name="payment_due_days"]');
     const paymentFallback = structure === 'milestone'
-        ? 'Milestone-Based'
+        ? 'Milestone based'
         : (paymentDays ? `${paymentDays} days from invoice date` : 'Not specified');
 
     setText('[data-preview-party]', selectedPartyText());
@@ -1465,7 +1466,7 @@ document.querySelector('[data-receipt-mode]')?.addEventListener('change', refres
 
 function defaultProgressStages() {
     return [
-        { stage_name: 'Deposit', condition_label: '{{ $isSupplierPo ? 'PO acknowledged by supplier' : 'Upon PO received / written acceptance' }}', percentage: '40', payment_term: '{{ $isSupplierPo ? 'Due upon receipt of valid invoice' : 'Due upon invoice' }}' },
+        { stage_name: 'Deposit', condition_label: '{{ $isSupplierPo ? 'PO acknowledged by supplier' : 'Upon customer PO / written acceptance' }}', percentage: '40', payment_term: '{{ $isSupplierPo ? 'Due upon receipt of valid invoice' : 'Due upon invoice' }}' },
         { stage_name: 'Progress Claim 1', condition_label: '{{ $isSupplierPo ? 'Accepted delivery readiness / site mobilization' : 'Upon delivery or installation start' }}', percentage: '40', payment_term: '{{ $isSupplierPo ? '7 days from receipt of valid invoice' : '7 days from invoice date' }}' },
         { stage_name: 'Final Claim', condition_label: '{{ $isSupplierPo ? 'Accepted goods/services' : 'Upon completion and handover acceptance' }}', percentage: '20', payment_term: '{{ $isSupplierPo ? '14 days from receipt of valid invoice' : '14 days from invoice date' }}' },
     ];
@@ -1587,14 +1588,14 @@ function syncPurchaseRequestSourceMode() {
     }
 
     if (submitButton) {
-        submitButton.textContent = isQuoteUpload ? 'Create draft & run OCR' : 'Save quote exception PR';
+        submitButton.textContent = isQuoteUpload ? 'Create draft & run OCR' : 'Save quotation exception';
         submitButton.disabled = isQuoteUpload && !hasFile;
     }
 
     if (submitHelp) {
         submitHelp.textContent = isQuoteUpload
-            ? (hasFile ? 'This creates a draft PR, attaches the quotation, and starts OCR.' : 'Choose a supplier quotation file to enable OCR.')
-            : 'Enter manual PR lines below and add the exception reason.';
+            ? (hasFile ? 'This creates a draft purchase request, attaches the quotation, and starts OCR.' : 'Choose a supplier quotation file to enable OCR.')
+            : 'Enter manual purchase request lines below and add the exception reason.';
     }
 }
 

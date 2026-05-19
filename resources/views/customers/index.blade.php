@@ -1,7 +1,6 @@
 @extends('layouts.app', [
     'title' => 'Customers',
     'contentMode' => 'fullscreen',
-    'showDateControl' => false,
 ])
 
 @section('content')
@@ -11,7 +10,7 @@
             <p class="document-pane-kicker">Directory</p>
             <h1 class="document-pane-title">Customers</h1>
             <p class="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
-                Maintain customer billing details, delivery contacts, payment terms, and account status used across quotations, PO received records, and invoices.
+                Maintain customer billing details, delivery contacts, payment terms, and account status used across quotations, customer POs, and invoices.
             </p>
         </div>
         <div class="directory-header-actions">

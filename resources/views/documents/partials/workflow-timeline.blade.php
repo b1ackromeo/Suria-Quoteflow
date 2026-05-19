@@ -3,18 +3,18 @@
         ? [
             ['key' => 'customer_quotation', 'label' => 'Quotation', 'slug' => 'customer-quotations'],
             ['key' => 'approval', 'label' => 'Approval'],
-            ['key' => 'customer_po', 'label' => 'PO Received', 'slug' => 'customer-pos'],
-            ['key' => 'fulfillment', 'label' => 'Service Completion'],
+            ['key' => 'customer_po', 'label' => 'Customer PO received', 'slug' => 'customer-pos'],
+            ['key' => 'fulfillment', 'label' => 'Service completed'],
             ['key' => 'customer_invoice', 'label' => 'Invoice', 'slug' => 'customer-invoices'],
             ['key' => 'payment', 'label' => 'Payment'],
             ['key' => 'closed', 'label' => 'Closed'],
         ]
         : [
-            ['key' => 'purchase_request', 'label' => 'Purchase Request', 'slug' => 'purchase-requests'],
-            ['key' => 'supplier_quotation', 'label' => 'Supplier Quote', 'slug' => 'supplier-quotations'],
-            ['key' => 'supplier_po', 'label' => 'Purchase Order', 'slug' => 'supplier-pos'],
-            ['key' => 'goods_receipt', 'label' => 'Receiving', 'slug' => 'goods-receipts'],
-            ['key' => 'supplier_invoice', 'label' => 'Supplier Invoice', 'slug' => 'supplier-invoices'],
+            ['key' => 'purchase_request', 'label' => 'Purchase request', 'slug' => 'purchase-requests'],
+            ['key' => 'supplier_quotation', 'label' => 'Supplier quotation', 'slug' => 'supplier-quotations'],
+            ['key' => 'supplier_po', 'label' => 'Purchase order', 'slug' => 'supplier-pos'],
+            ['key' => 'goods_receipt', 'label' => 'Goods receipt', 'slug' => 'goods-receipts'],
+            ['key' => 'supplier_invoice', 'label' => 'Supplier invoice', 'slug' => 'supplier-invoices'],
             ['key' => 'matching', 'label' => 'Matching'],
             ['key' => 'payment', 'label' => 'Payment'],
             ['key' => 'closed', 'label' => 'Closed'],
@@ -37,7 +37,7 @@
     $activeIndex = $activeIndex === false ? 0 : $activeIndex;
 @endphp
 
-<div class="workflow-timeline-card" aria-label="{{ $meta['direction'] === 'outgoing' ? 'Customer sales workflow' : 'Supplier procurement workflow' }}">
+<div class="workflow-timeline-card" aria-label="{{ $meta['direction'] === 'outgoing' ? 'Customer sales document progress' : 'Supplier purchasing document progress' }}">
     @foreach($steps as $index => $step)
         @php
             $state = $index < $activeIndex ? 'complete' : ($index === $activeIndex ? 'active' : 'pending');

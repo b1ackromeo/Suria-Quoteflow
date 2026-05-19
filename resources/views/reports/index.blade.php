@@ -1,4 +1,4 @@
-@extends('layouts.app', ['title' => 'Reports', 'contentMode' => 'dashboard', 'showDateControl' => false])
+@extends('layouts.app', ['title' => 'Finance reports', 'contentMode' => 'dashboard'])
 
 @php
     $money = fn ($value) => 'RM '.number_format((float) $value, 2);
@@ -43,13 +43,13 @@
 
     <div class="reports-workbench">
         <div class="reports-main-column">
-            <section class="reports-position-panel" aria-labelledby="money-position-title">
+            <section class="reports-position-panel" aria-labelledby="receivables-payables-title">
                 <div class="reports-position-lead">
-                    <h2 id="money-position-title" class="reports-section-label">Money position</h2>
+                    <h2 id="receivables-payables-title" class="reports-section-label">Receivables and payables</h2>
                     <strong class="reports-position-value">{{ $money($netExposure) }}</strong>
                     <p>Open receivables minus open payables. Use this as the starting point before opening the detail lists.</p>
                     <div class="reports-net-strip {{ $netExposure >= 0 ? 'is-positive' : 'is-negative' }}">
-                        <span>{{ $netExposure >= 0 ? 'Customer side is ahead' : 'Supplier side is ahead' }}</span>
+                        <span>{{ $netExposure >= 0 ? 'Receivables exceed payables' : 'Payables exceed receivables' }}</span>
                         <strong>{{ $money(abs($netExposure)) }}</strong>
                     </div>
                 </div>
@@ -193,7 +193,7 @@
 
             <section class="reports-download-panel">
                 <h2>Download CSV</h2>
-                <p>Exports are streamed in chunks for shared hosting.</p>
+                <p>CSV downloads are streamed in chunks for shared hosting.</p>
                 <div class="reports-download-list">
                     <a href="{{ route('reports.export', ['report' => 'receivables']) }}">
                         <x-icon name="export" class="h-4 w-4" aria-hidden="true" />

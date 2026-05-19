@@ -77,9 +77,9 @@ class DocumentWorkflowTest extends TestCase
         $response = $this->get(route('products.index'));
 
         $response->assertOk();
-        $response->assertSee('Reusable products and services');
+        $response->assertSee('Products and services');
         $response->assertSee('Consulting support, implementation planning, testing, and handover documentation.');
-        $response->assertSee('Default price used on documents');
+        $response->assertSee('Default document price');
         $response->assertDontSee('Internal cost');
         $response->assertDontSee('450.00');
     }
@@ -97,9 +97,9 @@ class DocumentWorkflowTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Access control');
-        $response->assertSee('User access list');
+        $response->assertSee('Users and permissions');
         $response->assertSee('sales-ui@quoteflow.test');
-        $response->assertSee('Customer quotations, PO received records, and customer invoices.');
+        $response->assertSee('Customer quotations, customer PO records, and customer invoices.');
         $response->assertDontSee('<section class="panel">', false);
     }
 
@@ -124,7 +124,7 @@ class DocumentWorkflowTest extends TestCase
         $response = $this->get(route('suppliers.index', ['q' => 'Best', 'status' => 'active', 'category' => 'Materials / Hardware']));
 
         $response->assertOk();
-        $response->assertSee('Supplier Directory');
+        $response->assertSee('Supplier directory');
         $response->assertSee('Supplier records');
         $response->assertSee('Best Supplies Sdn Bhd');
         $response->assertSee('Materials / Hardware');
@@ -141,8 +141,8 @@ class DocumentWorkflowTest extends TestCase
         $form->assertSee('Supplier identity');
         $form->assertSee('Supplier category');
         $form->assertSee('Address line 1');
-        $form->assertSee('Supplier record preview');
-        $form->assertSee('Default invoice term');
+        $form->assertSee('Supplier preview');
+        $form->assertSee('Default payment term');
         $form->assertSee('data-address-output="supplier"', false);
         $form->assertDontSee('class="form-input min-h-28" name="address"', false);
     }
@@ -164,7 +164,7 @@ class DocumentWorkflowTest extends TestCase
             'customer_id' => $this->customer->id,
             'related_document_id' => $quotation->id,
             'external_reference' => 'TEST-OUT-CPO',
-            'description' => 'PO received services',
+            'description' => 'Customer PO services',
             'quantity' => 2,
             'unit_price' => 1200,
         ]);
@@ -331,10 +331,10 @@ class DocumentWorkflowTest extends TestCase
         $response->assertOk();
         $response->assertSee('Pending approvals');
         $response->assertSee($quotation->document_number);
-        $response->assertSee('Customer Quotation');
+        $response->assertSee('Customer quotation');
         $response->assertSee($this->customer->name);
         $response->assertSee($purchaseRequest->document_number);
-        $response->assertSee('Purchase Request');
+        $response->assertSee('Purchase request');
         $response->assertSee($this->supplier->name);
         $response->assertSee($this->admin->name);
         $response->assertSee('Pending Approval');
@@ -342,12 +342,12 @@ class DocumentWorkflowTest extends TestCase
         $response->assertSee(route('documents.show', $purchaseRequest), false);
     }
 
-    public function test_header_bell_points_to_global_pending_approvals_page(): void
+    public function test_global_header_does_not_show_date_range_or_approval_bell(): void
     {
         $quotation = $this->createDocument('customer-quotations', [
             'customer_id' => $this->customer->id,
-            'external_reference' => 'GLOBAL-BELL-CQ',
-            'description' => 'Quotation counted by header notification',
+            'external_reference' => 'GLOBAL-HEADER-CQ',
+            'description' => 'Quotation waiting for approval without global header shortcut',
             'quantity' => 1,
             'unit_price' => 1200,
         ]);
@@ -356,9 +356,10 @@ class DocumentWorkflowTest extends TestCase
         $response = $this->get(route('reports.index'));
 
         $response->assertOk();
-        $response->assertSee('href="'.route('approvals.pending').'"', false);
-        $response->assertSee('aria-label="Pending approvals"', false);
-        $response->assertSee('<span>1</span>', false);
+        $response->assertDontSee('date-control', false);
+        $response->assertDontSee('notification-button', false);
+        $response->assertDontSee('aria-label="Pending approvals"', false);
+        $response->assertDontSee(now()->startOfMonth()->format('d M Y').' - '.now()->format('d M Y'));
     }
 
     public function test_dashboard_starts_with_operations_today_and_global_task_links(): void
@@ -395,25 +396,25 @@ class DocumentWorkflowTest extends TestCase
         $response->assertSee('Match supplier invoices');
         $response->assertSee('Overdue receivables');
         $response->assertSee('Quick create');
-        $response->assertSee('Create quotation');
+        $response->assertSee('Customer quotation');
         $response->assertSee('Financial exposure');
         $response->assertSee('Invoice aging');
         $response->assertSee('Sales and purchasing');
         $response->assertSee('Customer sales');
-        $response->assertSee('Quotation to customer payment');
+        $response->assertSee('Customer quotation to payment');
         $response->assertSee('Open sales records');
-        $response->assertSee('Customer POs');
+        $response->assertSee('Customer POs received');
         $response->assertSee('Customer invoices');
         $response->assertSee('Supplier purchasing');
-        $response->assertSee('Request to supplier payment');
+        $response->assertSee('Purchase request to supplier payment');
         $response->assertSee('Open purchasing records');
         $response->assertSee('Purchase orders');
         $response->assertSee('6-month movement');
         $response->assertSee('Invoices issued and payments recorded.');
         $response->assertSee('Customer invoices');
         $response->assertSee('Supplier invoices');
-        $response->assertSee('Incoming paid');
-        $response->assertSee('Outgoing paid');
+        $response->assertSee('Customer payments received');
+        $response->assertSee('Supplier payments made');
         $response->assertSee('Open reports');
         $response->assertSee('href="'.route('approvals.pending').'"', false);
         $response->assertSee('brand/suria-quoteflow-horizontal-lockup.svg', false);
@@ -599,13 +600,42 @@ class DocumentWorkflowTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Next action');
-        $response->assertSee('Before next action');
-        $response->assertSee('Payment locked');
-        $response->assertSee('Primary actions');
+        $response->assertSee('Required before continuing');
+        $response->assertSee('Payment not available yet');
+        $response->assertSee('Available actions');
         $response->assertSee('Document details');
-        $response->assertSee('Workflow');
+        $response->assertSee('Document progress');
         $response->assertSee('Evidence and attachments');
         $response->assertSee('Approval history');
+    }
+
+    public function test_pending_approval_show_focuses_on_the_decision_without_duplicate_blocker(): void
+    {
+        $quotation = $this->createDocument('customer-quotations', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'APPROVAL-DECISION-QUOTE',
+            'description' => 'Quotation used to check approval review layout',
+            'quantity' => 1,
+            'unit_price' => 3000,
+        ]);
+        $this->submitForApproval($quotation);
+
+        $response = $this->get(route('documents.show', $quotation));
+
+        $response->assertOk();
+        $response->assertSee('Next action');
+        $response->assertSee('Approval decision');
+        $response->assertSee('Approval note');
+        $response->assertSee('Rejection reason');
+        $response->assertDontSee('Document details');
+        $response->assertDontSee('Document progress');
+        $response->assertDontSee('Evidence and attachments');
+        $response->assertDontSee('Line items');
+        $response->assertDontSee('Commercial notes');
+        $response->assertDontSee('No payments recorded.');
+        $response->assertDontSee('No approval events.');
+        $response->assertDontSee('Required before continuing');
+        $response->assertDontSee('Approval waiting');
     }
 
     public function test_supplier_invoice_payment_is_available_only_after_matching(): void
@@ -633,12 +663,12 @@ class DocumentWorkflowTest extends TestCase
         $approvedPage = $this->get(route('documents.show', $supplierInvoice));
         $approvedPage->assertOk();
         $approvedPage->assertDontSee('Record payment');
-        $approvedPage->assertSee('Supplier payment is locked until this invoice is matched.');
+        $approvedPage->assertSee('Match this supplier invoice before recording payment.');
 
         $this->from(route('documents.show', $supplierInvoice))
             ->post(route('payments.store', $supplierInvoice), $this->paymentPayload($supplierInvoice, 100, 'PAY-SIN-APPROVED'))
             ->assertRedirect(route('documents.show', $supplierInvoice))
-            ->assertSessionHasErrors(['payment' => 'Supplier payment is locked until this invoice is matched.']);
+            ->assertSessionHasErrors(['payment' => 'Match this supplier invoice before recording payment.']);
 
         $this->assertDatabaseMissing('payments', [
             'document_id' => $supplierInvoice->id,
@@ -677,7 +707,7 @@ class DocumentWorkflowTest extends TestCase
         $purchaseRequestPage = $this->get(route('documents.show', $purchaseRequest));
         $purchaseRequestPage->assertOk();
         $purchaseRequestPage->assertSee('Use this approved purchase request to request supplier quotations or prepare a purchase order.');
-        $purchaseRequestPage->assertSee('Record supplier quotation');
+        $purchaseRequestPage->assertSee('Add supplier quotation');
         $purchaseRequestPage->assertSee('Create purchase order');
         $purchaseRequestPage->assertDontSee('Issue the approved document to the customer or supplier.');
         $purchaseRequestPage->assertDontSee('Mark issued');
@@ -746,7 +776,7 @@ class DocumentWorkflowTest extends TestCase
         $supplierInvoicePage = $this->get(route('documents.show', $supplierInvoice));
         $supplierInvoicePage->assertOk();
         $supplierInvoicePage->assertSee('Match this supplier invoice against the purchase order, receipt, and verified invoice details before payment.');
-        $supplierInvoicePage->assertSee('Mark matched');
+        $supplierInvoicePage->assertSee('>Match supplier invoice</button>', false);
         $supplierInvoicePage->assertDontSee('Issue invoice');
         $this->post(route('documents.transition', [$supplierInvoice, 'issue']))
             ->assertStatus(422);
@@ -766,7 +796,7 @@ class DocumentWorkflowTest extends TestCase
             'items' => [
                 [
                     'product_id' => $this->service->id,
-                    'description' => 'Direct PO received service package',
+                    'description' => 'Direct customer PO service package',
                     'quantity' => 1,
                     'unit' => 'job',
                     'unit_price' => 1200,
@@ -781,7 +811,7 @@ class DocumentWorkflowTest extends TestCase
 
         $this->assertNull($customerPo->related_document_id);
         $this->assertSame('direct_customer_po', $customerPo->source_type);
-        $this->assertSame('Direct PO received', $customerPo->sourceTypeDisplay());
+        $this->assertSame('Direct customer PO', $customerPo->sourceTypeDisplay());
         $this->assertSame('Customer sent PO directly under an agreed rate card.', $customerPo->source_note);
 
         $customerPo->update(['status' => 'issued']);
@@ -844,7 +874,7 @@ class DocumentWorkflowTest extends TestCase
             'related_document_id' => $quotation->id,
             'source_type' => 'quotation',
             'external_reference' => 'NORMAL-SOURCE-CPO',
-            'description' => 'PO received from approved quotation',
+            'description' => 'Customer PO from approved quotation',
             'quantity' => 1,
             'unit_price' => 1200,
         ]);
@@ -1061,7 +1091,7 @@ class DocumentWorkflowTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Finance reports');
-        $response->assertSee('Money position');
+        $response->assertSee('Receivables and payables');
         $response->assertSee('Overdue receivables');
         $response->assertSee('Supplier payments due soon');
         $response->assertSee('Cash movement');
@@ -1103,8 +1133,8 @@ class DocumentWorkflowTest extends TestCase
 
         $index = $this->get(route('documents.index', 'supplier-invoices'));
         $index->assertOk();
-        $index->assertSee('Supplier billing');
-        $index->assertSee('Supplier Invoice Preview');
+        $index->assertSee('Supplier invoices');
+        $index->assertSee('Supplier invoice file');
         $index->assertDontSee('document-preview-toolbar', false);
         $index->assertDontSee('Incoming supplier document');
         $index->assertSee('supplier-tax-invoice-8891.pdf');
@@ -1112,7 +1142,7 @@ class DocumentWorkflowTest extends TestCase
         $index->assertSee('<iframe', false);
         $index->assertDontSee('Extracted invoice details');
         $index->assertDontSee('System matching summary');
-        $index->assertDontSee('Purchase request to supplier quote');
+        $index->assertDontSee('Purchase request to supplier quotation');
         $index->assertDontSee('RC TECHNOLOGY RESOURCES');
         $index->assertDontSee('Reliable Infrastructure. Connected Future.');
 
@@ -1180,7 +1210,7 @@ class DocumentWorkflowTest extends TestCase
         $supplierQuotation = $this->createDocument('supplier-quotations', [
             'supplier_id' => $this->supplier->id,
             'external_reference' => 'SUPPLIER-QUOTE-7715',
-            'description' => 'Supplier quoted materials package',
+            'description' => 'Supplier quotation materials package',
             'quantity' => 3,
             'unit_price' => 225,
         ]);
@@ -1211,7 +1241,7 @@ class DocumentWorkflowTest extends TestCase
 
         $customerPoIndex = $this->get(route('documents.index', 'customer-pos'));
         $customerPoIndex->assertOk();
-        $customerPoIndex->assertSee('Customer PO File Preview');
+        $customerPoIndex->assertSee('Customer PO file');
         $customerPoIndex->assertSee('Customer PO received');
         $customerPoIndex->assertSee('customer-po-7715.pdf');
         $customerPoIndex->assertSee('<iframe', false);
@@ -1219,14 +1249,14 @@ class DocumentWorkflowTest extends TestCase
 
         $purchaseRequestIndex = $this->get(route('documents.index', 'purchase-requests'));
         $purchaseRequestIndex->assertOk();
-        $purchaseRequestIndex->assertSee('No previewable source file uploaded yet');
+        $purchaseRequestIndex->assertSee('No supporting file uploaded yet');
         $purchaseRequestIndex->assertSee('Requested supplier');
         $purchaseRequestIndex->assertSee('Internal purchase request for site materials');
         $purchaseRequestIndex->assertDontSee('Reliable Infrastructure. Connected Future.');
 
         $supplierQuoteIndex = $this->get(route('documents.index', 'supplier-quotations'));
         $supplierQuoteIndex->assertOk();
-        $supplierQuoteIndex->assertSee('Supplier Quote File Preview');
+        $supplierQuoteIndex->assertSee('Supplier quotation file');
         $supplierQuoteIndex->assertSee('Supplier quotation received');
         $supplierQuoteIndex->assertSee('supplier-quote-7715.pdf');
         $supplierQuoteIndex->assertSee('<iframe', false);
@@ -1234,7 +1264,7 @@ class DocumentWorkflowTest extends TestCase
 
         $goodsReceiptIndex = $this->get(route('documents.index', 'goods-receipts'));
         $goodsReceiptIndex->assertOk();
-        $goodsReceiptIndex->assertSee('Receiving evidence record');
+        $goodsReceiptIndex->assertSee('Goods receipt evidence');
         $goodsReceiptIndex->assertSee('service-report-7715.jpg');
         $goodsReceiptIndex->assertSee('<img src="'.route('attachments.preview', $goodsReceipt->attachments()->first()).'"', false);
         $goodsReceiptIndex->assertDontSee('Reliable Infrastructure. Connected Future.');
@@ -1249,7 +1279,7 @@ class DocumentWorkflowTest extends TestCase
         $supplierPoIndex = $this->get(route('documents.index', 'supplier-pos'));
         $supplierPoIndex->assertOk();
         $supplierPoIndex->assertSee($supplierPo->document_number);
-        $supplierPoIndex->assertSee('Purchase Order Output');
+        $supplierPoIndex->assertSee('Purchase order PDF');
         $supplierPoIndex->assertSee('Reliable Infrastructure. Connected Future.');
     }
 
@@ -1280,7 +1310,7 @@ class DocumentWorkflowTest extends TestCase
         $index->assertOk();
         $index->assertSee($issuedPo->document_number);
         $index->assertSee('Issued purchase order PDF');
-        $index->assertSee('This is the final supplier-facing purchase order PDF issued from this record.');
+        $index->assertSee('This is the issued purchase order PDF sent to the supplier.');
         $index->assertSee(route('documents.pdf', $issuedPo), false);
         $index->assertSee('data-generated-pdf-preview', false);
         $index->assertSee($draftPo->document_number);
@@ -1329,7 +1359,7 @@ class DocumentWorkflowTest extends TestCase
         $goodsReceiptIndex->assertOk();
         $goodsReceiptIndex->assertSee('Service acceptance record PDF');
         $goodsReceiptIndex->assertSee(route('documents.pdf', $goodsReceipt), false);
-        $goodsReceiptIndex->assertSee('Received Date');
+        $goodsReceiptIndex->assertSee('Received date');
         $goodsReceiptIndex->assertSee('1 received');
     }
 
@@ -1413,7 +1443,7 @@ class DocumentWorkflowTest extends TestCase
         $response->assertSee('Material / goods receipt');
         $response->assertSee('Received qty');
         $response->assertSee('Short / rejected');
-        $response->assertSee('Goods Receipt Preview');
+        $response->assertSee('Goods receipt preview');
         $response->assertSee('GOODS RECEIPT NOTE');
         $response->assertSee('Evidence to attach after save');
         $response->assertDontSee('Receipt / Acceptance Preview');
@@ -1467,7 +1497,7 @@ class DocumentWorkflowTest extends TestCase
             'attachment' => $upload,
             'category' => 'invoice_copy',
         ])->assertRedirect()
-            ->assertSessionHas('status', 'Attachment uploaded. OCR extraction draft is ready for verification.');
+            ->assertSessionHas('status', 'Attachment uploaded. Extracted details are ready for review.');
 
         $attachment = Attachment::where('document_id', $supplierInvoice->id)->firstOrFail();
         $extraction = AttachmentExtraction::where('attachment_id', $attachment->id)->firstOrFail();
@@ -1484,7 +1514,7 @@ class DocumentWorkflowTest extends TestCase
         $show->assertOk();
         $show->assertSee('Supplier invoice details');
         $show->assertSee('Ready to verify');
-        $show->assertSee('Verify and update invoice record');
+        $show->assertSee('Verify invoice details');
 
         $this->put(route('attachment-extractions.verify', $extraction), [
             'fields' => [
@@ -1499,7 +1529,7 @@ class DocumentWorkflowTest extends TestCase
             ],
             'supplier_confirmed' => '1',
             'recorded_total_confirmed' => '1',
-            'verification_notes' => 'OCR draft checked against the uploaded supplier invoice.',
+            'verification_notes' => 'Extracted details checked against the uploaded supplier invoice.',
         ])->assertRedirect()
             ->assertSessionHas('status', 'Supplier invoice extraction verified.');
 
@@ -1556,7 +1586,7 @@ class DocumentWorkflowTest extends TestCase
             'attachment' => UploadedFile::fake()->image('n2n-system-quote-009.jpg', 900, 1200),
             'category' => 'supplier_quote',
         ])->assertRedirect()
-            ->assertSessionHas('status', 'Attachment uploaded. Supplier quote details are ready for review.');
+            ->assertSessionHas('status', 'Attachment uploaded. Supplier quotation details are ready for review.');
 
         $attachment = Attachment::where('document_id', $supplierQuotation->id)->firstOrFail();
         $extraction = AttachmentExtraction::where('attachment_id', $attachment->id)->firstOrFail();
@@ -1566,9 +1596,9 @@ class DocumentWorkflowTest extends TestCase
 
         $show = $this->get(route('documents.show', $supplierQuotation));
         $show->assertOk();
-        $show->assertSee('Supplier quote review');
-        $show->assertSee('OCR draft ready');
-        $show->assertSee('Verify supplier quote');
+        $show->assertSee('Supplier quotation review');
+        $show->assertSee('Details ready for review');
+        $show->assertSee('Verify supplier quotation');
 
         $this->put(route('attachment-extractions.verify', $extraction), [
             'fields' => [
@@ -1600,7 +1630,7 @@ class DocumentWorkflowTest extends TestCase
             ],
             'supplier_confirmed' => '1',
             'recorded_total_confirmed' => '1',
-            'verification_notes' => 'OCR-assisted supplier quote details checked against the uploaded source.',
+            'verification_notes' => 'OCR-assisted supplier quotation details checked against the uploaded source.',
         ])->assertRedirect()
             ->assertSessionHas('status', 'Supplier quotation details verified.');
 
@@ -1626,18 +1656,18 @@ class DocumentWorkflowTest extends TestCase
         $index = $this->get(route('documents.index', 'supplier-quotations'));
         $index->assertOk();
         $index->assertDontSee('Run OCR');
-        $index->assertDontSee('Verify and update supplier quote');
+        $index->assertDontSee('Verify and update supplier quotation');
     }
 
     public function test_supplier_quotation_with_ocr_failure_can_still_be_verified_from_source_file(): void
     {
         Storage::fake('local');
-        $this->fakeFailingTesseractExtractor('Tesseract could not read this supplier quote image.');
+        $this->fakeFailingTesseractExtractor('Tesseract could not read this supplier quotation image.');
 
         $supplierQuotation = $this->createDocument('supplier-quotations', [
             'supplier_id' => $this->supplier->id,
             'external_reference' => 'MANUAL-SQ-001',
-            'description' => 'Supplier quote requiring manual verification',
+            'description' => 'Supplier quotation requiring manual verification',
             'quantity' => 1,
             'unit_price' => 100,
         ]);
@@ -1646,7 +1676,7 @@ class DocumentWorkflowTest extends TestCase
             'attachment' => UploadedFile::fake()->image('unreadable-supplier-quote.jpg', 900, 1200),
             'category' => 'supplier_quote',
         ])->assertRedirect()
-            ->assertSessionHas('status', 'Attachment uploaded. OCR could not read the supplier quotation; verify the quote details manually from the source file.');
+            ->assertSessionHas('status', 'Attachment uploaded. OCR could not read the supplier quotation; verify the quotation details manually from the uploaded file.');
 
         $extraction = AttachmentExtraction::where('document_id', $supplierQuotation->id)->firstOrFail();
         $this->assertSame('failed', $extraction->status);
@@ -1660,7 +1690,7 @@ class DocumentWorkflowTest extends TestCase
             ],
             'supplier_confirmed' => '1',
             'recorded_total_confirmed' => '1',
-            'verification_notes' => 'Verified manually because OCR could not read the supplier quote file.',
+            'verification_notes' => 'Verified manually because OCR could not read the supplier quotation file.',
         ])->assertRedirect()
             ->assertSessionHas('status', 'Supplier quotation details verified.');
 
@@ -1674,7 +1704,7 @@ class DocumentWorkflowTest extends TestCase
         $purchaseRequest = $this->createDocument('purchase-requests', [
             'supplier_id' => $this->supplier->id,
             'external_reference' => 'PR-QUOTE-GATE',
-            'description' => 'Purchase request without supplier quote evidence',
+            'description' => 'Purchase request without supplier quotation evidence',
             'quantity' => 1,
             'unit_price' => 450,
         ]);
@@ -1773,7 +1803,7 @@ class DocumentWorkflowTest extends TestCase
 
         $createForm = $this->get(route('documents.create', 'purchase-requests'));
         $createForm->assertOk();
-        $createForm->assertSee('Supplier quote upload');
+        $createForm->assertSee('Supplier quotation upload');
         $createForm->assertSeeText('Create draft');
         $createForm->assertSeeText('run OCR');
         $createForm->assertSee('data-pr-create-form', false);
@@ -1784,7 +1814,7 @@ class DocumentWorkflowTest extends TestCase
             'supplier_id' => $this->supplier->id,
             'source_type' => 'supplier_quote',
             'external_reference' => 'PR-QUOTE-OCR',
-            'description' => 'Purchase request backed by supplier quote',
+            'description' => 'Purchase request backed by supplier quotation',
             'quantity' => 1,
             'unit_price' => 1,
         ]);
@@ -1793,7 +1823,7 @@ class DocumentWorkflowTest extends TestCase
 
         $this->post(route('documents.store', 'purchase-requests'), $payload)
             ->assertRedirect()
-            ->assertSessionHas('status', 'Purchase Request created. Supplier quote details are ready for review.');
+            ->assertSessionHas('status', 'Purchase request created. Supplier quotation details are ready for review.');
 
         $purchaseRequest = Document::where('external_reference', 'PR-QUOTE-OCR')->firstOrFail();
         $purchaseRequest->load('items');
@@ -1817,27 +1847,27 @@ class DocumentWorkflowTest extends TestCase
         $show = $this->get(route('documents.show', $purchaseRequest));
         $show->assertOk();
         $show->assertSee('Next action');
-        $show->assertSee('OCR draft ready');
-        $show->assertSee('Verify supplier quote evidence');
-        $show->assertDontSee('Before next action');
-        $show->assertDontSee('Quote details ready for review');
-        $show->assertSee('Detected quote MYR 2,430.00');
+        $show->assertSee('Details ready for review');
+        $show->assertSee('Verify supplier quotation evidence');
+        $show->assertDontSee('Required before continuing');
+        $show->assertDontSee('Supplier quotation details ready for review');
+        $show->assertSee('Detected quotation MYR 2,430.00');
         $show->assertSee('Payment terms');
         $show->assertSee('30 days from invoice date');
         $show->assertSee('Terms and conditions');
         $show->assertSee('Delivery: Ex-stock subject to availability.');
         $show->assertSee('7 selected');
-        $show->assertSee('Only selected quote lines become PR items.');
+        $show->assertSee('Only selected quotation lines become purchase request items.');
         $show->assertSee('Operations hardware kit');
         $show->assertSee('Delivery charges');
         $this->assertSame(1, substr_count($show->getContent(), 'Terms and conditions'));
         $show->assertDontSee('Document details');
-        $show->assertDontSee('Workflow');
+        $show->assertDontSee('Document progress');
         $show->assertDontSee('Evidence and attachments');
         $show->assertDontSee('Commercial notes');
         $show->assertDontSee('No payments recorded.');
         $show->assertDontSee('No approval events.');
-        $show->assertDontSee('Supplier quote OCR pending verification');
+        $show->assertDontSee('Supplier quotation OCR pending verification');
 
         $this->put(route('attachment-extractions.verify', $extraction), [
             'fields' => [
@@ -1854,9 +1884,9 @@ class DocumentWorkflowTest extends TestCase
             'items' => $quoteItems,
             'supplier_confirmed' => '1',
             'recorded_total_confirmed' => '1',
-            'verification_notes' => 'Supplier quote checked before PR approval.',
+            'verification_notes' => 'Supplier quotation checked before purchase request approval.',
         ])->assertRedirect()
-            ->assertSessionHas('status', 'Supplier quote details confirmed.');
+            ->assertSessionHas('status', 'Supplier quotation details confirmed.');
 
         $this->assertSame('SQ-BEST-PR-009', $purchaseRequest->refresh()->external_reference);
         $this->assertSame('Delivery: Ex-stock subject to availability.', $purchaseRequest->terms);
@@ -1883,9 +1913,9 @@ class DocumentWorkflowTest extends TestCase
         $verifiedShow->assertSee('Delivery: Ex-stock subject to availability.');
         $verifiedShow->assertSee('Document details');
         $verifiedShow->assertSee('Supplier quotation file');
-        $verifiedShow->assertDontSee('Before next action');
-        $verifiedShow->assertDontSee('Primary actions');
-        $verifiedShow->assertDontSee('Workflow');
+        $verifiedShow->assertDontSee('Required before continuing');
+        $verifiedShow->assertDontSee('Available actions');
+        $verifiedShow->assertDontSee('Document progress');
         $verifiedShow->assertDontSee('Evidence and attachments');
         $verifiedShow->assertDontSee('Attachment category');
         $verifiedShow->assertDontSee('Commercial notes');
@@ -1897,7 +1927,7 @@ class DocumentWorkflowTest extends TestCase
         $this->assertSame('pending_approval', $purchaseRequest->refresh()->status);
 
         $this->post(route('documents.approve', $purchaseRequest), [
-            'comment' => 'Approved after checking verified supplier quote evidence.',
+            'comment' => 'Approved after checking verified supplier quotation evidence.',
         ])->assertRedirect();
         $this->assertSame('approved', $purchaseRequest->refresh()->status);
 
@@ -1946,7 +1976,7 @@ class DocumentWorkflowTest extends TestCase
             'status' => 'processed',
             'engine' => 'feature-test',
             'language' => 'eng',
-            'raw_text' => 'Supplier quote with optional delivery and selected hardware lines.',
+            'raw_text' => 'Supplier quotation with optional delivery and selected hardware lines.',
             'extracted_fields' => [
                 'supplier_name' => 'Best Supplies Sdn Bhd',
                 'quote_number' => 'SQ-SELECTED-LINES',
@@ -1963,7 +1993,7 @@ class DocumentWorkflowTest extends TestCase
 
         $show = $this->get(route('documents.show', $purchaseRequest));
         $show->assertOk();
-        $show->assertSee('Only selected quote lines become PR items.');
+        $show->assertSee('Only selected quotation lines become purchase request items.');
         $show->assertSee('3 selected');
         $show->assertSee('Select');
         $show->assertSee('value="5"', false);
@@ -2005,9 +2035,9 @@ class DocumentWorkflowTest extends TestCase
             'items' => $items,
             'supplier_confirmed' => '1',
             'recorded_total_confirmed' => '1',
-            'verification_notes' => 'Only selected supplier quote lines are needed for this purchase.',
+            'verification_notes' => 'Only selected supplier quotation lines are needed for this purchase.',
         ])->assertRedirect()
-            ->assertSessionHas('status', 'Supplier quote details confirmed.');
+            ->assertSessionHas('status', 'Supplier quotation details confirmed.');
 
         $purchaseRequest->refresh();
         $purchaseRequest->load('items');
@@ -2041,8 +2071,9 @@ class DocumentWorkflowTest extends TestCase
 
         $show = $this->get(route('documents.show', $purchaseRequest));
         $show->assertOk();
-        $show->assertSee('Quote exception recorded');
-        $show->assertSee('Approval comment required for quote exception');
+        $show->assertSee('Quotation exception recorded');
+        $show->assertSee('Approval comment');
+        $show->assertSee('Confirm the quotation exception');
 
         $this->from(route('documents.show', $purchaseRequest))
             ->post(route('documents.approve', $purchaseRequest))
@@ -2176,7 +2207,7 @@ class DocumentWorkflowTest extends TestCase
         $show->assertSee('Supplier invoice matching checklist');
         $show->assertSee('Blocked');
         $show->assertSee('Invoice details verified');
-        $show->assertDontSee('Mark matched');
+        $show->assertDontSee('>Match supplier invoice</button>', false);
 
         $this->from(route('documents.show', $supplierInvoice))
             ->post(route('documents.transition', [$supplierInvoice, 'match']))
@@ -2348,7 +2379,7 @@ class DocumentWorkflowTest extends TestCase
         $show->assertSee('Supplier invoice matching checklist');
         $show->assertSee('Passed');
         $show->assertSee('Invoice details verified');
-        $show->assertSee('Mark matched');
+        $show->assertSee('>Match supplier invoice</button>', false);
 
         $this->transition($supplierInvoice, 'match', 'matched');
     }
@@ -2361,19 +2392,19 @@ class DocumentWorkflowTest extends TestCase
         $exact = $this->createApprovedSupplierInvoiceForAmountCheck('AMOUNT-EXACT', 1000, 1000);
         $exactShow = $this->get(route('documents.show', $exact));
         $exactShow->assertOk();
-        $exactShow->assertSee('Invoice total matches the source amount exactly.');
+        $exactShow->assertSee('Invoice total matches the purchase order amount exactly.');
         $this->transition($exact, 'match', 'matched');
 
         $rounding = $this->createApprovedSupplierInvoiceForAmountCheck('AMOUNT-ROUNDING', 1000, 1000.009);
         $roundingShow = $this->get(route('documents.show', $rounding));
         $roundingShow->assertOk();
-        $roundingShow->assertSee('Invoice total is within the RM 0.01 rounding tolerance.');
+        $roundingShow->assertSee('Invoice total is within the RM 0.01 rounding tolerance for the purchase order amount.');
         $this->transition($rounding, 'match', 'matched');
 
         $soft = $this->createApprovedSupplierInvoiceForAmountCheck('AMOUNT-SOFT', 1000, 1000.463);
         $softShow = $this->get(route('documents.show', $soft));
         $softShow->assertOk();
-        $softShow->assertSee('Invoice total variance of RM 0.50 is within the soft tolerance of RM 1.00.');
+        $softShow->assertSee('Invoice total variance of RM 0.50 is within the soft tolerance of RM 1.00 for the purchase order amount.');
         $this->transition($soft, 'match', 'matched');
     }
 
@@ -2388,7 +2419,7 @@ class DocumentWorkflowTest extends TestCase
         $show->assertOk();
         $show->assertSee('Invoice total variance of RM 1.08 exceeds the soft tolerance of RM 1.00.');
         $show->assertSee('Match with audited override');
-        $show->assertDontSee('Mark matched');
+        $show->assertDontSee('>Match supplier invoice</button>', false);
 
         $procurementUser = User::factory()->create([
             'role' => 'procurement',
@@ -2419,9 +2450,9 @@ class DocumentWorkflowTest extends TestCase
 
         $show = $this->get(route('documents.show', $supplierInvoice));
         $show->assertOk();
-        $show->assertSee('Partial supplier invoice amount differs from the source by RM 540.00.');
+        $show->assertSee('Partial supplier invoice amount differs from the purchase order by RM 540.00.');
         $show->assertSee('Partial matching is not treated as a normal match');
-        $show->assertDontSee('Mark matched');
+        $show->assertDontSee('>Match supplier invoice</button>', false);
 
         $this->from(route('documents.show', $supplierInvoice))
             ->post(route('documents.transition', [$supplierInvoice, 'match']))
@@ -2516,7 +2547,7 @@ class DocumentWorkflowTest extends TestCase
         $response->assertDontSee('Tax %');
         $response->assertDontSee('data-name="tax_rate"', false);
         $response->assertSee('Select billing basis');
-        $response->assertSee('From PO received');
+        $response->assertSee('From customer PO');
         $response->assertSee('Progress claim');
         $response->assertSee('Direct invoice');
         $response->assertSee('Document form sections');
@@ -2552,7 +2583,7 @@ class DocumentWorkflowTest extends TestCase
         $response->assertSee('Valid until');
         $response->assertDontSee('Due date');
         $response->assertSee('Customer request');
-        $response->assertSee('Customer and quote details');
+        $response->assertSee('Customer and quotation details');
         $response->assertSee('Pricing and terms');
         $response->assertSee('Quoted items');
         $response->assertSee('Scope and terms');
@@ -2569,7 +2600,7 @@ class DocumentWorkflowTest extends TestCase
         $response->assertSee('data-related-document-select', false);
         $response->assertSee('data-quotation-form-workspace', false);
         $response->assertSee('data-quotation-live-preview-pane', false);
-        $response->assertSee('aria-label="Quotation Preview"', false);
+        $response->assertSee('aria-label="Customer quotation preview"', false);
         $response->assertSee('data-live-quotation-preview', false);
         $response->assertSee('data-preview-lines', false);
         $response->assertSee('data-preview-total', false);
@@ -2587,19 +2618,19 @@ class DocumentWorkflowTest extends TestCase
         $response->assertOk();
         $response->assertSee('New supplier quotation');
         $response->assertSee('Record the supplier offer, pricing, validity, and terms before creating a purchase order.');
-        $response->assertSee('Quote basis');
-        $response->assertSee('What is this supplier quote for?');
-        $response->assertSee('Link the supplier quote to a purchase request or an earlier supplier quote.');
-        $response->assertSee('Supplier and quote details');
-        $response->assertSee('Supplier quote no. / reference');
+        $response->assertSee('Quotation basis');
+        $response->assertSee('What is this supplier quotation for?');
+        $response->assertSee('Link the supplier quotation to a purchase request or an earlier supplier quotation.');
+        $response->assertSee('Supplier and quotation details');
+        $response->assertSee('Supplier quotation no. / reference');
         $response->assertSee('Pricing and terms');
         $response->assertSee('Payment terms text');
         $response->assertSee('Quoted items');
         $response->assertSee('Supplier notes and terms');
         $response->assertSee('Record supplier remarks, exclusions, validity notes, and commercial terms.');
-        $response->assertSee('Supplier quote summary');
-        $response->assertSee('Supplier quote reference');
-        $response->assertSee('Supplier Quote Summary');
+        $response->assertSee('Supplier quotation summary');
+        $response->assertSee('Supplier quotation reference');
+        $response->assertSee('Supplier quotation summary');
         $response->assertDontSee('Customer inquiry / reference');
         $response->assertDontSee('customer-facing scope');
         $response->assertDontSee('Enter the quote, terms, items, and scope. The preview updates as you work.');
@@ -2630,7 +2661,7 @@ class DocumentWorkflowTest extends TestCase
         $response = $this->get(route('documents.index', 'customer-quotations'));
 
         $response->assertOk();
-        $response->assertSee('Quotation Preview');
+        $response->assertSee('Customer quotation PDF');
         $response->assertSee('data-quotation-workspace', false);
         $response->assertSee('data-quotation-list', false);
         $response->assertSee('data-quotation-preview-list', false);
@@ -2642,7 +2673,7 @@ class DocumentWorkflowTest extends TestCase
         $response->assertDontSee('Preview every quotation');
         $response->assertDontSee('Embedded Quotation Previews');
         $response->assertSee('data-generated-pdf-preview', false);
-        $response->assertSee('Customer-facing PDF');
+        $response->assertSee('Customer quotation PDF');
         $response->assertSee('Draft quotation preview');
         $response->assertSee(route('documents.pdf', $firstQuotation), false);
         $response->assertSee(route('documents.pdf', $secondQuotation), false);
@@ -2691,7 +2722,7 @@ class DocumentWorkflowTest extends TestCase
         $acceptedPo = $this->createDocument('customer-pos', [
             'customer_id' => $this->customer->id,
             'external_reference' => 'SEARCH-ACCEPTED-PO',
-            'description' => 'Accepted PO received search record',
+            'description' => 'Accepted customer PO search record',
             'quantity' => 1,
             'unit_price' => 300,
         ]);
@@ -2700,13 +2731,14 @@ class DocumentWorkflowTest extends TestCase
         $quotation->update([
             'project_name' => 'Cyberjaya Site',
             'payment_terms_type' => 'milestone',
+            'payment_terms_label' => 'Milestone based',
             'payment_due_days' => 30,
         ]);
 
         $quotation->billingStages()->create([
             'sort_order' => 1,
             'stage_name' => 'Deposit',
-            'condition_label' => 'Upon PO received / written acceptance',
+            'condition_label' => 'Upon customer PO / written acceptance',
             'percentage' => 40,
             'amount' => 518.40,
             'payment_term' => 'Due upon invoice',
@@ -2748,10 +2780,10 @@ class DocumentWorkflowTest extends TestCase
             ->assertSee($quotation->document_number)
             ->assertSee('Deposit');
 
-        $this->get(route('search.index', ['q' => 'Milestone-Based']))
+        $this->get(route('search.index', ['q' => 'Milestone based']))
             ->assertOk()
             ->assertSee($quotation->document_number)
-            ->assertSee('Milestone-Based');
+            ->assertSee('Milestone based');
 
         $this->get(route('search.index', ['q' => '30 days']))
             ->assertOk()
@@ -2771,7 +2803,7 @@ class DocumentWorkflowTest extends TestCase
         $this->get(route('search.index', ['q' => 'Purchase Order']))
             ->assertOk()
             ->assertSee($supplierPo->document_number)
-            ->assertSee('Purchase Order');
+            ->assertSee('Purchase order');
 
         $this->get(route('search.index', ['q' => 'Accepted']))
             ->assertOk()
@@ -2814,7 +2846,7 @@ class DocumentWorkflowTest extends TestCase
         $response->assertOk();
         $response->assertSee('Suria QuoteFlow');
         $response->assertSee('Suria Energy Services Sdn Bhd');
-        $response->assertSee('Customer-facing PDF');
+        $response->assertSee('Customer quotation PDF');
         $response->assertSee(route('documents.pdf', $quotation), false);
 
         $identityResponse = $this->get(route('company-profiles.index'));
@@ -2822,10 +2854,10 @@ class DocumentWorkflowTest extends TestCase
         $identityResponse->assertOk();
         $identityResponse->assertSee('Document issuer profile');
         $identityResponse->assertSee('Current document issuer');
-        $identityResponse->assertSee('Edit Company Identity');
-        $identityResponse->assertDontSee('Add Company Identity');
-        $identityResponse->assertDontSee('Active company identity');
-        $identityResponse->assertDontSee('Set as the active company identity');
+        $identityResponse->assertSee('Edit company profile');
+        $identityResponse->assertDontSee('Add company profile');
+        $identityResponse->assertDontSee('Active company profile');
+        $identityResponse->assertDontSee('Set as the active company profile');
 
         $this->get(route('company-profiles.create'))
             ->assertRedirect(route('company-profiles.edit', $company));
@@ -2945,7 +2977,7 @@ class DocumentWorkflowTest extends TestCase
             'billing_stages' => [
                 [
                     'stage_name' => 'Deposit',
-                    'condition_label' => 'Upon PO received / written acceptance',
+                    'condition_label' => 'Upon customer PO / written acceptance',
                     'percentage' => 40,
                     'amount' => 1188,
                     'payment_term' => 'Due upon invoice',
@@ -3024,7 +3056,7 @@ class DocumentWorkflowTest extends TestCase
             'due_date' => '2026-06-13',
             'currency' => 'MYR',
             'payment_terms_type' => 'milestone',
-            'payment_terms_label' => 'Milestone-Based',
+            'payment_terms_label' => 'Milestone based',
             'items' => [
                 [
                     'product_id' => $this->service->id,
@@ -3083,7 +3115,7 @@ class DocumentWorkflowTest extends TestCase
 
         if ($module === 'purchase-requests' && empty($payload['source_type'])) {
             $payload['source_type'] = 'quote_exception';
-            $payload['source_note'] = 'Feature test quote exception for non-OCR purchase request coverage.';
+            $payload['source_note'] = 'Feature test quotation exception for non-OCR purchase request coverage.';
         }
 
         $this->post(route('documents.store', $module), $payload)
@@ -3290,7 +3322,7 @@ class DocumentWorkflowTest extends TestCase
                 'status' => 'verified',
                 'engine' => 'feature-test',
                 'language' => 'eng',
-                'raw_text' => 'Feature test supplier quote evidence.',
+                'raw_text' => 'Feature test supplier quotation evidence.',
                 'extracted_fields' => [
                     'supplier_name' => $document->supplier?->name,
                     'quote_number' => $document->external_reference,
@@ -3304,7 +3336,7 @@ class DocumentWorkflowTest extends TestCase
                     'total' => number_format((float) $document->total, 2, '.', ''),
                 ],
                 'verification_method' => 'manual',
-                'verification_notes' => 'Feature test supplier quote evidence.',
+                'verification_notes' => 'Feature test supplier quotation evidence.',
                 'supplier_confirmed' => true,
                 'recorded_total_confirmed' => true,
                 'error_message' => null,

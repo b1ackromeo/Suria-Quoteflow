@@ -131,15 +131,15 @@ class DashboardController extends Controller
 
         $workflow = [
             'sales' => [
-                ['label' => 'Quotations', 'count' => $documentCount('customer_quotation'), 'route' => route('documents.index', 'customer-quotations')],
-                ['label' => 'Customer POs', 'count' => $documentCount('customer_po'), 'route' => route('documents.index', 'customer-pos')],
+                ['label' => 'Customer quotations', 'count' => $documentCount('customer_quotation'), 'route' => route('documents.index', 'customer-quotations')],
+                ['label' => 'Customer POs received', 'count' => $documentCount('customer_po'), 'route' => route('documents.index', 'customer-pos')],
                 ['label' => 'Customer invoices', 'count' => $documentCount('customer_invoice'), 'route' => route('documents.index', 'customer-invoices')],
-                ['label' => 'Unpaid invoices', 'count' => $documentCount('customer_invoice', ['issued', 'fulfilled', 'part_paid']), 'route' => route('documents.index', ['module' => 'customer-invoices', 'status' => 'issued'])],
+                ['label' => 'Unpaid customer invoices', 'count' => $documentCount('customer_invoice', ['issued', 'fulfilled', 'part_paid']), 'route' => route('documents.index', ['module' => 'customer-invoices', 'status' => 'issued'])],
             ],
             'purchasing' => [
                 ['label' => 'Purchase requests', 'count' => $documentCount('purchase_request'), 'route' => route('documents.index', 'purchase-requests')],
                 ['label' => 'Purchase orders', 'count' => $documentCount('supplier_po'), 'route' => route('documents.index', 'supplier-pos')],
-                ['label' => 'Receipts', 'count' => $documentCount('goods_receipt'), 'route' => route('documents.index', 'goods-receipts')],
+                ['label' => 'Goods receipts', 'count' => $documentCount('goods_receipt'), 'route' => route('documents.index', 'goods-receipts')],
                 ['label' => 'Supplier invoices', 'count' => $documentCount('supplier_invoice'), 'route' => route('documents.index', 'supplier-invoices')],
             ],
         ];
@@ -164,7 +164,7 @@ class DashboardController extends Controller
             'invoiceAging' => $invoiceAging,
             'monthlyMovement' => $monthlyMovement,
             'quickActions' => [
-                ['label' => 'Quotation', 'aria' => 'Create quotation', 'icon' => 'quote', 'route' => route('documents.create', 'customer-quotations')],
+                ['label' => 'Customer quotation', 'aria' => 'Create customer quotation', 'icon' => 'quote', 'route' => route('documents.create', 'customer-quotations')],
                 ['label' => 'Customer invoice', 'aria' => 'Create customer invoice', 'icon' => 'receipt', 'route' => route('documents.create', 'customer-invoices')],
                 ['label' => 'Purchase request', 'aria' => 'Create purchase request', 'icon' => 'purchase', 'route' => route('documents.create', 'purchase-requests')],
                 ['label' => 'Purchase order', 'aria' => 'Create purchase order', 'icon' => 'purchase', 'route' => route('documents.create', 'supplier-pos')],

@@ -19,12 +19,12 @@
     $receiptOutputLabel = match ($receiptKind) {
         'service' => 'Service acceptance record PDF',
         'goods' => 'Goods receipt note PDF',
-        default => 'Receiving and acceptance record PDF',
+        default => 'Goods receipt and acceptance record PDF',
     };
     $receiptOutputNote = match ($receiptKind) {
         'service' => 'This is the accepted service record used to support supplier invoice matching.',
-        'goods' => 'This is the receiving record used to support supplier invoice matching.',
-        default => 'This is the receiving and acceptance record used to support supplier invoice matching.',
+        'goods' => 'This goods receipt supports supplier invoice matching.',
+        default => 'This goods receipt and acceptance record supports supplier invoice matching.',
     };
     $quotationOutputLabel = match ($document->status) {
         'draft' => 'Draft quotation preview',
@@ -49,8 +49,8 @@
         'draft' => 'This is the purchase order being prepared before approval.',
         'pending_approval' => 'This purchase order is waiting for approval before it can be issued to the supplier.',
         'approved' => 'This purchase order is approved and ready to be issued to the supplier.',
-        'issued', 'fulfilled', 'closed' => 'This is the final supplier-facing purchase order PDF issued from this record.',
-        default => 'This is the purchase order output for the current workflow status.',
+        'issued', 'fulfilled', 'closed' => 'This is the issued purchase order PDF sent to the supplier.',
+        default => 'This purchase order PDF reflects the current document status.',
     };
     $outputLabel = match ($document->type) {
         'purchase_request' => 'Approved purchase request PDF',
@@ -58,20 +58,22 @@
         'goods_receipt' => $receiptOutputLabel,
         'customer_quotation' => $quotationOutputLabel,
         'customer_invoice' => $invoiceOutputLabel,
-        default => 'Final PDF output',
+        default => 'Document PDF',
     };
     $outputNote = match ($document->type) {
         'purchase_request' => 'This is the approved purchase request record used to continue procurement.',
         'supplier_po' => $supplierPoOutputNote,
         'goods_receipt' => $receiptOutputNote,
-        'customer_quotation' => 'This is the customer-facing quotation document prepared from this record.',
-        'customer_invoice' => 'This is the customer-facing invoice document prepared from this record.',
-        default => 'This is the generated document output for the current workflow status.',
+        'customer_quotation' => 'This customer quotation PDF is prepared from this record.',
+        'customer_invoice' => 'This customer invoice PDF is prepared from this record.',
+        default => 'This document PDF reflects the current document status.',
     };
     $outputKicker = match ($document->type) {
-        'customer_quotation', 'customer_invoice' => 'Customer-facing PDF',
-        'supplier_po' => 'Supplier-facing PDF',
-        'purchase_request', 'goods_receipt' => 'Internal record PDF',
+        'customer_quotation' => 'Customer quotation PDF',
+        'customer_invoice' => 'Customer invoice PDF',
+        'supplier_po' => 'Purchase order PDF',
+        'purchase_request' => 'Purchase request PDF',
+        'goods_receipt' => $receiptOutputLabel,
         default => 'PDF preview',
     };
 @endphp
@@ -86,7 +88,7 @@
         <span class="status-chip status-{{ $document->status }}">{{ $document->statusDisplay() }}</span>
     </div>
     <section class="generated-pdf-preview-frame">
-        <div class="generated-pdf-loading" data-pdf-loading>Loading PDF output...</div>
+        <div class="generated-pdf-loading" data-pdf-loading>Loading PDF preview...</div>
         <iframe
             class="generated-pdf-viewer"
             loading="lazy"

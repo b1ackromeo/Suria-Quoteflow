@@ -42,6 +42,7 @@ class SupplierInvoiceMatchingService
         $verifiedExtraction = $this->verification->verifiedExtraction($document);
         $relatedDocument = $document->relatedDocument;
         $isDirectException = $document->source_type === 'direct_supplier_invoice';
+        $linkedDocumentLabel = $this->linkedDocumentLabel($relatedDocument);
 
         $checks[] = $this->check(
             'verification',
@@ -54,27 +55,27 @@ class SupplierInvoiceMatchingService
 
         $checks[] = $this->check(
             'source',
-            'Source document',
+            'Linked purchase document',
             $isDirectException || (bool) $relatedDocument,
             $isDirectException
                 ? 'Direct supplier invoice exception selected.'
-                : ($relatedDocument ? 'Linked to '.$relatedDocument->document_number.'.' : 'Link this invoice to a receipt or purchase order.')
+                : ($relatedDocument ? 'Linked to '.$relatedDocument->document_number.'.' : 'Link this invoice to a goods receipt or purchase order.')
         );
 
         $sourceTypeAllowed = $isDirectException || ($relatedDocument && in_array($relatedDocument->type, ['goods_receipt', 'supplier_po'], true));
         $checks[] = $this->check(
             'source_type',
-            'Source type',
+            'Linked document type',
             $sourceTypeAllowed,
-            $sourceTypeAllowed ? 'Source type is valid for supplier invoice matching.' : 'Use a receiving record or purchase order as the source.'
+            $sourceTypeAllowed ? ucfirst($linkedDocumentLabel).' can be used for supplier invoice matching.' : 'Use a goods receipt or purchase order for matching.'
         );
 
         $supplierMatches = $isDirectException || ($relatedDocument && (int) $relatedDocument->supplier_id === (int) $document->supplier_id);
         $checks[] = $this->check(
             'supplier',
-            'Supplier matches source',
+            'Supplier matches linked document',
             $supplierMatches,
-            $supplierMatches ? 'Supplier matches the invoice source.' : 'Select a source document for the same supplier.'
+            $supplierMatches ? 'Supplier matches the linked '.$linkedDocumentLabel.'.' : 'Select a goods receipt or purchase order for the same supplier.'
         );
 
         $duplicateMessage = 'Supplier invoice number is unique for this supplier.';
@@ -106,7 +107,7 @@ class SupplierInvoiceMatchingService
             'direct_exception_note',
             'Exception reason',
             $directNotePasses,
-            $directNotePasses ? ($isDirectException ? 'Direct exception reason is recorded.' : 'Normal source path.') : 'Add a reason for this direct supplier invoice.'
+            $directNotePasses ? ($isDirectException ? 'Direct exception reason is recorded.' : 'Normal matching path.') : 'Add a reason for this direct supplier invoice.'
         );
 
         $blockingMessages = collect($checks)
@@ -162,7 +163,7 @@ class SupplierInvoiceMatchingService
         }
 
         if (! $relatedDocument) {
-            return [false, 'Amount check waits for a linked receipt or purchase order.'];
+            return [false, 'Amount check waits for a linked goods receipt or purchase order.'];
         }
 
         $invoiceTotal = (float) $document->total;
@@ -171,19 +172,19 @@ class SupplierInvoiceMatchingService
         $policy = $this->amountTolerancePolicy($sourceTotal);
 
         if ($difference == 0.0) {
-            return [true, 'Invoice total matches the source amount exactly.'];
+            return [true, 'Invoice total matches the '.$this->linkedDocumentLabel($relatedDocument).' amount exactly.'];
         }
 
         if ($difference <= $policy['rounding_tolerance']) {
-            return [true, 'Invoice total is within the RM '.$this->money($policy['rounding_tolerance']).' rounding tolerance.'];
+            return [true, 'Invoice total is within the RM '.$this->money($policy['rounding_tolerance']).' rounding tolerance for the '.$this->linkedDocumentLabel($relatedDocument).' amount.'];
         }
 
         if ($difference <= $policy['soft_tolerance_limit']) {
-            return [true, 'Invoice total variance of RM '.$this->money($difference).' is within the soft tolerance of RM '.$this->money($policy['soft_tolerance_limit']).'.'];
+            return [true, 'Invoice total variance of RM '.$this->money($difference).' is within the soft tolerance of RM '.$this->money($policy['soft_tolerance_limit']).' for the '.$this->linkedDocumentLabel($relatedDocument).' amount.'];
         }
 
         if ($invoiceTotal < $sourceTotal) {
-            return [false, 'Partial supplier invoice amount differs from the source by RM '.$this->money($difference).'. Partial matching is not treated as a normal match; use admin or manager override with notes if this partial invoice is accepted.'];
+            return [false, 'Partial supplier invoice amount differs from the '.$this->linkedDocumentLabel($relatedDocument).' by RM '.$this->money($difference).'. Partial matching is not treated as a normal match; use admin or manager override with notes if this partial invoice is accepted.'];
         }
 
         return [false, 'Invoice total variance of RM '.$this->money($difference).' exceeds the soft tolerance of RM '.$this->money($policy['soft_tolerance_limit']).'. Admin or manager override with notes is required.'];
@@ -192,5 +193,14 @@ class SupplierInvoiceMatchingService
     private function money(float $amount): string
     {
         return number_format($amount, 2, '.', '');
+    }
+
+    private function linkedDocumentLabel(?Document $document): string
+    {
+        return match ($document?->type) {
+            'goods_receipt' => 'goods receipt',
+            'supplier_po' => 'purchase order',
+            default => 'linked document',
+        };
     }
 }

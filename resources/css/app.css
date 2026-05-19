@@ -324,16 +324,8 @@
         @apply min-w-40 bg-[#0a4f93];
     }
 
-    .date-control {
-        @apply hidden h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm md:flex;
-    }
-
     .icon-button {
         @apply relative hidden h-11 w-11 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 lg:grid;
-    }
-
-    .notification-button span {
-        @apply absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white;
     }
 
     .issuer-mini {
@@ -1998,11 +1990,11 @@
     }
 
     .document-open-workspace {
-        @apply grid h-full min-h-0 bg-[#edf3f7] xl:grid-cols-[minmax(0,1fr)_24rem];
+        @apply grid h-full min-h-0 bg-[#edf3f7] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)];
     }
 
     .document-open-workspace-source {
-        @apply xl:grid-cols-[minmax(34rem,1.08fr)_minmax(27rem,0.92fr)];
+        @apply xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)];
     }
 
     .document-open-preview-pane {
@@ -2103,6 +2095,26 @@
 
     .document-action-stack {
         @apply space-y-2;
+    }
+
+    .document-decision-card {
+        @apply space-y-2.5;
+    }
+
+    .document-decision-form {
+        @apply grid items-end gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 md:grid-cols-[minmax(0,1fr)_7rem];
+    }
+
+    .document-decision-field {
+        @apply min-w-0 text-xs font-bold uppercase tracking-wide text-slate-400;
+    }
+
+    .document-decision-field .form-input {
+        @apply mt-1 min-h-10 resize-y bg-white py-2;
+    }
+
+    .document-decision-button {
+        @apply min-h-10 w-full;
     }
 
     .document-pr-items-card .document-compact-table {
@@ -3540,8 +3552,7 @@
     }
 
     .form-input,
-    .global-search,
-    .date-control {
+    .global-search {
         font-size: var(--qf-type-body);
         line-height: var(--qf-leading-body);
     }

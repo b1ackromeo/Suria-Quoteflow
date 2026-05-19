@@ -1,7 +1,6 @@
 @extends('layouts.app', [
     'title' => $customer->exists ? 'Edit Customer' : 'New Customer',
     'contentMode' => 'fullscreen',
-    'showDateControl' => false,
 ])
 
 @php
@@ -37,7 +36,7 @@
             <p class="document-pane-kicker">Customer Directory</p>
             <h1 class="document-pane-title">{{ $isEditing ? 'Edit Customer' : 'New Customer' }}</h1>
             <p class="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
-                Keep customer identity, contact, payment terms, and addresses clean so quotations, PO received records, and invoices are prepared correctly.
+                Keep customer identity, contact, payment terms, and addresses clean so quotations, customer POs, and invoices are prepared correctly.
             </p>
         </div>
         <div class="directory-header-actions">
@@ -101,7 +100,7 @@
                 <div>
                     <p class="studio-section-kicker">Address details</p>
                     <h2 class="studio-section-title">Customer address book</h2>
-                    <p class="studio-section-copy">Enter the address in business-document order. The system saves it as a clean address block for PDFs and workflow records.</p>
+                    <p class="studio-section-copy">Enter the address in business-document order. The system saves it as a clean address block for PDFs and customer records.</p>
                 </div>
             </div>
 

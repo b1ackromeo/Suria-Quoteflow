@@ -11,21 +11,21 @@
     $documentTitle = match ($document->type) {
         'customer_quotation' => 'QUOTATION',
         'supplier_quotation' => 'SUPPLIER QUOTATION',
-        'customer_po' => 'PO RECEIVED',
+        'customer_po' => 'CUSTOMER PO RECEIVED',
         'supplier_po' => 'PURCHASE ORDER',
         'customer_invoice', 'supplier_invoice' => 'INVOICE',
         'purchase_request' => 'PURCHASE REQUEST',
-        'goods_receipt' => 'RECEIVING RECORD',
+        'goods_receipt' => 'GOODS RECEIPT',
         default => strtoupper($meta['singular'] ?? 'DOCUMENT'),
     };
     $documentKicker = match ($document->type) {
         'customer_quotation' => 'Customer sales document',
-        'customer_po' => 'Customer purchase order record',
+        'customer_po' => 'Customer PO received',
         'customer_invoice' => 'Customer billing document',
         'purchase_request' => 'Procurement request',
         'supplier_quotation' => 'Supplier quotation record',
         'supplier_po' => 'Supplier order document',
-        'goods_receipt' => 'Receiving and acceptance document',
+        'goods_receipt' => 'Goods receipt and acceptance document',
         'supplier_invoice' => 'Supplier invoice record',
         default => 'Business document',
     };
@@ -46,9 +46,9 @@
     };
     $secondaryDateLabel = $isQuotation ? 'Valid until' : ($document->type === 'supplier_po' ? 'Delivery date' : ($document->type === 'customer_po' ? 'Completion target' : ($isInvoice ? 'Due date' : 'Required by')));
     $lineDescriptionLabel = $isPo ? 'Ordered item / scope' : ($isInvoice ? 'Invoice description' : 'Description');
-    $totalLabel = $isQuotation ? 'Quotation Total' : ($isPo ? 'PO Total' : ($isInvoice ? 'Invoice Total' : 'Document Total'));
-    $scopeLabel = $isQuotation ? 'Project Scope Summary' : ($isPo ? 'Order Scope / Delivery Notes' : ($isInvoice ? 'Billing Summary' : 'Notes'));
-    $paymentLabel = $document->payment_terms_label ?: ($document->payment_terms_type === 'milestone' ? 'Milestone-Based' : 'Not specified');
+    $totalLabel = $isQuotation ? 'Quotation total' : ($isPo ? 'PO total' : ($isInvoice ? 'Invoice total' : 'Document total'));
+    $scopeLabel = $isQuotation ? 'Project scope summary' : ($isPo ? 'Order scope / delivery notes' : ($isInvoice ? 'Billing summary' : 'Notes'));
+    $paymentLabel = $document->payment_terms_label ?: ($document->payment_terms_type === 'milestone' ? 'Milestone based' : 'Not specified');
 @endphp
 
 <article
@@ -154,7 +154,7 @@
         @if($billingStages->isNotEmpty())
             <section class="overflow-hidden border border-slate-200">
                 <div class="bg-slate-50 px-3 py-2">
-                    <p class="text-[11px] font-bold uppercase tracking-wide text-slate-700">{{ $isInvoice ? 'Progress Billing Summary' : 'Payment Schedule' }}</p>
+                    <p class="text-[11px] font-bold uppercase tracking-wide text-slate-700">{{ $isInvoice ? 'Progress billing summary' : 'Payment schedule' }}</p>
                 </div>
                 <table class="min-w-full text-left text-xs">
                     <thead class="bg-slate-100 text-slate-700">

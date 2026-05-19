@@ -1,4 +1,4 @@
-@extends('layouts.app', ['title' => 'Audit Trail'])
+@extends('layouts.app', ['title' => 'Audit log'])
 
 @section('content')
 <section class="panel">
