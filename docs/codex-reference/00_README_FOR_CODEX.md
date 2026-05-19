@@ -9,18 +9,19 @@ For each development task, Codex should:
 1. Read `AGENTS.md`.
 2. Read exactly one focused task file from `docs/codex-tasks/`.
 3. Read only the reference files in this folder that are relevant to that task.
-4. Inspect affected routes, controllers, models, migrations, Blade views, and tests.
-5. Summarize current behavior and the smallest safe implementation plan.
-6. Implement one objective at a time.
-7. Add or update tests.
-8. Summarize changed files, tests run, and remaining risks.
+4. For any UI, page wording, navigation, dashboard, status badge, PDF label, report label, form label, validation message, empty state, or copywriting work, read `docs/codex-reference/10_BUSINESS_WORDING_STANDARD.md`.
+5. Inspect affected routes, controllers, models, migrations, Blade views, and tests.
+6. Summarize current behavior and the smallest safe implementation plan.
+7. Implement one objective at a time.
+8. Add or update tests.
+9. Summarize changed files, tests run, and remaining risks.
 
 Do not ask Codex to read every long reference file for every small task unless the task truly needs it.
 
 ## Suggested first prompt
 
 ```text
-Read AGENTS.md first. Then read the assigned task file under docs/codex-tasks/. Use docs/codex-reference only as supporting context when relevant. Inspect the current code before editing. Preserve the QuoteFlow architecture and Exabytes/Plesk shared-hosting constraints.
+Read AGENTS.md first. Then read the assigned task file under docs/codex-tasks/. Use docs/codex-reference only as supporting context when relevant. For any user-facing wording, read docs/codex-reference/10_BUSINESS_WORDING_STANDARD.md before editing. Inspect the current code before editing. Preserve the QuoteFlow architecture and Exabytes/Plesk shared-hosting constraints.
 ```
 
 ## Focused task files
@@ -53,6 +54,7 @@ Recommended order:
 - `07_SUGGESTED_FILE_MAP.md` - likely files to inspect and modify.
 - `08_SHARED_HOSTING_DONT_BREAK_RULES.md` - constraints that must not be violated.
 - `09_SYSTEM_ARCHITECTURE.md` - architecture reference for the Laravel monolith, document workflow, UI layers, OCR, payments, matching, reports, PDFs, and shared-hosting boundaries.
+- `10_BUSINESS_WORDING_STANDARD.md` - user-facing business wording benchmark, banned internal terms, recommended replacements, and the copy challenge checklist.
 
 ## Important architecture rule
 
@@ -72,3 +74,4 @@ Do not convert it into an API-first SPA, microservice architecture, Redis/Horizo
 4. Require issued supplier PO for normal goods receipt.
 5. Keep OCR, but add a manual supplier invoice verification fallback.
 6. Make supplier invoice matching a real checklist, not just a status button.
+7. Keep user-facing wording aligned with global business document systems, not route/model/workflow-engine language.
