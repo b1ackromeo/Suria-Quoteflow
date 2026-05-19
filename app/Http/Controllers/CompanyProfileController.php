@@ -71,6 +71,8 @@ class CompanyProfileController extends Controller
 
     private function validated(Request $request): array
     {
+        $this->mergeMissingGlobalDefaults($request);
+
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'registration_number' => ['nullable', 'string', 'max:120'],
@@ -92,6 +94,17 @@ class CompanyProfileController extends Controller
             'pdf_footer' => ['nullable', 'string', 'max:5000'],
             'logo' => ['nullable', 'image', 'max:1024'],
         ]);
+    }
+
+    private function mergeMissingGlobalDefaults(Request $request): void
+    {
+        $defaults = CompanyProfile::defaults();
+
+        foreach (['country', 'timezone', 'base_currency', 'date_format', 'number_format', 'tax_label', 'default_tax_rate'] as $field) {
+            if (! $request->has($field)) {
+                $request->merge([$field => $defaults[$field]]);
+            }
+        }
     }
 
     private function companyIdentity(): CompanyProfile
