@@ -8,7 +8,7 @@ Before making code changes:
 
 1. Read this `AGENTS.md` file.
 2. Read the specific task file under `docs/codex-tasks/` assigned for the work.
-3. For UI, UX, Blade, CSS, dashboard, form, navigation, copywriting, or accessibility work, read the relevant files under `docs/design/`.
+3. For UI, UX, Blade, CSS, dashboard, form, navigation, copywriting, or accessibility work, read the relevant files under `docs/design/` and `docs/codex-reference/10_BUSINESS_WORDING_STANDARD.md`.
 4. For backend, dashboard, reports, exports, document lists, document show pages, PDF, OCR, or UI loading work, read `docs/performance/01_performance_and_loading_rules.md`.
 5. Inspect all affected routes, controllers, models, migrations, Blade views, CSS, and tests before editing.
 6. Summarize the current behavior and the smallest safe implementation plan.
@@ -112,6 +112,53 @@ Follow `docs/design/` for layout, components, status language, UX writing, acces
 
 Do not copy decorative dashboard trends blindly. Use Figma-style component discipline, Dribbble-level polish, and real workflow clarity.
 
+## Business wording rules
+
+For any user-facing page, action, empty state, validation message, PDF label, navigation item, dashboard card, report, status badge, or test assertion, use `docs/codex-reference/10_BUSINESS_WORDING_STANDARD.md` as the wording authority.
+
+QuoteFlow must sound like a business document system used by sales, finance, procurement, and admin users. Use document nouns and business actions. Do not expose route names, database names, workflow-engine states, UI component names, OCR internals, or developer terms.
+
+Default pattern:
+
+```text
+Business document noun + business action/status
+```
+
+Examples:
+
+- `Customer quotation`
+- `Customer PO received`
+- `Customer invoice`
+- `Customer payment received`
+- `Purchase request`
+- `Supplier quotation`
+- `Purchase order`
+- `Goods receipt`
+- `Service acceptance`
+- `Supplier invoice`
+- `Supplier payment made`
+- `Document progress`
+- `Available actions`
+- `Required before continuing`
+
+Do not use these as end-user labels unless the task explicitly requires a technical/admin context:
+
+- `workflow`
+- `primary actions`
+- `incoming` / `outgoing`
+- `output`
+- `previewable`
+- `source file` as a page title
+- `source type`
+- `entity`
+- `transition`
+- `locked`
+- `OCR draft`
+- `supplier billing`
+- `record preview`
+
+Challenge bad copy before implementing it. If a requested or existing label sounds like Codex derived it from routes, models, states, or implementation details, replace it with business wording and document the decision in the task summary.
+
 Hard UI verification rule:
 
 - Do not mark UI, dashboard, layout, navigation, form, typography, or responsive work as complete from a single wide-desktop view.
@@ -150,6 +197,7 @@ Use these only as needed for the current task:
 - `docs/codex-reference/06_ACCEPTANCE_TEST_CHECKLIST.md`
 - `docs/codex-reference/07_SUGGESTED_FILE_MAP.md`
 - `docs/codex-reference/08_SHARED_HOSTING_DONT_BREAK_RULES.md`
+- `docs/codex-reference/10_BUSINESS_WORDING_STANDARD.md`
 - `docs/design/00_README.md`
 - `docs/design/09_ui_ux_audit_findings.md`
 - `docs/performance/01_performance_and_loading_rules.md`
