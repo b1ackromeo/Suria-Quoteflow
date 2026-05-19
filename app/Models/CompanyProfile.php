@@ -17,10 +17,21 @@ class CompanyProfile extends Model
         'logo_path',
         'primary_color',
         'accent_color',
+        'country',
+        'timezone',
+        'base_currency',
+        'date_format',
+        'number_format',
+        'tax_label',
+        'tax_registration_number',
+        'default_tax_rate',
+        'payment_instructions',
+        'pdf_footer',
         'is_active',
     ];
 
     protected $casts = [
+        'default_tax_rate' => 'decimal:2',
         'is_active' => 'boolean',
     ];
 
@@ -42,6 +53,16 @@ class CompanyProfile extends Model
             'tagline' => 'Reliable Infrastructure. Connected Future.',
             'primary_color' => '#0a345f',
             'accent_color' => '#0a4f93',
+            'country' => 'Malaysia',
+            'timezone' => 'Asia/Kuala_Lumpur',
+            'base_currency' => 'MYR',
+            'date_format' => 'd M Y',
+            'number_format' => 'en-MY',
+            'tax_label' => 'Tax',
+            'tax_registration_number' => null,
+            'default_tax_rate' => 0,
+            'payment_instructions' => null,
+            'pdf_footer' => null,
             'is_active' => true,
         ];
     }
@@ -56,7 +77,7 @@ class CompanyProfile extends Model
             return asset('images/rctech-logo-clean.png');
         }
 
-        return $this->placeholderLogoDataUri();
+        return '';
     }
 
     public function logoPathForPdf(): string
@@ -78,26 +99,56 @@ class CompanyProfile extends Model
         return $this->tagline ?: static::defaults()['tagline'];
     }
 
+    public function displayCountry(): string
+    {
+        return $this->country ?: static::defaults()['country'];
+    }
+
+    public function displayTimezone(): string
+    {
+        return $this->timezone ?: static::defaults()['timezone'];
+    }
+
+    public function baseCurrency(): string
+    {
+        return strtoupper((string) ($this->base_currency ?: static::defaults()['base_currency']));
+    }
+
+    public function dateFormat(): string
+    {
+        return $this->date_format ?: static::defaults()['date_format'];
+    }
+
+    public function numberFormat(): string
+    {
+        return $this->number_format ?: static::defaults()['number_format'];
+    }
+
+    public function taxLabel(): string
+    {
+        return $this->tax_label ?: static::defaults()['tax_label'];
+    }
+
+    public function defaultTaxRate(): float
+    {
+        return (float) ($this->default_tax_rate ?? static::defaults()['default_tax_rate']);
+    }
+
+    public function displayPdfFooter(): string
+    {
+        return $this->pdf_footer ?: $this->displayName();
+    }
+
+    public function paymentInstructionLines(): array
+    {
+        return collect(preg_split('/\r\n|\r|\n/', trim((string) $this->payment_instructions)))
+            ->filter(fn (string $line) => filled($line))
+            ->values()
+            ->all();
+    }
+
     private function shouldUseDefaultLogo(): bool
     {
         return $this->displayName() === static::defaults()['name'];
-    }
-
-    private function placeholderLogoDataUri(): string
-    {
-        $initials = collect(preg_split('/\s+/', trim($this->displayName())))
-            ->filter()
-            ->take(2)
-            ->map(fn (string $word) => strtoupper(substr($word, 0, 1)))
-            ->implode('') ?: 'CO';
-
-        $primary = $this->primary_color ?: static::defaults()['primary_color'];
-        $svg = sprintf(
-            '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="128" height="128" rx="28" fill="%s"/><text x="64" y="73" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" fill="#fff">%s</text></svg>',
-            htmlspecialchars($primary, ENT_QUOTES, 'UTF-8'),
-            htmlspecialchars($initials, ENT_QUOTES, 'UTF-8')
-        );
-
-        return 'data:image/svg+xml;base64,'.base64_encode($svg);
     }
 }
