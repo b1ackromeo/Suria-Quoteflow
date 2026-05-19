@@ -71,4 +71,64 @@
         </div>
     </div>
 </section>
+
+<section class="panel mt-5">
+    <div class="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+            <p class="text-xs font-bold uppercase tracking-wide text-[#0a4f93]">Global document settings</p>
+            <h2 class="text-lg font-bold tracking-tight text-slate-950">Country, currency, tax, and formats</h2>
+            <p class="mt-1 text-sm font-semibold text-slate-500">These settings become the default document context for global-ready QuoteFlow installations.</p>
+        </div>
+        <a class="btn btn-secondary" href="{{ route('company-profiles.edit', $company) }}">Edit settings</a>
+    </div>
+
+    <dl class="mt-4 grid gap-4 text-sm md:grid-cols-3">
+        <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Country</dt>
+            <dd class="mt-1 font-semibold text-slate-900">{{ $company->displayCountry() }}</dd>
+        </div>
+        <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Timezone</dt>
+            <dd class="mt-1 font-semibold text-slate-900">{{ $company->displayTimezone() }}</dd>
+        </div>
+        <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Base currency</dt>
+            <dd class="mt-1 font-semibold text-slate-900">{{ $company->baseCurrency() }}</dd>
+        </div>
+        <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Date format</dt>
+            <dd class="mt-1 font-semibold text-slate-900">{{ now()->format($company->dateFormat()) }}</dd>
+        </div>
+        <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Number format</dt>
+            <dd class="mt-1 font-semibold text-slate-900">{{ $company->numberFormat() }}</dd>
+        </div>
+        <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Default tax</dt>
+            <dd class="mt-1 font-semibold text-slate-900">{{ $company->taxLabel() }} · {{ number_format($company->defaultTaxRate(), 2) }}%</dd>
+        </div>
+        <div class="md:col-span-3">
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Tax registration number</dt>
+            <dd class="mt-1 font-semibold text-slate-900">{{ $company->tax_registration_number ?: '-' }}</dd>
+        </div>
+    </dl>
+</section>
+
+<section class="panel mt-5">
+    <div>
+        <p class="text-xs font-bold uppercase tracking-wide text-[#0a4f93]">PDF document text</p>
+        <h2 class="text-lg font-bold tracking-tight text-slate-950">Payment instructions and footer</h2>
+    </div>
+
+    <dl class="mt-4 grid gap-4 text-sm md:grid-cols-2">
+        <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Payment instructions</dt>
+            <dd class="mt-1 whitespace-pre-line font-semibold text-slate-900">{{ $company->payment_instructions ?: '-' }}</dd>
+        </div>
+        <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">PDF footer</dt>
+            <dd class="mt-1 whitespace-pre-line font-semibold text-slate-900">{{ $company->pdf_footer ?: '-' }}</dd>
+        </div>
+    </dl>
+</section>
 @endsection

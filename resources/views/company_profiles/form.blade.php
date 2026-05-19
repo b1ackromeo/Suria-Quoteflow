@@ -11,7 +11,7 @@
         <div>
             <p class="text-xs font-bold uppercase tracking-wide text-[#0a4f93]">Company profile setup</p>
             <h1 class="mt-2 text-xl font-bold tracking-tight text-slate-950">Edit company profile</h1>
-            <p class="panel-subtitle">This company name, logo, and contact details appear in the app context, document previews, and generated PDF documents.</p>
+            <p class="panel-subtitle">This company name, logo, contact details, currency, tax, and document settings appear in the app context, document previews, and generated PDF documents.</p>
         </div>
 
         <div class="grid gap-4 lg:grid-cols-[1fr_18rem]">
@@ -56,6 +56,78 @@
                 </label>
                 <p class="mt-3 text-xs font-semibold leading-5 text-slate-500">Use a square PNG/JPG logo. Existing documents will immediately use this company profile.</p>
             </aside>
+        </div>
+    </section>
+
+    <section class="panel space-y-5">
+        <div>
+            <p class="text-xs font-bold uppercase tracking-wide text-[#0a4f93]">Global document settings</p>
+            <h2 class="panel-title">Country, currency, tax, and formats</h2>
+            <p class="panel-subtitle">These defaults help QuoteFlow support different countries and document standards without changing code.</p>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-3">
+            <label class="form-label">Country
+                <select class="form-input" name="country" required>
+                    @foreach($countries as $country)
+                        <option value="{{ $country }}" @selected(old('country', $company->displayCountry()) === $country)>{{ $country }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <label class="form-label">Timezone
+                <select class="form-input" name="timezone" required>
+                    @foreach($timezones as $timezone)
+                        <option value="{{ $timezone }}" @selected(old('timezone', $company->displayTimezone()) === $timezone)>{{ $timezone }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <label class="form-label">Base currency
+                <select class="form-input" name="base_currency" required>
+                    @foreach($currencies as $code => $label)
+                        <option value="{{ $code }}" @selected(old('base_currency', $company->baseCurrency()) === $code)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <label class="form-label">Date format
+                <select class="form-input" name="date_format" required>
+                    @foreach($dateFormats as $format => $label)
+                        <option value="{{ $format }}" @selected(old('date_format', $company->dateFormat()) === $format)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <label class="form-label">Number format
+                <select class="form-input" name="number_format" required>
+                    @foreach($numberFormats as $format => $label)
+                        <option value="{{ $format }}" @selected(old('number_format', $company->numberFormat()) === $format)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <label class="form-label">Default tax rate (%)
+                <input class="form-input" type="number" step="0.01" min="0" max="100" name="default_tax_rate" value="{{ old('default_tax_rate', $company->defaultTaxRate()) }}" required placeholder="0">
+            </label>
+            <label class="form-label">Tax label
+                <input class="form-input" name="tax_label" value="{{ old('tax_label', $company->taxLabel()) }}" required placeholder="Tax, SST, GST, VAT">
+            </label>
+            <label class="form-label md:col-span-2">Tax registration number
+                <input class="form-input" name="tax_registration_number" value="{{ old('tax_registration_number', $company->tax_registration_number) }}" placeholder="SST / GST / VAT registration number">
+            </label>
+        </div>
+    </section>
+
+    <section class="panel space-y-5">
+        <div>
+            <p class="text-xs font-bold uppercase tracking-wide text-[#0a4f93]">PDF document text</p>
+            <h2 class="panel-title">Payment instructions and footer</h2>
+            <p class="panel-subtitle">Use these fields for bank transfer instructions, remittance notes, legal footer text, or country-specific document notes.</p>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+            <label class="form-label">Payment instructions
+                <textarea class="form-input min-h-32" name="payment_instructions" placeholder="Bank name, account number, payment reference, remittance email">{{ old('payment_instructions', $company->payment_instructions) }}</textarea>
+            </label>
+            <label class="form-label">PDF footer
+                <textarea class="form-input min-h-32" name="pdf_footer" placeholder="Company legal footer, tax note, or document disclaimer">{{ old('pdf_footer', $company->pdf_footer) }}</textarea>
+            </label>
         </div>
     </section>
 
