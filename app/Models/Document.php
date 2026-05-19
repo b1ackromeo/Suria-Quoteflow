@@ -143,6 +143,14 @@ class Document extends Model
 
     protected static function booted(): void
     {
+        static::creating(function (self $document): void {
+            $legacyDefaultCurrency = CompanyProfile::defaults()['base_currency'];
+
+            if (! filled($document->currency) || strtoupper((string) $document->currency) === $legacyDefaultCurrency) {
+                $document->currency = CompanyProfile::active()->baseCurrency();
+            }
+        });
+
         static::updating(function (self $document): void {
             if (
                 $document->type === 'purchase_request'
