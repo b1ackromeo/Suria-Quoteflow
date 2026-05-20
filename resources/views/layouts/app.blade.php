@@ -137,5 +137,17 @@
     </main>
 @endauth
 
+@auth
+    <script>
+        window.QuoteFlowCompanyFormat = @json([
+            'baseCurrency' => $layoutCompanyProfile->baseCurrency(),
+            'numberFormat' => $layoutCompanyProfile->numberFormat(),
+            'dateFormat' => $layoutCompanyProfile->dateFormat(),
+            'taxLabel' => $layoutCompanyProfile->taxLabel(),
+            'defaultTaxRate' => $layoutCompanyProfile->defaultTaxRate(),
+        ]);
+    </script>
+    <script src="{{ asset('js/document-form-company-formatting.js') }}" defer></script>
+@endauth
 </body>
 </html>
