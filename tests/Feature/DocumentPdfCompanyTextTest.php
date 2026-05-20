@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Response;
 use Tests\TestCase;
 
 class DocumentPdfCompanyTextTest extends TestCase
@@ -17,6 +18,8 @@ class DocumentPdfCompanyTextTest extends TestCase
 
     public function test_pdf_route_sends_company_profile_document_text_to_pdf_renderer(): void
     {
+        $this->withoutExceptionHandling();
+
         CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
             'name' => 'Global QuoteFlow Pte Ltd',
             'country' => 'Singapore',
@@ -100,9 +103,9 @@ class DocumentPdfCompanyTextTest extends TestCase
                     return $this;
                 }
 
-                public function stream(string $filename)
+                public function stream(string $filename): Response
                 {
-                    return response('fake pdf body', 200, [
+                    return new Response('fake pdf body', 200, [
                         'content-type' => 'application/pdf',
                         'content-disposition' => 'inline; filename="'.$filename.'"',
                     ]);
