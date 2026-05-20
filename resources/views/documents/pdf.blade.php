@@ -630,7 +630,7 @@
                     <div class="details">
                         <table class="detail-row">
                             <tr><td class="label">Receipt No.</td><td class="value">{{ $document->document_number }}</td></tr>
-                            <tr><td class="label">{{ $receiptKind === 'service' ? 'Accepted Date' : 'Received Date' }}</td><td class="value">{{ optional($document->issue_date)->format('d M Y') }}</td></tr>
+                            <tr><td class="label">{{ $receiptKind === 'service' ? 'Accepted Date' : 'Received Date' }}</td><td class="value">{{ $companyProfile->formatDate($document->issue_date) }}</td></tr>
                             <tr><td class="label">Source PO</td><td class="value">{{ $document->relatedDocument?->document_number ?? '-' }}</td></tr>
                             <tr><td class="label">{{ $receiptKind === 'service' ? 'Service Report / UAT Ref.' : 'Delivery Order Ref.' }}</td><td class="value">{{ $document->external_reference ?: '-' }}</td></tr>
                         </table>
@@ -814,12 +814,12 @@
                         <table class="detail-row">
                             @if($isQuotation)
                                 <tr><td class="label">Quotation No.</td><td class="value">{{ $document->document_number }}</td></tr>
-                                <tr><td class="label">Quotation Date</td><td class="value">{{ optional($document->issue_date)->format('d M Y') }}</td></tr>
-                                <tr><td class="label">Valid Until</td><td class="value">{{ optional($document->due_date)->format('d M Y') ?: '-' }}</td></tr>
+                                <tr><td class="label">Quotation Date</td><td class="value">{{ $companyProfile->formatDate($document->issue_date) }}</td></tr>
+                                <tr><td class="label">Valid Until</td><td class="value">{{ $companyProfile->formatDate($document->due_date) }}</td></tr>
                                 <tr><td class="label">Customer Ref.</td><td class="value">{{ $document->external_reference ?: '-' }}</td></tr>
                             @elseif($isInvoice)
-                                <tr><td class="label">Invoice Date</td><td class="value">{{ optional($document->issue_date)->format('d M Y') }}</td></tr>
-                                <tr><td class="label">Due Date</td><td class="value">{{ optional($document->due_date)->format('d M Y') ?: '-' }}</td></tr>
+                                <tr><td class="label">Invoice Date</td><td class="value">{{ $companyProfile->formatDate($document->issue_date) }}</td></tr>
+                                <tr><td class="label">Due Date</td><td class="value">{{ $companyProfile->formatDate($document->due_date) }}</td></tr>
                                 <tr><td class="label">PO Ref.</td><td class="value">{{ $relatedRef ?: '-' }}</td></tr>
                                 @if($document->progress_invoice_number && $document->progress_invoice_total)
                                     <tr><td class="label">Progress Invoice</td><td class="value">No. {{ $document->progress_invoice_number }} of {{ $document->progress_invoice_total }}</td></tr>
@@ -830,12 +830,12 @@
                                 <tr><td class="label">Payment Term</td><td class="value">{{ $document->paymentTermsDisplay() }}</td></tr>
                             @elseif($isCustomerPo)
                                 <tr><td class="label">Customer PO No.</td><td class="value">{{ $document->document_number }}</td></tr>
-                                <tr><td class="label">Date Received</td><td class="value">{{ optional($document->issue_date)->format('d M Y') }}</td></tr>
-                                <tr><td class="label">Completion Target</td><td class="value">{{ optional($document->due_date)->format('d M Y') ?: '-' }}</td></tr>
+                                <tr><td class="label">Date Received</td><td class="value">{{ $companyProfile->formatDate($document->issue_date) }}</td></tr>
+                                <tr><td class="label">Completion Target</td><td class="value">{{ $companyProfile->formatDate($document->due_date) }}</td></tr>
                                 <tr><td class="label">PO Ref.</td><td class="value">{{ $document->external_reference ?: '-' }}</td></tr>
                             @else
                                 <tr><td class="label">Document No.</td><td class="value">{{ $document->document_number }}</td></tr>
-                                <tr><td class="label">Document Date</td><td class="value">{{ optional($document->issue_date)->format('d M Y') }}</td></tr>
+                                <tr><td class="label">Document Date</td><td class="value">{{ $companyProfile->formatDate($document->issue_date) }}</td></tr>
                                 <tr><td class="label">Reference</td><td class="value">{{ $document->external_reference ?: '-' }}</td></tr>
                             @endif
                         </table>
@@ -848,8 +848,8 @@
     <table class="info-strip">
         <tr>
             @if($isSupplierPo)
-                <td><span>PO Date</span><strong>{{ optional($document->issue_date)->format('d M Y') }}</strong></td>
-                <td><span>Delivery Date</span><strong>{{ optional($document->due_date)->format('d M Y') ?: '-' }}</strong></td>
+                <td><span>PO Date</span><strong>{{ $companyProfile->formatDate($document->issue_date) }}</strong></td>
+                <td><span>Delivery Date</span><strong>{{ $companyProfile->formatDate($document->due_date) }}</strong></td>
                 <td><span>Payment Terms</span><strong>{{ $document->paymentTermsDisplay() }}</strong></td>
                 <td><span>Supplier Ref.</span><strong>{{ $document->external_reference ?: ($document->relatedDocument?->document_number ?? '-') }}</strong></td>
             @else
@@ -886,8 +886,8 @@
                 <td><span class="desc">{{ $item->description }}</span></td>
                 <td class="right">{{ \App\Models\Document::formatQuantity($item->quantity) }}</td>
                 <td>{{ $item->unit }}</td>
-                <td class="right">{{ number_format($item->unit_price, 2) }}</td>
-                <td class="right">{{ number_format((float) $item->quantity * (float) $item->unit_price, 2) }}</td>
+                <td class="right">{{ $companyProfile->formatNumber($item->unit_price) }}</td>
+                <td class="right">{{ $companyProfile->formatNumber((float) $item->quantity * (float) $item->unit_price) }}</td>
             </tr>
         @endforeach
         </tbody>
@@ -909,16 +909,16 @@
                     <tr class="{{ $stage->is_current ? 'current' : '' }}">
                         @if($isInvoice)
                             <td>{{ $stage->stage_name }}</td>
-                            <td class="right">{{ number_format($stage->percentage, 0) }}%</td>
-                            <td class="right">{{ $document->currency }} {{ number_format($stage->amount, 2) }}</td>
-                            <td class="right">{{ $document->currency }} {{ number_format($stage->previously_invoiced, 2) }}</td>
-                            <td class="right">{{ $document->currency }} {{ number_format($stage->current_invoice, 2) }}</td>
-                            <td class="right">{{ $document->currency }} {{ number_format($stage->remaining_amount, 2) }}</td>
+                            <td class="right">{{ $companyProfile->formatPercent($stage->percentage, 0) }}</td>
+                            <td class="right">{{ $companyProfile->formatMoney($stage->amount, $document->currency) }}</td>
+                            <td class="right">{{ $companyProfile->formatMoney($stage->previously_invoiced, $document->currency) }}</td>
+                            <td class="right">{{ $companyProfile->formatMoney($stage->current_invoice, $document->currency) }}</td>
+                            <td class="right">{{ $companyProfile->formatMoney($stage->remaining_amount, $document->currency) }}</td>
                         @else
                             <td>{{ $stage->stage_name }}</td>
                             <td>{{ $stage->condition_label ?: '-' }}</td>
-                            <td class="right">{{ number_format($stage->percentage, 0) }}%</td>
-                            <td class="right">{{ $document->currency }} {{ number_format($stage->amount, 2) }}</td>
+                            <td class="right">{{ $companyProfile->formatPercent($stage->percentage, 0) }}</td>
+                            <td class="right">{{ $companyProfile->formatMoney($stage->amount, $document->currency) }}</td>
                             <td>{{ $stage->payment_term ?: '-' }}</td>
                         @endif
                     </tr>
@@ -938,7 +938,7 @@
                     </div>
                     <div class="amount-due">
                         <span>Balance Due</span>
-                        <strong>{{ $document->currency }} {{ number_format($document->balanceDue(), 2) }}</strong>
+                        <strong>{{ $companyProfile->formatMoney($document->balanceDue(), $document->currency) }}</strong>
                     </div>
                 @else
                     <div class="terms">
@@ -960,12 +960,12 @@
             <td class="col-gap"></td>
             <td style="width: 46%;">
                 <table class="totals">
-                    <tr><td>Subtotal</td><td class="right">{{ $document->currency }} {{ number_format($document->subtotal, 2) }}</td></tr>
-                    <tr><td>Tax</td><td class="right">{{ $document->currency }} {{ number_format($document->tax_total, 2) }}</td></tr>
-                    <tr class="grand"><td>{{ $isSupplierPo ? 'PO Total' : ($isInvoice ? 'Invoice Total' : 'Total') }}</td><td class="right">{{ $document->currency }} {{ number_format($document->total, 2) }}</td></tr>
+                    <tr><td>Subtotal</td><td class="right">{{ $companyProfile->formatMoney($document->subtotal, $document->currency) }}</td></tr>
+                    <tr><td>{{ $companyProfile->taxLabel() }}</td><td class="right">{{ $companyProfile->formatMoney($document->tax_total, $document->currency) }}</td></tr>
+                    <tr class="grand"><td>{{ $isSupplierPo ? 'PO Total' : ($isInvoice ? 'Invoice Total' : 'Total') }}</td><td class="right">{{ $companyProfile->formatMoney($document->total, $document->currency) }}</td></tr>
                     @if($isInvoice)
-                        <tr><td>Paid</td><td class="right">{{ $document->currency }} {{ number_format($document->paidAmount(), 2) }}</td></tr>
-                        <tr class="due"><td>Balance Due</td><td class="right">{{ $document->currency }} {{ number_format($document->balanceDue(), 2) }}</td></tr>
+                        <tr><td>Paid</td><td class="right">{{ $companyProfile->formatMoney($document->paidAmount(), $document->currency) }}</td></tr>
+                        <tr class="due"><td>Balance Due</td><td class="right">{{ $companyProfile->formatMoney($document->balanceDue(), $document->currency) }}</td></tr>
                     @endif
                 </table>
             </td>
@@ -1002,3 +1002,4 @@
 </div>
 </body>
 </html>
+
