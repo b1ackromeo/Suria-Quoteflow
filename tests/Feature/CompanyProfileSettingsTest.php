@@ -118,7 +118,8 @@ class CompanyProfileSettingsTest extends TestCase
         $response->assertSee('Asia/Singapore');
         $response->assertSee('SGD');
         $response->assertSee('GST Registration No.');
-        $response->assertSee('Tax ID / EIN');
+        $response->assertSee('Tax ID', false);
+        $response->assertSee('EIN', false);
         $response->assertSee('Sales tax');
     }
 
