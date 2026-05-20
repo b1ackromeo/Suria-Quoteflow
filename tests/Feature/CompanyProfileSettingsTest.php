@@ -35,6 +35,7 @@ class CompanyProfileSettingsTest extends TestCase
             'date_format' => 'Y-m-d',
             'number_format' => 'en-SG',
             'tax_label' => 'GST',
+            'tax_registration_label' => 'GST Registration No.',
             'tax_registration_number' => 'M90000000X',
             'default_tax_rate' => '9.00',
             'payment_instructions' => "Bank transfer only\nUse invoice number as payment reference",
@@ -51,6 +52,7 @@ class CompanyProfileSettingsTest extends TestCase
         $this->assertSame('Y-m-d', $company->dateFormat());
         $this->assertSame('en-SG', $company->numberFormat());
         $this->assertSame('GST', $company->taxLabel());
+        $this->assertSame('GST Registration No.', $company->taxRegistrationLabel());
         $this->assertSame(9.0, $company->defaultTaxRate());
         $this->assertSame([
             'Bank transfer only',
@@ -73,6 +75,7 @@ class CompanyProfileSettingsTest extends TestCase
             'date_format' => 'Y-m-d',
             'number_format' => 'en-SG',
             'tax_label' => 'GST',
+            'tax_registration_label' => 'GST Registration No.',
             'tax_registration_number' => 'M90000000X',
             'default_tax_rate' => 9,
             'payment_instructions' => 'Use invoice number as payment reference',
@@ -108,11 +111,14 @@ class CompanyProfileSettingsTest extends TestCase
         $response->assertOk();
         $response->assertSee('data-country-select', false);
         $response->assertSee('data-country-default-field="timezone"', false);
+        $response->assertSee('data-country-default-field="tax_registration_label"', false);
         $response->assertSee('Malaysia / English - 1,234.56');
         $response->assertSee('Singapore / English - 1,234.56');
         $response->assertSee('United States / English - 1,234.56');
         $response->assertSee('Asia/Singapore');
         $response->assertSee('SGD');
+        $response->assertSee('GST Registration No.');
+        $response->assertSee('Tax ID / EIN');
         $response->assertSee('Sales tax');
     }
 
