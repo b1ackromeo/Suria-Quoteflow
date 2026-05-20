@@ -86,10 +86,33 @@ class CompanyProfileSettingsTest extends TestCase
         $response->assertSee('Singapore');
         $response->assertSee('Asia/Singapore');
         $response->assertSee('SGD');
+        $response->assertSee('Singapore / English - 1,234.56');
         $response->assertSee('GST');
         $response->assertSee('9.00%');
         $response->assertSee('M90000000X');
         $response->assertSee('Use invoice number as payment reference');
         $response->assertSee('Singapore operations footer');
+    }
+
+    public function test_company_profile_edit_form_exposes_country_defaults_and_friendly_number_formats(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+
+        $company = CompanyProfile::create(CompanyProfile::defaults());
+
+        $response = $this->actingAs($admin)->get(route('company-profiles.edit', $company));
+
+        $response->assertOk();
+        $response->assertSee('data-country-select', false);
+        $response->assertSee('data-country-default-field="timezone"', false);
+        $response->assertSee('Malaysia / English - 1,234.56');
+        $response->assertSee('Singapore / English - 1,234.56');
+        $response->assertSee('United States / English - 1,234.56');
+        $response->assertSee('Asia/Singapore');
+        $response->assertSee('SGD');
+        $response->assertSee('Sales tax');
     }
 }
