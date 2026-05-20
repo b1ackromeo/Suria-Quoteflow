@@ -1,6 +1,7 @@
 @extends('layouts.app', ['title' => 'Search'])
 
 @php
+    $companyProfile = \App\Models\CompanyProfile::active();
     $totalResults = $documents->count() + $customers->count() + $suppliers->count() + $products->count();
     $canManageCustomers = auth()->user()->hasRole('admin', 'manager', 'sales');
     $canManageSuppliers = auth()->user()->hasRole('admin', 'manager', 'procurement');
@@ -69,11 +70,11 @@
                             </div>
                             <div>
                                 <dt class="document-row-meta">Issue date</dt>
-                                <dd class="mt-1 font-semibold text-slate-700">{{ optional($document->issue_date)->format('d M Y') ?? '-' }}</dd>
+                                <dd class="mt-1 font-semibold text-slate-700">{{ $document->issue_date ? $companyProfile->formatDate($document->issue_date) : '-' }}</dd>
                             </div>
                             <div>
                                 <dt class="document-row-meta">Total</dt>
-                                <dd class="mt-1 font-bold text-slate-950">{{ $document->currency }} {{ number_format($document->total, 2) }}</dd>
+                                <dd class="mt-1 font-bold text-slate-950">{{ $companyProfile->formatMoney($document->total, $document->currency) }}</dd>
                             </div>
                             @if($document->project_name)
                                 <div>
@@ -197,7 +198,7 @@
                                 <div class="min-w-0">
                                     <p class="truncate text-sm font-bold text-slate-950">{{ $product->name }}</p>
                                     <p class="mt-1 text-xs font-semibold text-slate-500">{{ $product->sku ?: 'No SKU' }} · {{ ucfirst($product->type) }} · {{ $product->unit }}</p>
-                                    <p class="mt-1 text-xs font-semibold text-slate-500">Sell: {{ number_format($product->selling_price, 2) }} · Cost: {{ number_format($product->cost_price, 2) }}</p>
+                                    <p class="mt-1 text-xs font-semibold text-slate-500">Sell: {{ $companyProfile->formatMoney($product->selling_price) }} · Cost: {{ $companyProfile->formatMoney($product->cost_price) }}</p>
                                 </div>
                                 @if($canManageProducts)
                                     <a class="btn btn-secondary min-h-9 px-3 py-1.5" href="{{ route('products.edit', $product) }}">Open</a>
