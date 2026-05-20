@@ -69,10 +69,14 @@
         }
 
         const previewTax = document.querySelector('[data-preview-tax]');
-        if (previewTax) {
-            const row = previewTax.closest('tr');
-            const labelCell = row?.querySelector('td:first-child');
-            if (labelCell) labelCell.textContent = taxLabel;
+        if (previewTax?.previousElementSibling) {
+            previewTax.previousElementSibling.textContent = taxLabel;
+        }
+
+        const row = previewTax?.closest('tr');
+        const labelCell = row?.querySelector('td:first-child');
+        if (labelCell) {
+            labelCell.textContent = taxLabel;
         }
     }
 
