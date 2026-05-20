@@ -50,14 +50,14 @@ class ExternalDocumentPreviewFormattingTest extends TestCase
             ]),
         ]));
 
-        $html = $this->actingAs($user)->view('documents.partials.external-document-preview', [
+        $view = $this->actingAs($user)->view('documents.partials.external-document-preview', [
             'document' => $document,
             'sourcePanelMode' => 'full',
-        ])->render();
+        ]);
 
-        $this->assertStringContainsString('2026-05-20', $html);
-        $this->assertStringContainsString('SGD 1,234.56', $html);
-        $this->assertStringNotContainsString('MYR 1,234.56', $html);
-        $this->assertStringNotContainsString('20 May 2026', $html);
+        $view->assertSee('2026-05-20');
+        $view->assertSee('SGD 1,234.56');
+        $view->assertDontSee('MYR 1,234.56');
+        $view->assertDontSee('20 May 2026');
     }
 }
