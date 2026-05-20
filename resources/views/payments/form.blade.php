@@ -3,6 +3,8 @@
 ])
 
 @php
+    $companyProfile = \App\Models\CompanyProfile::active();
+    $currency = $document->currency ?: $companyProfile->baseCurrency();
     $paymentTitle = $document->direction === 'outgoing'
         ? 'Record customer payment'
         : 'Record supplier payment';
@@ -13,7 +15,7 @@
     @csrf
     <div class="rounded-md bg-zinc-50 p-4 text-sm">
         <p class="font-semibold">{{ $document->document_number }} · {{ $document->partyName() }}</p>
-        <p class="mt-1 text-zinc-600">Total {{ $document->currency }} {{ number_format($document->total, 2) }} · Balance {{ $document->currency }} {{ number_format($document->balanceDue(), 2) }}</p>
+        <p class="mt-1 text-zinc-600">Total {{ $companyProfile->formatMoney($document->total, $currency) }} · Balance {{ $companyProfile->formatMoney($document->balanceDue(), $currency) }}</p>
     </div>
     <div class="grid gap-4 md:grid-cols-2">
         <label class="form-label">Payment date
