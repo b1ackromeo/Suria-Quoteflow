@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Product;
 use App\Models\User;
+use App\Support\CompanyPdfText;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -16,7 +17,7 @@ class DocumentPdfCompanyTextTest extends TestCase
 
     public function test_pdf_view_uses_company_profile_document_text(): void
     {
-        CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
+        $companyProfile = CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
             'name' => 'Global QuoteFlow Pte Ltd',
             'country' => 'Singapore',
             'timezone' => 'Asia/Singapore',
@@ -87,6 +88,8 @@ class DocumentPdfCompanyTextTest extends TestCase
             'document' => $invoice,
             'meta' => Document::metaForSlug(Document::slugForType($invoice->type)),
         ])->render();
+
+        $html = app(CompanyPdfText::class)->apply($html, $companyProfile, $invoice);
 
         $this->assertStringContainsString('GST Reg. No. REG-9000', $html);
         $this->assertStringContainsString('Custom instruction line one', $html);
