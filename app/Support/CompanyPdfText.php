@@ -25,7 +25,7 @@ class CompanyPdfText
             return $html;
         }
 
-        $taxRegistrationLine = e($companyProfile->taxLabel().' Reg. No. '.$companyProfile->tax_registration_number);
+        $taxRegistrationLine = e('Tax Registration No. '.$companyProfile->tax_registration_number);
 
         return (string) preg_replace(
             '/(<div class="company-meta">.*?)(<\/div>)/s',
