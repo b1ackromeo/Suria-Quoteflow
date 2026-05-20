@@ -145,8 +145,9 @@ class Document extends Model
     {
         static::creating(function (self $document): void {
             $legacyDefaultCurrency = CompanyProfile::defaults()['base_currency'];
+            $currency = $document->getAttributes()['currency'] ?? null;
 
-            if (! filled($document->currency) || strtoupper((string) $document->currency) === $legacyDefaultCurrency) {
+            if (! filled($currency) || strtoupper((string) $currency) === $legacyDefaultCurrency) {
                 $document->currency = CompanyProfile::active()->baseCurrency();
             }
         });
@@ -164,6 +165,17 @@ class Document extends Model
                 ]);
             }
         });
+    }
+
+    public function getCurrencyAttribute(mixed $value): mixed
+    {
+        $legacyDefaultCurrency = CompanyProfile::defaults()['base_currency'];
+
+        if (! $this->exists && (! filled($value) || strtoupper((string) $value) === $legacyDefaultCurrency)) {
+            return CompanyProfile::active()->baseCurrency();
+        }
+
+        return is_string($value) ? strtoupper($value) : $value;
     }
 
     public function customer(): BelongsTo
