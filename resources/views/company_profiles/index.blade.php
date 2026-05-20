@@ -101,7 +101,7 @@
         </div>
         <div>
             <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Number format</dt>
-            <dd class="mt-1 font-semibold text-slate-900">{{ $company->numberFormat() }}</dd>
+            <dd class="mt-1 font-semibold text-slate-900">{{ $numberFormats[$company->numberFormat()] ?? $company->numberFormat() }}</dd>
         </div>
         <div>
             <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Default tax</dt>
