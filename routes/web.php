@@ -7,6 +7,7 @@ use App\Http\Controllers\CompanyProfileController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\DocumentPdfController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
@@ -53,8 +54,8 @@ Route::middleware(['auth', 'role:admin,manager,sales,procurement,accounts,viewer
     Route::put('/attachment-extractions/{extraction}', [DocumentController::class, 'verifyExtraction'])->name('attachment-extractions.verify');
     Route::get('/attachments/{attachment}/preview', [DocumentController::class, 'previewAttachment'])->name('attachments.preview');
     Route::get('/attachments/{attachment}', [DocumentController::class, 'downloadAttachment'])->name('attachments.download');
-    Route::get('/document/{document}/pdf', [DocumentController::class, 'pdf'])->name('documents.pdf');
-    Route::get('/document/{document}/pdf/download', [DocumentController::class, 'downloadPdf'])->name('documents.pdf.download');
+    Route::get('/document/{document}/pdf', [DocumentPdfController::class, 'stream'])->name('documents.pdf');
+    Route::get('/document/{document}/pdf/download', [DocumentPdfController::class, 'download'])->name('documents.pdf.download');
 
     Route::get('/payments', [PaymentController::class, 'index'])->middleware('role:admin,manager,accounts')->name('payments.index');
     Route::get('/document/{document}/payments/create', [PaymentController::class, 'create'])->middleware('role:admin,manager,accounts')->name('payments.create');
