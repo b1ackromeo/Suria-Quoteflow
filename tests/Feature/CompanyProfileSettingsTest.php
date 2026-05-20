@@ -115,4 +115,20 @@ class CompanyProfileSettingsTest extends TestCase
         $response->assertSee('SGD');
         $response->assertSee('Sales tax');
     }
+
+    public function test_company_profile_formats_dates_numbers_money_and_percentages(): void
+    {
+        $company = new CompanyProfile(array_merge(CompanyProfile::defaults(), [
+            'base_currency' => 'EUR',
+            'date_format' => 'Y-m-d',
+            'number_format' => 'de-DE',
+        ]));
+
+        $this->assertSame('2026-05-20', $company->formatDate('2026-05-20'));
+        $this->assertSame('-', $company->formatDate(null));
+        $this->assertSame('1.234,56', $company->formatNumber(1234.56));
+        $this->assertSame('EUR 1.234,56', $company->formatMoney(1234.56));
+        $this->assertSame('USD 1.234,56', $company->formatMoney(1234.56, 'USD'));
+        $this->assertSame('9,00%', $company->formatPercent(9));
+    }
 }
