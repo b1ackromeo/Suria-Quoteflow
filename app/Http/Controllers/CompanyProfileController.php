@@ -16,6 +16,7 @@ class CompanyProfileController extends Controller
     {
         return view('company_profiles.index', [
             'company' => $this->companyIdentity(),
+            'numberFormats' => $this->numberFormats(),
         ]);
     }
 
@@ -180,12 +181,12 @@ class CompanyProfileController extends Controller
     private function numberFormats(): array
     {
         return [
-            'en-MY' => '1,234.56',
-            'en-SG' => '1,234.56',
-            'en-US' => '1,234.56',
-            'en-GB' => '1,234.56',
-            'de-DE' => '1.234,56',
-            'fr-FR' => '1 234,56',
+            'en-MY' => 'Malaysia / English - 1,234.56',
+            'en-SG' => 'Singapore / English - 1,234.56',
+            'en-US' => 'United States / English - 1,234.56',
+            'en-GB' => 'United Kingdom / English - 1,234.56',
+            'de-DE' => 'Germany / German - 1.234,56',
+            'fr-FR' => 'France / French - 1 234,56',
         ];
     }
 }
