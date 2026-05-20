@@ -146,13 +146,14 @@ class ReportController extends Controller
             $handle = fopen('php://output', 'w');
 
             if ($report === 'payments') {
-                fputcsv($handle, ['Date', 'Payment Type', 'Document', 'Amount', 'Method', 'Reference']);
+                fputcsv($handle, ['Date', 'Payment Type', 'Document', 'Currency', 'Amount', 'Method', 'Reference']);
                 Payment::with('document')->orderBy('payment_date')->chunk(200, function ($payments) use ($handle) {
                     foreach ($payments as $payment) {
                         fputcsv($handle, [
                             optional($payment->payment_date)->format('Y-m-d'),
                             $payment->typeDisplay(),
                             $payment->document?->document_number,
+                            $payment->document?->currency,
                             $payment->amount,
                             $payment->method,
                             $payment->reference,
@@ -165,7 +166,7 @@ class ReportController extends Controller
             }
 
             $type = $report === 'receivables' ? 'customer_invoice' : 'supplier_invoice';
-            fputcsv($handle, ['Document', 'Party', 'Issue Date', 'Due Date', 'Status', 'Total', 'Paid', 'Balance']);
+            fputcsv($handle, ['Document', 'Party', 'Issue Date', 'Due Date', 'Status', 'Currency', 'Total', 'Paid', 'Balance']);
             Document::with(['customer', 'supplier'])
                 ->withSum('payments as paid_total', 'amount')
                 ->where('type', $type)
@@ -180,6 +181,7 @@ class ReportController extends Controller
                             optional($document->issue_date)->format('Y-m-d'),
                             optional($document->due_date)->format('Y-m-d'),
                             $document->status,
+                            $document->currency,
                             $document->total,
                             $paidTotal,
                             max(0, (float) $document->total - $paidTotal),
@@ -338,6 +340,6 @@ class ReportController extends Controller
             return 0;
         }
 
-        return (int) min(100, max(4, round(($value / $largest) * 100)));
+        return (int) min(100, max(4, round(($value / $largest) * 100));
     }
 }
