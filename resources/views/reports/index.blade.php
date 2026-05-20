@@ -1,7 +1,8 @@
 @extends('layouts.app', ['title' => 'Finance reports', 'contentMode' => 'dashboard'])
 
 @php
-    $money = fn ($value) => 'RM '.number_format((float) $value, 2);
+    $companyProfile = \App\Models\CompanyProfile::active();
+    $money = fn ($value, ?string $currency = null) => $companyProfile->formatMoney($value, $currency);
     $balanceDue = fn ($document) => max(0, (float) $document->total - (float) ($document->paid_total ?? 0));
     $movementLabel = function (float $current, float $previous): string {
         if ($previous <= 0 && $current <= 0) {
@@ -225,7 +226,7 @@
                                 <strong>{{ $document->document_number }}</strong>
                                 <em>{{ $document->partyName() }}</em>
                             </span>
-                            <b>{{ $document->currency }} {{ number_format($balanceDue($document), 2) }}</b>
+                            <b>{{ $money($balanceDue($document), $document->currency) }}</b>
                         </a>
                     @empty
                         <p class="reports-empty">No open receivables.</p>
@@ -251,7 +252,7 @@
                                 <strong>{{ $document->document_number }}</strong>
                                 <em>{{ $document->partyName() }}</em>
                             </span>
-                            <b>{{ $document->currency }} {{ number_format($balanceDue($document), 2) }}</b>
+                            <b>{{ $money($balanceDue($document), $document->currency) }}</b>
                         </a>
                     @empty
                         <p class="reports-empty">No open payables.</p>
