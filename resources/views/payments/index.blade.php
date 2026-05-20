@@ -1,5 +1,9 @@
 @extends('layouts.app', ['title' => 'Payments'])
 
+@php
+    $companyProfile = \App\Models\CompanyProfile::active();
+@endphp
+
 @section('content')
 <section class="panel">
     <div class="table-wrap">
@@ -9,13 +13,16 @@
             </thead>
             <tbody>
             @forelse($payments as $payment)
+                @php
+                    $currency = $payment->document?->currency ?: $companyProfile->baseCurrency();
+                @endphp
                 <tr>
-                    <td>{{ optional($payment->payment_date)->format('Y-m-d') }}</td>
+                    <td>{{ $companyProfile->formatDate($payment->payment_date) }}</td>
                     <td><a class="link" href="{{ route('documents.show', $payment->document) }}">{{ $payment->document?->document_number }}</a></td>
                     <td>{{ $payment->document?->partyName() }}</td>
                     <td>{{ $payment->typeDisplay() }}</td>
                     <td>{{ $payment->reference }}</td>
-                    <td class="text-right">{{ number_format($payment->amount, 2) }}</td>
+                    <td class="text-right">{{ $companyProfile->formatMoney($payment->amount, $currency) }}</td>
                 </tr>
             @empty
                 <tr><td colspan="6" class="empty-cell">No payments recorded.</td></tr>
