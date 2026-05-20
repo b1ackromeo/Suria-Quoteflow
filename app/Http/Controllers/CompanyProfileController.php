@@ -39,6 +39,7 @@ class CompanyProfileController extends Controller
             'currencies' => $this->currencies(),
             'dateFormats' => $this->dateFormats(),
             'numberFormats' => $this->numberFormats(),
+            'countryDefaults' => $this->countryDefaults(),
         ]);
     }
 
@@ -126,19 +127,108 @@ class CompanyProfileController extends Controller
 
     private function countries(): array
     {
+        return array_keys($this->countryDefaults());
+    }
+
+    private function countryDefaults(): array
+    {
         return [
-            'Malaysia',
-            'Singapore',
-            'Indonesia',
-            'Thailand',
-            'Philippines',
-            'Vietnam',
-            'Brunei',
-            'Australia',
-            'New Zealand',
-            'United Kingdom',
-            'United States',
-            'Other',
+            'Malaysia' => [
+                'timezone' => 'Asia/Kuala_Lumpur',
+                'base_currency' => 'MYR',
+                'date_format' => 'd M Y',
+                'number_format' => 'en-MY',
+                'tax_label' => 'Tax',
+                'default_tax_rate' => '0',
+            ],
+            'Singapore' => [
+                'timezone' => 'Asia/Singapore',
+                'base_currency' => 'SGD',
+                'date_format' => 'd M Y',
+                'number_format' => 'en-SG',
+                'tax_label' => 'GST',
+                'default_tax_rate' => '0',
+            ],
+            'Indonesia' => [
+                'timezone' => 'Asia/Jakarta',
+                'base_currency' => 'IDR',
+                'date_format' => 'd/m/Y',
+                'number_format' => 'en-MY',
+                'tax_label' => 'Tax',
+                'default_tax_rate' => '0',
+            ],
+            'Thailand' => [
+                'timezone' => 'Asia/Bangkok',
+                'base_currency' => 'THB',
+                'date_format' => 'd/m/Y',
+                'number_format' => 'en-MY',
+                'tax_label' => 'VAT',
+                'default_tax_rate' => '0',
+            ],
+            'Philippines' => [
+                'timezone' => 'Asia/Manila',
+                'base_currency' => 'PHP',
+                'date_format' => 'd/m/Y',
+                'number_format' => 'en-US',
+                'tax_label' => 'VAT',
+                'default_tax_rate' => '0',
+            ],
+            'Vietnam' => [
+                'timezone' => 'Asia/Ho_Chi_Minh',
+                'base_currency' => 'VND',
+                'date_format' => 'd/m/Y',
+                'number_format' => 'en-MY',
+                'tax_label' => 'VAT',
+                'default_tax_rate' => '0',
+            ],
+            'Brunei' => [
+                'timezone' => 'Asia/Brunei',
+                'base_currency' => 'BND',
+                'date_format' => 'd M Y',
+                'number_format' => 'en-GB',
+                'tax_label' => 'Tax',
+                'default_tax_rate' => '0',
+            ],
+            'Australia' => [
+                'timezone' => 'Australia/Sydney',
+                'base_currency' => 'AUD',
+                'date_format' => 'd/m/Y',
+                'number_format' => 'en-GB',
+                'tax_label' => 'GST',
+                'default_tax_rate' => '0',
+            ],
+            'New Zealand' => [
+                'timezone' => 'Pacific/Auckland',
+                'base_currency' => 'NZD',
+                'date_format' => 'd/m/Y',
+                'number_format' => 'en-GB',
+                'tax_label' => 'GST',
+                'default_tax_rate' => '0',
+            ],
+            'United Kingdom' => [
+                'timezone' => 'Europe/London',
+                'base_currency' => 'GBP',
+                'date_format' => 'd/m/Y',
+                'number_format' => 'en-GB',
+                'tax_label' => 'VAT',
+                'default_tax_rate' => '0',
+            ],
+            'United States' => [
+                'timezone' => 'America/New_York',
+                'base_currency' => 'USD',
+                'date_format' => 'm/d/Y',
+                'number_format' => 'en-US',
+                'tax_label' => 'Sales tax',
+                'default_tax_rate' => '0',
+            ],
+            'Other' => [
+                'timezone' => CompanyProfile::defaults()['timezone'],
+                'base_currency' => CompanyProfile::defaults()['base_currency'],
+                'date_format' => CompanyProfile::defaults()['date_format'],
+                'number_format' => CompanyProfile::defaults()['number_format'],
+                'tax_label' => CompanyProfile::defaults()['tax_label'],
+                'default_tax_rate' => (string) CompanyProfile::defaults()['default_tax_rate'],
+            ],
         ];
     }
 
