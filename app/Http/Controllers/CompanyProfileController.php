@@ -90,6 +90,7 @@ class CompanyProfileController extends Controller
             'date_format' => ['required', Rule::in(array_keys($this->dateFormats()))],
             'number_format' => ['required', Rule::in(array_keys($this->numberFormats()))],
             'tax_label' => ['required', 'string', 'max:80'],
+            'tax_registration_label' => ['required', 'string', 'max:120'],
             'tax_registration_number' => ['nullable', 'string', 'max:120'],
             'default_tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'payment_instructions' => ['nullable', 'string', 'max:5000'],
@@ -102,7 +103,7 @@ class CompanyProfileController extends Controller
     {
         $defaults = CompanyProfile::defaults();
 
-        foreach (['country', 'timezone', 'base_currency', 'date_format', 'number_format', 'tax_label', 'default_tax_rate'] as $field) {
+        foreach (['country', 'timezone', 'base_currency', 'date_format', 'number_format', 'tax_label', 'tax_registration_label', 'default_tax_rate'] as $field) {
             if (! $request->has($field)) {
                 $request->merge([$field => $defaults[$field]]);
             }
@@ -139,6 +140,7 @@ class CompanyProfileController extends Controller
                 'date_format' => 'd M Y',
                 'number_format' => 'en-MY',
                 'tax_label' => 'Tax',
+                'tax_registration_label' => 'Tax Registration No.',
                 'default_tax_rate' => '0',
             ],
             'Singapore' => [
@@ -147,6 +149,7 @@ class CompanyProfileController extends Controller
                 'date_format' => 'd M Y',
                 'number_format' => 'en-SG',
                 'tax_label' => 'GST',
+                'tax_registration_label' => 'GST Registration No.',
                 'default_tax_rate' => '0',
             ],
             'Indonesia' => [
@@ -155,6 +158,7 @@ class CompanyProfileController extends Controller
                 'date_format' => 'd/m/Y',
                 'number_format' => 'en-MY',
                 'tax_label' => 'Tax',
+                'tax_registration_label' => 'Tax Registration No.',
                 'default_tax_rate' => '0',
             ],
             'Thailand' => [
@@ -163,6 +167,7 @@ class CompanyProfileController extends Controller
                 'date_format' => 'd/m/Y',
                 'number_format' => 'en-MY',
                 'tax_label' => 'VAT',
+                'tax_registration_label' => 'VAT Registration No.',
                 'default_tax_rate' => '0',
             ],
             'Philippines' => [
@@ -171,6 +176,7 @@ class CompanyProfileController extends Controller
                 'date_format' => 'd/m/Y',
                 'number_format' => 'en-US',
                 'tax_label' => 'VAT',
+                'tax_registration_label' => 'VAT Registration No.',
                 'default_tax_rate' => '0',
             ],
             'Vietnam' => [
@@ -179,6 +185,7 @@ class CompanyProfileController extends Controller
                 'date_format' => 'd/m/Y',
                 'number_format' => 'en-MY',
                 'tax_label' => 'VAT',
+                'tax_registration_label' => 'VAT Registration No.',
                 'default_tax_rate' => '0',
             ],
             'Brunei' => [
@@ -187,6 +194,7 @@ class CompanyProfileController extends Controller
                 'date_format' => 'd M Y',
                 'number_format' => 'en-GB',
                 'tax_label' => 'Tax',
+                'tax_registration_label' => 'Tax Registration No.',
                 'default_tax_rate' => '0',
             ],
             'Australia' => [
@@ -195,6 +203,7 @@ class CompanyProfileController extends Controller
                 'date_format' => 'd/m/Y',
                 'number_format' => 'en-GB',
                 'tax_label' => 'GST',
+                'tax_registration_label' => 'GST Registration No.',
                 'default_tax_rate' => '0',
             ],
             'New Zealand' => [
@@ -203,6 +212,7 @@ class CompanyProfileController extends Controller
                 'date_format' => 'd/m/Y',
                 'number_format' => 'en-GB',
                 'tax_label' => 'GST',
+                'tax_registration_label' => 'GST Registration No.',
                 'default_tax_rate' => '0',
             ],
             'United Kingdom' => [
@@ -211,6 +221,7 @@ class CompanyProfileController extends Controller
                 'date_format' => 'd/m/Y',
                 'number_format' => 'en-GB',
                 'tax_label' => 'VAT',
+                'tax_registration_label' => 'VAT Registration No.',
                 'default_tax_rate' => '0',
             ],
             'United States' => [
@@ -219,6 +230,7 @@ class CompanyProfileController extends Controller
                 'date_format' => 'm/d/Y',
                 'number_format' => 'en-US',
                 'tax_label' => 'Sales tax',
+                'tax_registration_label' => 'Tax ID / EIN',
                 'default_tax_rate' => '0',
             ],
             'Other' => [
@@ -227,6 +239,7 @@ class CompanyProfileController extends Controller
                 'date_format' => CompanyProfile::defaults()['date_format'],
                 'number_format' => CompanyProfile::defaults()['number_format'],
                 'tax_label' => CompanyProfile::defaults()['tax_label'],
+                'tax_registration_label' => CompanyProfile::defaults()['tax_registration_label'],
                 'default_tax_rate' => (string) CompanyProfile::defaults()['default_tax_rate'],
             ],
         ];

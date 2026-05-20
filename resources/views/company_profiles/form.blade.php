@@ -109,7 +109,11 @@
             <label class="form-label">Tax label
                 <input class="form-input" name="tax_label" value="{{ old('tax_label', $company->taxLabel()) }}" required placeholder="Tax, SST, GST, VAT" data-country-default-field="tax_label">
             </label>
-            <label class="form-label md:col-span-2">Tax registration number
+            <label class="form-label">Tax registration label
+                <input class="form-input" name="tax_registration_label" value="{{ old('tax_registration_label', $company->taxRegistrationLabel()) }}" required placeholder="Tax Registration No." data-country-default-field="tax_registration_label">
+                <span class="mt-1 text-xs font-semibold text-slate-400">Shown before the tax registration number on PDFs.</span>
+            </label>
+            <label class="form-label">Tax registration number
                 <input class="form-input" name="tax_registration_number" value="{{ old('tax_registration_number', $company->tax_registration_number) }}" placeholder="SST / GST / VAT registration number">
             </label>
         </div>

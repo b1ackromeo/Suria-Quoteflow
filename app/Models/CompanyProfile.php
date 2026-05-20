@@ -23,6 +23,7 @@ class CompanyProfile extends Model
         'date_format',
         'number_format',
         'tax_label',
+        'tax_registration_label',
         'tax_registration_number',
         'default_tax_rate',
         'payment_instructions',
@@ -59,6 +60,7 @@ class CompanyProfile extends Model
             'date_format' => 'd M Y',
             'number_format' => 'en-MY',
             'tax_label' => 'Tax',
+            'tax_registration_label' => 'Tax Registration No.',
             'tax_registration_number' => null,
             'default_tax_rate' => 0,
             'payment_instructions' => null,
@@ -127,6 +129,11 @@ class CompanyProfile extends Model
     public function taxLabel(): string
     {
         return $this->tax_label ?: static::defaults()['tax_label'];
+    }
+
+    public function taxRegistrationLabel(): string
+    {
+        return $this->tax_registration_label ?: static::defaults()['tax_registration_label'];
     }
 
     public function defaultTaxRate(): float

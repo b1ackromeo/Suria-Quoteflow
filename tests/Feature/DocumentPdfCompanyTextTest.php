@@ -30,6 +30,7 @@ class DocumentPdfCompanyTextTest extends TestCase
             'date_format' => 'Y-m-d',
             'number_format' => 'en-SG',
             'tax_label' => 'GST',
+            'tax_registration_label' => 'GST Registration No.',
             'tax_registration_number' => 'REG-9000',
             'default_tax_rate' => 9,
             'payment_instructions' => "Custom instruction line one\nCustom instruction line two",
@@ -103,8 +104,8 @@ class DocumentPdfCompanyTextTest extends TestCase
         Pdf::shouldReceive('loadHTML')
             ->once()
             ->withArgs(function (string $html): bool {
-                $this->assertStringContainsString('Tax Registration No. REG-9000', $html);
-                $this->assertStringNotContainsString('GST Reg. No. REG-9000', $html);
+                $this->assertStringContainsString('GST Registration No. REG-9000', $html);
+                $this->assertStringNotContainsString('Tax Registration No. REG-9000', $html);
                 $this->assertStringContainsString('Custom instruction line one', $html);
                 $this->assertStringContainsString('Custom instruction line two', $html);
                 $this->assertStringContainsString('Payment Reference:</strong> INV-PDF-001', $html);
