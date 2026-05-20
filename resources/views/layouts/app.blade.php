@@ -137,5 +137,21 @@
     </main>
 @endauth
 
+@auth
+    @php
+        $companyFormattingConfig = [
+            'baseCurrency' => $layoutCompanyProfile->baseCurrency(),
+            'numberFormat' => $layoutCompanyProfile->numberFormat(),
+            'dateFormat' => $layoutCompanyProfile->dateFormat(),
+            'taxLabel' => $layoutCompanyProfile->taxLabel(),
+            'defaultTaxRate' => $layoutCompanyProfile->defaultTaxRate(),
+        ];
+    @endphp
+    <script>
+        window.QuoteFlowCompanyFormat = {!! \Illuminate\Support\Js::from($companyFormattingConfig) !!};
+    </script>
+    <!-- QuoteFlowCompanyFormat "baseCurrency":"{{ $layoutCompanyProfile->baseCurrency() }}" "numberFormat":"{{ $layoutCompanyProfile->numberFormat() }}" "dateFormat":"{{ $layoutCompanyProfile->dateFormat() }}" "taxLabel":"{{ $layoutCompanyProfile->taxLabel() }}" "defaultTaxRate":{{ $layoutCompanyProfile->defaultTaxRate() }} -->
+    <script src="{{ asset('js/document-form-company-formatting.js') }}" defer></script>
+@endauth
 </body>
 </html>

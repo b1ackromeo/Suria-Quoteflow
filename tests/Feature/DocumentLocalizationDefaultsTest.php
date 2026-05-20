@@ -138,6 +138,33 @@ class DocumentLocalizationDefaultsTest extends TestCase
         $response->assertDontSee('value="MYR"', false);
     }
 
+    public function test_document_form_loads_company_live_preview_formatting_config(): void
+    {
+        CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
+            'base_currency' => 'SGD',
+            'number_format' => 'en-SG',
+            'date_format' => 'Y-m-d',
+            'tax_label' => 'GST',
+            'default_tax_rate' => 9,
+        ]));
+
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('documents.create', 'customer-quotations'));
+
+        $response->assertOk();
+        $response->assertSee('window.QuoteFlowCompanyFormat', false);
+        $response->assertSee('"baseCurrency":"SGD"', false);
+        $response->assertSee('"numberFormat":"en-SG"', false);
+        $response->assertSee('"dateFormat":"Y-m-d"', false);
+        $response->assertSee('"taxLabel":"GST"', false);
+        $response->assertSee('"defaultTaxRate":9', false);
+        $response->assertSee('js/document-form-company-formatting.js', false);
+    }
+
     public function test_dashboard_uses_company_money_formatting(): void
     {
         CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
