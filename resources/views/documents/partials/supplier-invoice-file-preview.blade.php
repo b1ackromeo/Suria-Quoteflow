@@ -4,7 +4,8 @@
     $previewableAttachments = $attachments->filter(fn ($attachment) => $attachment->isPreviewable())->values();
     $invoiceAttachment = $attachments->firstWhere('category', 'invoice_copy') ?? $previewableAttachments->first();
     $extraction = $invoiceAttachment?->extraction;
-    $currency = strtoupper($document->currency ?: 'MYR');
+    $companyProfile = \App\Models\CompanyProfile::active();
+    $currency = strtoupper($document->currency ?: $companyProfile->baseCurrency());
     $canVerifyExtraction = in_array(auth()->user()?->role, ['admin', 'manager', 'procurement', 'accounts'], true);
     $extractedFields = $extraction?->extracted_fields ?? [];
     $verifiedFields = $extraction?->verified_fields ?? [];
@@ -21,7 +22,7 @@
         'invoice_date' => 'Invoice date',
         'po_number' => 'PO / reference no.',
         'subtotal' => 'Subtotal',
-        'tax_total' => 'Tax amount',
+        'tax_total' => $companyProfile->taxLabel().' amount',
         'total' => 'Invoice total',
         'payment_terms' => 'Payment terms',
     ];
@@ -31,11 +32,11 @@
     $manualFields = [
         'supplier_name' => $document->supplier?->name,
         'invoice_number' => $document->external_reference,
-        'invoice_date' => optional($document->issue_date)->format('Y-m-d'),
+        'invoice_date' => $companyProfile->formatDate($document->issue_date),
         'po_number' => $document->relatedDocument?->document_number,
-        'subtotal' => number_format((float) $document->subtotal, 2, '.', ''),
-        'tax_total' => number_format((float) $document->tax_total, 2, '.', ''),
-        'total' => number_format((float) $document->total, 2, '.', ''),
+        'subtotal' => $companyProfile->formatNumber($document->subtotal),
+        'tax_total' => $companyProfile->formatNumber($document->tax_total),
+        'total' => $companyProfile->formatNumber($document->total),
         'payment_terms' => $document->paymentTermsDisplay(),
     ];
 @endphp
@@ -45,7 +46,7 @@
         <div class="supplier-invoice-preview-strip">
             <div class="min-w-0">
                 <strong>{{ $document->document_number }}</strong>
-                <span>{{ $document->supplier?->name ?? 'Supplier not selected' }} · {{ $document->external_reference ?: 'No supplier invoice no.' }} · {{ optional($document->issue_date)->format('d M Y') ?? 'No date' }} · {{ $currency }} {{ number_format((float) $document->total, 2) }}@if($invoiceAttachment) · {{ $invoiceAttachment->original_name }}@endif</span>
+                <span>{{ $document->supplier?->name ?? 'Supplier not selected' }} · {{ $document->external_reference ?: 'No supplier invoice no.' }} · {{ $companyProfile->formatDate($document->issue_date) }} · {{ $companyProfile->formatMoney($document->total, $currency) }}@if($invoiceAttachment) · {{ $invoiceAttachment->original_name }}@endif</span>
             </div>
             <span class="status-chip status-{{ $document->status }}">{{ $document->statusDisplay() }}</span>
         </div>
@@ -70,11 +71,11 @@
             </div>
             <div>
                 <span>Invoice date</span>
-                <strong>{{ optional($document->issue_date)->format('d M Y') ?? '-' }}</strong>
+                <strong>{{ $companyProfile->formatDate($document->issue_date) }}</strong>
             </div>
             <div>
                 <span>Recorded total</span>
-                <strong>{{ $currency }} {{ number_format((float) $document->total, 2) }}</strong>
+                <strong>{{ $companyProfile->formatMoney($document->total, $currency) }}</strong>
             </div>
         </div>
     @endif
@@ -137,7 +138,7 @@
                     <h4>Supplier invoice details</h4>
                 </div>
                 @if($extraction?->verified_at)
-                    <span>{{ $verificationMethodLabel }} · {{ $extraction->verified_at->format('d M Y, g:i A') }}</span>
+                    <span>{{ $verificationMethodLabel }} · {{ $extraction->verified_at->format($companyProfile->dateFormat()) }}, {{ $extraction->verified_at->format('g:i A') }}</span>
                 @endif
             </div>
 
@@ -274,7 +275,7 @@
             </div>
             <div>
                 <dt>Balance</dt>
-                <dd>{{ $currency }} {{ number_format($document->balanceDue(), 2) }}</dd>
+                <dd>{{ $companyProfile->formatMoney($document->balanceDue(), $currency) }}</dd>
             </div>
         </dl>
     </section>
