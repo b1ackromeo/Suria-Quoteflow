@@ -4,8 +4,10 @@
 ])
 
 @php
+    $companyProfile = \App\Models\CompanyProfile::active();
     $isEditing = $product->exists;
     $selectedType = old('type', $product->type ?? 'product');
+    $previewPrice = (float) old('selling_price', $product->selling_price);
 @endphp
 
 @section('content')
@@ -133,7 +135,7 @@
                     <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
                         <div class="rounded-lg bg-slate-50 p-3">
                             <dt class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Default document price</dt>
-                            <dd class="mt-1 font-bold text-slate-950" data-preview-sell>{{ number_format((float) old('selling_price', $product->selling_price), 2) }}</dd>
+                            <dd class="mt-1 font-bold text-slate-950" data-preview-sell>{{ $companyProfile->formatMoney($previewPrice) }}</dd>
                         </div>
                         <div class="rounded-lg bg-slate-50 p-3">
                             <dt class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Unit</dt>
@@ -151,15 +153,18 @@
     const form = document.querySelector('[data-product-form]');
     if (!form) return;
 
+    const moneyFormatter = new Intl.NumberFormat(@json($companyProfile->numberFormat()), {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+    const baseCurrency = @json($companyProfile->baseCurrency());
+
     const text = (selector, fallback = '') => {
         const value = form.querySelector(selector)?.value?.trim();
         return value || fallback;
     };
 
-    const money = (value) => Number(value || 0).toLocaleString('en-MY', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    });
+    const money = (value) => `${baseCurrency} ${moneyFormatter.format(Number(value || 0))}`;
 
     function set(selector, value) {
         const target = form.querySelector(selector);
