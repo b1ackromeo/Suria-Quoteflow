@@ -147,6 +147,45 @@ class CompanyProfile extends Model
             ->all();
     }
 
+    public function formatDate(mixed $date): string
+    {
+        if (! $date) {
+            return '-';
+        }
+
+        if (is_string($date)) {
+            $date = \Carbon\Carbon::parse($date);
+        }
+
+        return $date->format($this->dateFormat());
+    }
+
+    public function formatNumber(mixed $value, int $decimals = 2): string
+    {
+        [$decimalSeparator, $thousandSeparator] = $this->numberSeparators();
+
+        return number_format((float) $value, $decimals, $decimalSeparator, $thousandSeparator);
+    }
+
+    public function formatMoney(mixed $value, ?string $currency = null): string
+    {
+        return trim(($currency ?: $this->baseCurrency()).' '.$this->formatNumber($value));
+    }
+
+    public function formatPercent(mixed $value, int $decimals = 2): string
+    {
+        return $this->formatNumber($value, $decimals).'%';
+    }
+
+    private function numberSeparators(): array
+    {
+        return match ($this->numberFormat()) {
+            'de-DE' => [',', '.'],
+            'fr-FR' => [',', ' '],
+            default => ['.', ','],
+        };
+    }
+
     private function shouldUseDefaultLogo(): bool
     {
         return $this->displayName() === static::defaults()['name'];
