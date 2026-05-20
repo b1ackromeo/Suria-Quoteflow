@@ -68,45 +68,46 @@
 
         <div class="grid gap-4 md:grid-cols-3">
             <label class="form-label">Country
-                <select class="form-input" name="country" required>
+                <select class="form-input" name="country" required data-country-select>
                     @foreach($countries as $country)
                         <option value="{{ $country }}" @selected(old('country', $company->displayCountry()) === $country)>{{ $country }}</option>
                     @endforeach
                 </select>
+                <span class="mt-1 text-xs font-semibold text-slate-400">Changing country updates the default settings below.</span>
             </label>
             <label class="form-label">Timezone
-                <select class="form-input" name="timezone" required>
+                <select class="form-input" name="timezone" required data-country-default-field="timezone">
                     @foreach($timezones as $timezone)
                         <option value="{{ $timezone }}" @selected(old('timezone', $company->displayTimezone()) === $timezone)>{{ $timezone }}</option>
                     @endforeach
                 </select>
             </label>
             <label class="form-label">Base currency
-                <select class="form-input" name="base_currency" required>
+                <select class="form-input" name="base_currency" required data-country-default-field="base_currency">
                     @foreach($currencies as $code => $label)
                         <option value="{{ $code }}" @selected(old('base_currency', $company->baseCurrency()) === $code)>{{ $label }}</option>
                     @endforeach
                 </select>
             </label>
             <label class="form-label">Date format
-                <select class="form-input" name="date_format" required>
+                <select class="form-input" name="date_format" required data-country-default-field="date_format">
                     @foreach($dateFormats as $format => $label)
                         <option value="{{ $format }}" @selected(old('date_format', $company->dateFormat()) === $format)>{{ $label }}</option>
                     @endforeach
                 </select>
             </label>
             <label class="form-label">Number format
-                <select class="form-input" name="number_format" required>
+                <select class="form-input" name="number_format" required data-country-default-field="number_format">
                     @foreach($numberFormats as $format => $label)
                         <option value="{{ $format }}" @selected(old('number_format', $company->numberFormat()) === $format)>{{ $label }}</option>
                     @endforeach
                 </select>
             </label>
             <label class="form-label">Default tax rate (%)
-                <input class="form-input" type="number" step="0.01" min="0" max="100" name="default_tax_rate" value="{{ old('default_tax_rate', $company->defaultTaxRate()) }}" required placeholder="0">
+                <input class="form-input" type="number" step="0.01" min="0" max="100" name="default_tax_rate" value="{{ old('default_tax_rate', $company->defaultTaxRate()) }}" required placeholder="0" data-country-default-field="default_tax_rate">
             </label>
             <label class="form-label">Tax label
-                <input class="form-input" name="tax_label" value="{{ old('tax_label', $company->taxLabel()) }}" required placeholder="Tax, SST, GST, VAT">
+                <input class="form-input" name="tax_label" value="{{ old('tax_label', $company->taxLabel()) }}" required placeholder="Tax, SST, GST, VAT" data-country-default-field="tax_label">
             </label>
             <label class="form-label md:col-span-2">Tax registration number
                 <input class="form-input" name="tax_registration_number" value="{{ old('tax_registration_number', $company->tax_registration_number) }}" placeholder="SST / GST / VAT registration number">
@@ -136,4 +137,27 @@
         <a class="btn btn-secondary" href="{{ route('company-profiles.index') }}">Cancel</a>
     </div>
 </form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const countryDefaults = @json($countryDefaults);
+        const countrySelect = document.querySelector('[data-country-select]');
+
+        if (!countrySelect) {
+            return;
+        }
+
+        countrySelect.addEventListener('change', () => {
+            const defaults = countryDefaults[countrySelect.value] || countryDefaults.Other;
+
+            Object.entries(defaults).forEach(([field, value]) => {
+                const input = document.querySelector(`[data-country-default-field="${field}"]`);
+
+                if (input && value !== undefined && value !== null) {
+                    input.value = value;
+                }
+            });
+        });
+    });
+</script>
 @endsection
