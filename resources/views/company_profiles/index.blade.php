@@ -107,7 +107,11 @@
             <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Default tax</dt>
             <dd class="mt-1 font-semibold text-slate-900">{{ $company->taxLabel() }} · {{ number_format($company->defaultTaxRate(), 2) }}%</dd>
         </div>
-        <div class="md:col-span-3">
+        <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Tax registration label</dt>
+            <dd class="mt-1 font-semibold text-slate-900">{{ $company->taxRegistrationLabel() }}</dd>
+        </div>
+        <div class="md:col-span-2">
             <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Tax registration number</dt>
             <dd class="mt-1 font-semibold text-slate-900">{{ $company->tax_registration_number ?: '-' }}</dd>
         </div>
