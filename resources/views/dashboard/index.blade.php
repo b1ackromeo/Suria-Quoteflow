@@ -109,10 +109,10 @@
                         @foreach($monthlyMovement as $month)
                             <div class="dashboard-movement-month" role="listitem">
                                 <div class="dashboard-movement-bars" aria-label="{{ $month['label'] }} movement">
-                                    <span class="movement-bar movement-customer" title="Customer invoices: RM {{ number_format($month['customer_invoices'], 2) }}" style="height: {{ $month['customer_invoices_percent'] }}%"></span>
-                                    <span class="movement-bar movement-supplier" title="Supplier invoices: RM {{ number_format($month['supplier_invoices'], 2) }}" style="height: {{ $month['supplier_invoices_percent'] }}%"></span>
-                                    <span class="movement-bar movement-incoming" title="Customer payments received: RM {{ number_format($month['incoming_payments'], 2) }}" style="height: {{ $month['incoming_payments_percent'] }}%"></span>
-                                    <span class="movement-bar movement-outgoing" title="Supplier payments made: RM {{ number_format($month['outgoing_payments'], 2) }}" style="height: {{ $month['outgoing_payments_percent'] }}%"></span>
+                                    <span class="movement-bar movement-customer" title="Customer invoices: {{ $companyProfile->formatMoney($month['customer_invoices']) }}" style="height: {{ $month['customer_invoices_percent'] }}%"></span>
+                                    <span class="movement-bar movement-supplier" title="Supplier invoices: {{ $companyProfile->formatMoney($month['supplier_invoices']) }}" style="height: {{ $month['supplier_invoices_percent'] }}%"></span>
+                                    <span class="movement-bar movement-incoming" title="Customer payments received: {{ $companyProfile->formatMoney($month['incoming_payments']) }}" style="height: {{ $month['incoming_payments_percent'] }}%"></span>
+                                    <span class="movement-bar movement-outgoing" title="Supplier payments made: {{ $companyProfile->formatMoney($month['outgoing_payments']) }}" style="height: {{ $month['outgoing_payments_percent'] }}%"></span>
                                 </div>
                                 <span>{{ $month['label'] }}</span>
                             </div>
@@ -163,7 +163,7 @@
                                 <span class="financial-exposure-copy">
                                     <span class="financial-exposure-main">
                                         <span class="financial-exposure-label">{{ $item['label'] }}</span>
-                                        <strong>RM {{ number_format($item['value'], 2) }}</strong>
+                                        <strong>{{ $companyProfile->formatMoney($item['value']) }}</strong>
                                     </span>
                                     <span class="financial-exposure-note">{{ $item['note'] }}</span>
                                     <span class="financial-exposure-bar" aria-hidden="true">
@@ -183,7 +183,7 @@
                                     <span class="invoice-aging-bar" aria-hidden="true">
                                         <span style="width: {{ $bucket['percent'] }}%"></span>
                                     </span>
-                                    <strong>RM {{ number_format($bucket['value'], 2) }}</strong>
+                                    <strong>{{ $companyProfile->formatMoney($bucket['value']) }}</strong>
                                 </div>
                             @endforeach
                         </div>
