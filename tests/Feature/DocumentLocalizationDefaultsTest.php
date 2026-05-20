@@ -77,6 +77,67 @@ class DocumentLocalizationDefaultsTest extends TestCase
         $this->assertSame('USD', $document->currency);
     }
 
+    public function test_document_create_form_displays_company_base_currency(): void
+    {
+        CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
+            'base_currency' => 'SGD',
+        ]));
+
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('documents.create', 'customer-quotations'));
+
+        $response->assertOk();
+        $response->assertSee('name="currency"', false);
+        $response->assertSee('value="SGD"', false);
+        $response->assertDontSee('value="MYR"', false);
+    }
+
+    public function test_document_create_form_preserves_source_document_currency(): void
+    {
+        CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
+            'base_currency' => 'SGD',
+        ]));
+
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+
+        $customer = Customer::create([
+            'name' => 'United States Customer Inc',
+            'code' => 'USCUST',
+            'email' => 'accounts@us-customer.test',
+            'payment_terms_days' => 30,
+            'is_active' => true,
+        ]);
+
+        $quotation = Document::create([
+            'type' => 'customer_quotation',
+            'direction' => 'outgoing',
+            'document_number' => 'CQ-2026-00001',
+            'customer_id' => $customer->id,
+            'status' => 'issued',
+            'issue_date' => now()->toDateString(),
+            'currency' => 'USD',
+            'subtotal' => 1000,
+            'tax_total' => 0,
+            'total' => 1000,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('documents.create', [
+            'module' => 'customer-pos',
+            'source_document_id' => $quotation->id,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('value="USD"', false);
+        $response->assertDontSee('value="MYR"', false);
+    }
+
     public function test_dashboard_uses_company_money_formatting(): void
     {
         CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
