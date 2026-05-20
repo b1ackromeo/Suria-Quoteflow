@@ -340,6 +340,6 @@ class ReportController extends Controller
             return 0;
         }
 
-        return (int) min(100, max(4, round(($value / $largest) * 100));
+        return (int) min(100, max(4, round(($value / $largest) * 100)));
     }
 }
