@@ -80,11 +80,11 @@
             <div class="divide-y divide-slate-200 border border-slate-200 bg-slate-50">
                 <div class="flex justify-between gap-3 px-3 py-2">
                     <span class="font-semibold text-slate-500">{{ $primaryDateLabel }}</span>
-                    <span class="font-bold">{{ optional($document->issue_date)->format('d M Y') ?? '-' }}</span>
+                    <span class="font-bold">{{ $companyProfile->formatDate($document->issue_date) }}</span>
                 </div>
                 <div class="flex justify-between gap-3 px-3 py-2">
                     <span class="font-semibold text-slate-500">{{ $secondaryDateLabel }}</span>
-                    <span class="font-bold">{{ optional($document->due_date)->format('d M Y') ?? '-' }}</span>
+                    <span class="font-bold">{{ $companyProfile->formatDate($document->due_date) }}</span>
                 </div>
                 <div class="flex justify-between gap-3 px-3 py-2">
                     <span class="font-semibold text-slate-500">Reference</span>
@@ -139,8 +139,8 @@
                             </td>
                             <td class="px-3 py-3 text-right align-top">{{ \App\Models\Document::formatQuantity($item->quantity) }}</td>
                             <td class="px-3 py-3 align-top">{{ $item->unit }}</td>
-                            <td class="px-3 py-3 text-right align-top">{{ number_format((float) $item->unit_price, 2) }}</td>
-                            <td class="px-3 py-3 text-right align-top font-bold">{{ number_format((float) $item->line_total, 2) }}</td>
+                            <td class="px-3 py-3 text-right align-top">{{ $companyProfile->formatNumber($item->unit_price) }}</td>
+                            <td class="px-3 py-3 text-right align-top font-bold">{{ $companyProfile->formatNumber($item->line_total) }}</td>
                         </tr>
                     @empty
                         <tr>
@@ -181,14 +181,14 @@
                                 @unless($isInvoice)
                                     <td class="px-3 py-2">{{ $stage->condition_label ?: '-' }}</td>
                                 @endunless
-                                <td class="px-3 py-2 text-right">{{ $stage->percentage ? number_format((float) $stage->percentage, 2) : '-' }}</td>
-                                <td class="px-3 py-2 text-right">{{ $stage->amount ? $currency.' '.number_format((float) $stage->amount, 2) : '-' }}</td>
+                                <td class="px-3 py-2 text-right">{{ $stage->percentage ? $companyProfile->formatNumber($stage->percentage) : '-' }}</td>
+                                <td class="px-3 py-2 text-right">{{ $stage->amount ? $companyProfile->formatMoney($stage->amount, $currency) : '-' }}</td>
                                 @unless($isInvoice)
                                     <td class="px-3 py-2">{{ $stage->payment_term ?: '-' }}</td>
                                 @else
-                                    <td class="px-3 py-2 text-right">{{ $currency }} {{ number_format((float) $stage->previously_invoiced, 2) }}</td>
-                                    <td class="px-3 py-2 text-right">{{ $currency }} {{ number_format((float) $stage->current_invoice, 2) }}</td>
-                                    <td class="px-3 py-2 text-right">{{ $currency }} {{ number_format((float) $stage->remaining_amount, 2) }}</td>
+                                    <td class="px-3 py-2 text-right">{{ $companyProfile->formatMoney($stage->previously_invoiced, $currency) }}</td>
+                                    <td class="px-3 py-2 text-right">{{ $companyProfile->formatMoney($stage->current_invoice, $currency) }}</td>
+                                    <td class="px-3 py-2 text-right">{{ $companyProfile->formatMoney($stage->remaining_amount, $currency) }}</td>
                                 @endunless
                             </tr>
                         @endforeach
@@ -205,15 +205,15 @@
             <div class="divide-y divide-slate-200 border border-slate-200">
                 <div class="flex justify-between gap-3 px-3 py-2">
                     <span class="font-semibold">Subtotal</span>
-                    <span class="font-bold">{{ $currency }} {{ number_format((float) $document->subtotal, 2) }}</span>
+                    <span class="font-bold">{{ $companyProfile->formatMoney($document->subtotal, $currency) }}</span>
                 </div>
                 <div class="flex justify-between gap-3 px-3 py-2">
-                    <span class="font-semibold">Tax</span>
-                    <span class="font-bold">{{ $currency }} {{ number_format((float) $document->tax_total, 2) }}</span>
+                    <span class="font-semibold">{{ $companyProfile->taxLabel() }}</span>
+                    <span class="font-bold">{{ $companyProfile->formatMoney($document->tax_total, $currency) }}</span>
                 </div>
                 <div class="flex justify-between gap-3 bg-[#0a345f] px-3 py-3 text-white">
                     <span class="font-bold">{{ $totalLabel }}</span>
-                    <span class="font-bold">{{ $currency }} {{ number_format((float) $document->total, 2) }}</span>
+                    <span class="font-bold">{{ $companyProfile->formatMoney($document->total, $currency) }}</span>
                 </div>
             </div>
         </div>
