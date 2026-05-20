@@ -103,7 +103,8 @@ class DocumentPdfCompanyTextTest extends TestCase
         Pdf::shouldReceive('loadHTML')
             ->once()
             ->withArgs(function (string $html): bool {
-                $this->assertStringContainsString('GST Reg. No. REG-9000', $html);
+                $this->assertStringContainsString('Tax Registration No. REG-9000', $html);
+                $this->assertStringNotContainsString('GST Reg. No. REG-9000', $html);
                 $this->assertStringContainsString('Custom instruction line one', $html);
                 $this->assertStringContainsString('Custom instruction line two', $html);
                 $this->assertStringContainsString('Payment Reference:</strong> INV-PDF-001', $html);
