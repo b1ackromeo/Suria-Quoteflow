@@ -1,6 +1,7 @@
 @php
+    $companyProfile = \App\Models\CompanyProfile::active();
     $attachments = $document->attachments ?? collect();
-    $currency = strtoupper($document->currency ?: 'MYR');
+    $currency = strtoupper($document->currency ?: $companyProfile->baseCurrency());
     $items = $document->items ?? collect();
     $previewOnly = $previewOnly ?? false;
     $sourcePanelMode = $sourcePanelMode ?? 'full';
@@ -110,7 +111,7 @@
                 </div>
                 <div class="external-document-capture-actions">
                     @if($extraction?->verified_at)
-                        <span class="supplier-invoice-extraction-state is-verified">{{ $verificationMethodLabel }} · {{ $extraction->verified_at->format('d M Y, g:i A') }}</span>
+                        <span class="supplier-invoice-extraction-state is-verified">{{ $verificationMethodLabel }} · {{ $companyProfile->formatDate($extraction->verified_at) }}</span>
                     @elseif($extraction?->status === 'processed')
                         <span class="supplier-invoice-extraction-state is-ready">Details ready for review</span>
                     @elseif($extraction?->status === 'failed')
@@ -152,7 +153,7 @@
                         <div class="external-document-capture-facts" aria-label="Extracted supplier quotation fields">
                             <span>Supplier <strong>{{ $verifiedFields['supplier_name'] ?? $extractedFields['supplier_name'] ?? $document->supplier?->name ?? '-' }}</strong></span>
                             <span>Quote <strong>{{ $verifiedFields['quote_number'] ?? $extractedFields['quote_number'] ?? $document->external_reference ?? '-' }}</strong></span>
-                            <span>Total <strong>{{ filled($verifiedFields['total'] ?? $extractedFields['total'] ?? null) ? $document->currency.' '.number_format((float) ($verifiedFields['total'] ?? $extractedFields['total']), 2) : '-' }}</strong></span>
+                            <span>Total <strong>{{ filled($verifiedFields['total'] ?? $extractedFields['total'] ?? null) ? $companyProfile->formatMoney((float) ($verifiedFields['total'] ?? $extractedFields['total']), $currency) : '-' }}</strong></span>
                         </div>
                     @endif
 
@@ -270,11 +271,11 @@
                 </div>
                 <div>
                     <span>{{ $dateLabel }}</span>
-                    <strong>{{ optional($document->issue_date)->format('d M Y') ?? '-' }}</strong>
+                    <strong>{{ $document->issue_date ? $companyProfile->formatDate($document->issue_date) : '-' }}</strong>
                 </div>
                 <div>
                     <span>Recorded total</span>
-                    <strong>{{ $currency }} {{ number_format((float) $document->total, 2) }}</strong>
+                    <strong>{{ $companyProfile->formatMoney((float) $document->total, $currency) }}</strong>
                 </div>
             </div>
 
@@ -299,7 +300,7 @@
                                     <td>{{ $item->description }}</td>
                                     <td class="text-right">{{ \App\Models\Document::formatQuantity($item->quantity) }}</td>
                                     <td>{{ $item->unit }}</td>
-                                    <td class="text-right font-bold">{{ $currency }} {{ number_format((float) $item->line_total, 2) }}</td>
+                                    <td class="text-right font-bold">{{ $companyProfile->formatMoney((float) $item->line_total, $currency) }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
