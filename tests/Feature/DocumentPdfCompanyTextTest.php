@@ -7,7 +7,7 @@ use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Product;
 use App\Models\User;
-use App\Support\CompanyPdfText;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,9 +15,9 @@ class DocumentPdfCompanyTextTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_pdf_view_uses_company_profile_document_text(): void
+    public function test_pdf_route_sends_company_profile_document_text_to_pdf_renderer(): void
     {
-        $companyProfile = CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
+        CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
             'name' => 'Global QuoteFlow Pte Ltd',
             'country' => 'Singapore',
             'timezone' => 'Asia/Singapore',
@@ -82,19 +82,38 @@ class DocumentPdfCompanyTextTest extends TestCase
             'line_total' => 1000,
         ]);
 
-        $invoice->load(['customer', 'supplier', 'relatedDocument.items', 'items.product', 'billingStages', 'payments', 'attachments', 'creator', 'approver']);
+        Pdf::shouldReceive('loadHTML')
+            ->once()
+            ->withArgs(function (string $html): bool {
+                $this->assertStringContainsString('GST Reg. No. REG-9000', $html);
+                $this->assertStringContainsString('Custom instruction line one', $html);
+                $this->assertStringContainsString('Custom instruction line two', $html);
+                $this->assertStringContainsString('Payment Reference:</strong> INV-PDF-001', $html);
+                $this->assertStringContainsString('Custom PDF footer text.', $html);
 
-        $html = view('documents.pdf', [
-            'document' => $invoice,
-            'meta' => Document::metaForSlug(Document::slugForType($invoice->type)),
-        ])->render();
+                return true;
+            })
+            ->andReturn(new class
+            {
+                public function setPaper(string $paper): self
+                {
+                    return $this;
+                }
 
-        $html = app(CompanyPdfText::class)->apply($html, $companyProfile, $invoice);
+                public function stream(string $filename)
+                {
+                    return response('fake pdf body', 200, [
+                        'content-type' => 'application/pdf',
+                        'content-disposition' => 'inline; filename="'.$filename.'"',
+                    ]);
+                }
+            });
 
-        $this->assertStringContainsString('GST Reg. No. REG-9000', $html);
-        $this->assertStringContainsString('Custom instruction line one', $html);
-        $this->assertStringContainsString('Custom instruction line two', $html);
-        $this->assertStringContainsString('Payment Reference:</strong> INV-PDF-001', $html);
-        $this->assertStringContainsString('Custom PDF footer text.', $html);
+        $response = $this->actingAs($admin)->get(route('documents.pdf', $invoice));
+
+        $response->assertOk();
+        $this->assertStringContainsString('application/pdf', $response->headers->get('content-type'));
+        $this->assertStringContainsString('inline', $response->headers->get('content-disposition'));
+        $this->assertStringContainsString('INV-PDF-001.pdf', $response->headers->get('content-disposition'));
     }
 }
