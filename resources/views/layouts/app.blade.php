@@ -138,14 +138,17 @@
 @endauth
 
 @auth
-    <script>
-        window.QuoteFlowCompanyFormat = @json([
+    @php
+        $companyFormattingConfig = [
             'baseCurrency' => $layoutCompanyProfile->baseCurrency(),
             'numberFormat' => $layoutCompanyProfile->numberFormat(),
             'dateFormat' => $layoutCompanyProfile->dateFormat(),
             'taxLabel' => $layoutCompanyProfile->taxLabel(),
             'defaultTaxRate' => $layoutCompanyProfile->defaultTaxRate(),
-        ]);
+        ];
+    @endphp
+    <script>
+        window.QuoteFlowCompanyFormat = {!! \Illuminate\Support\Js::from($companyFormattingConfig) !!};
     </script>
     <script src="{{ asset('js/document-form-company-formatting.js') }}" defer></script>
 @endauth
