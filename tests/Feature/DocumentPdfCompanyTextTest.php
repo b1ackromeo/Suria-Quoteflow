@@ -8,8 +8,10 @@ use App\Models\Document;
 use App\Models\Product;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Barryvdh\DomPDF\PDF as DomPdf;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Response;
+use Mockery;
 use Tests\TestCase;
 
 class DocumentPdfCompanyTextTest extends TestCase
@@ -85,6 +87,19 @@ class DocumentPdfCompanyTextTest extends TestCase
             'line_total' => 1000,
         ]);
 
+        $pdf = Mockery::mock(DomPdf::class);
+        $pdf->shouldReceive('setPaper')
+            ->once()
+            ->with('a4')
+            ->andReturnSelf();
+        $pdf->shouldReceive('stream')
+            ->once()
+            ->with('INV-PDF-001.pdf')
+            ->andReturn(new Response('fake pdf body', 200, [
+                'content-type' => 'application/pdf',
+                'content-disposition' => 'inline; filename="INV-PDF-001.pdf"',
+            ]));
+
         Pdf::shouldReceive('loadHTML')
             ->once()
             ->withArgs(function (string $html): bool {
@@ -96,21 +111,7 @@ class DocumentPdfCompanyTextTest extends TestCase
 
                 return true;
             })
-            ->andReturn(new class
-            {
-                public function setPaper(string $paper): self
-                {
-                    return $this;
-                }
-
-                public function stream(string $filename): Response
-                {
-                    return new Response('fake pdf body', 200, [
-                        'content-type' => 'application/pdf',
-                        'content-disposition' => 'inline; filename="'.$filename.'"',
-                    ]);
-                }
-            });
+            ->andReturn($pdf);
 
         $response = $this->actingAs($admin)->get(route('documents.pdf', $invoice));
 
