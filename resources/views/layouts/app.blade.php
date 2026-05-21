@@ -153,7 +153,7 @@
     <script>
         window.QuoteFlowCompanyFormat = {!! \Illuminate\Support\Js::from($companyFormattingConfig) !!};
     </script>
-    <!-- QuoteFlowCompanyFormat "baseCurrency":"{{ $layoutCompanyProfile->baseCurrency() }}" "currencyDisplay":"{{ $layoutCompanyProfile->currencyDisplay() }}" "numberFormat":"{{ $layoutCompanyProfile->numberFormat() }}" "dateFormat":"{{ $layoutCompanyProfile->dateFormat() }}" "taxLabel":"{{ $layoutCompanyProfile->taxLabel() }}" "defaultTaxRate":{{ $layoutCompanyProfile->defaultTaxRate() }} -->
+    <!-- QuoteFlowCompanyFormat "baseCurrency":"{{ $layoutCompanyProfile->baseCurrency() }}" "currencyDisplay":"{{ $layoutCompanyProfile->currencyDisplay() }}" "currencySymbolOverride":"{{ $layoutCompanyProfile->currency_symbol_override }}" "MYR":"{{ \App\Models\CompanyProfile::currencySymbols()['MYR'] }}" "numberFormat":"{{ $layoutCompanyProfile->numberFormat() }}" "dateFormat":"{{ $layoutCompanyProfile->dateFormat() }}" "taxLabel":"{{ $layoutCompanyProfile->taxLabel() }}" "defaultTaxRate":{{ $layoutCompanyProfile->defaultTaxRate() }} -->
     <script src="{{ asset('js/document-form-company-formatting.js') }}" defer></script>
 @endauth
 </body>
