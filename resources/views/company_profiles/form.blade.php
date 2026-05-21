@@ -63,7 +63,7 @@
         <div>
             <p class="text-xs font-bold uppercase tracking-wide text-[#0a4f93]">Global document settings</p>
             <h2 class="panel-title">Country, currency, tax, and formats</h2>
-            <p class="panel-subtitle">These defaults help QuoteFlow support different countries and document standards without changing code.</p>
+            <p class="panel-subtitle">These defaults help QuoteFlow support different countries and document standards without changing code. Malaysia-facing documents normally use RM while exports can still keep ISO codes where needed.</p>
         </div>
 
         <div class="grid gap-4 md:grid-cols-3">
@@ -88,6 +88,18 @@
                         <option value="{{ $code }}" @selected(old('base_currency', $company->baseCurrency()) === $code)>{{ $label }}</option>
                     @endforeach
                 </select>
+            </label>
+            <label class="form-label">Currency display
+                <select class="form-input" name="currency_display" data-country-default-field="currency_display">
+                    @foreach($currencyDisplays as $display => $label)
+                        <option value="{{ $display }}" @selected(old('currency_display', $company->currencyDisplay()) === $display)>{{ $label }}</option>
+                    @endforeach
+                </select>
+                <span class="mt-1 text-xs font-semibold text-slate-400">Controls money shown in pages and PDFs, for example RM 1,234.56.</span>
+            </label>
+            <label class="form-label">Currency symbol override
+                <input class="form-input" name="currency_symbol_override" value="{{ old('currency_symbol_override', $company->currency_symbol_override) }}" placeholder="RM" data-country-default-field="currency_symbol_override">
+                <span class="mt-1 text-xs font-semibold text-slate-400">Optional. Applies to the base currency only.</span>
             </label>
             <label class="form-label">Date format
                 <select class="form-input" name="date_format" required data-country-default-field="date_format">
@@ -155,7 +167,7 @@
             const defaults = countryDefaults[countrySelect.value] || countryDefaults.Other;
 
             Object.entries(defaults).forEach(([field, value]) => {
-                const input = document.querySelector(`[data-country-default-field="${field}"]`);
+                const input = document.querySelector('[data-country-default-field="' + field + '"]');
 
                 if (input && value !== undefined && value !== null) {
                     input.value = value;
