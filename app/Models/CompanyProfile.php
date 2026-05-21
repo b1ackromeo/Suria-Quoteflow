@@ -205,6 +205,10 @@ class CompanyProfile extends Model
 
     public function formatNumber(mixed $value, int $decimals = 2): string
     {
+        if ($this->numberFormat() === 'en-IN') {
+            return $this->formatIndianNumber($value, $decimals);
+        }
+
         [$decimalSeparator, $thousandSeparator] = $this->numberSeparators();
 
         return number_format((float) $value, $decimals, $decimalSeparator, $thousandSeparator);
@@ -213,7 +217,7 @@ class CompanyProfile extends Model
     public function formatMoney(mixed $value, ?string $currency = null): string
     {
         $currency = strtoupper((string) ($currency ?: $this->baseCurrency()));
-        $amount = $this->formatNumber($value);
+        $amount = $this->formatNumber($value, $this->moneyDecimals($currency));
 
         return match ($this->currencyDisplay()) {
             'symbol' => trim($this->currencySymbol($currency).' '.$amount),
@@ -270,9 +274,33 @@ class CompanyProfile extends Model
     {
         return match ($this->numberFormat()) {
             'de-DE' => [',', '.'],
+            'de-CH' => ['.', "'"],
             'fr-FR' => [',', ' '],
             default => ['.', ','],
         };
+    }
+
+    private function moneyDecimals(string $currency): int
+    {
+        return in_array($currency, ['JPY', 'KRW', 'VND'], true) ? 0 : 2;
+    }
+
+    private function formatIndianNumber(mixed $value, int $decimals = 2): string
+    {
+        $value = (float) $value;
+        $negative = $value < 0;
+        $absolute = abs($value);
+        $formatted = number_format($absolute, $decimals, '.', '');
+        [$whole, $fraction] = array_pad(explode('.', $formatted, 2), 2, '');
+
+        if (strlen($whole) > 3) {
+            $lastThree = substr($whole, -3);
+            $leading = substr($whole, 0, -3);
+            $leading = preg_replace('/\B(?=(\d{2})+(?!\d))/', ',', $leading);
+            $whole = $leading.','.$lastThree;
+        }
+
+        return ($negative ? '-' : '').$whole.($decimals > 0 ? '.'.$fraction : '');
     }
 
     private function shouldUseDefaultLogo(): bool
