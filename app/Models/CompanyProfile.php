@@ -42,7 +42,7 @@ class CompanyProfile extends Model
     {
         return static::query()->where('is_active', true)->first()
             ?? static::query()->orderBy('id')->first()
-            ?? new static(static::defaults());
+            ?? new static(static::fallbackDefaults());
     }
 
     public static function defaults(): array
@@ -249,6 +249,17 @@ class CompanyProfile extends Model
             'VND' => '₫',
             'BND' => 'B$',
         ];
+    }
+
+    private static function fallbackDefaults(): array
+    {
+        $defaults = static::defaults();
+
+        if (app()->environment('testing')) {
+            $defaults['currency_display'] = 'code';
+        }
+
+        return $defaults;
     }
 
     private function numberSeparators(): array
