@@ -4,6 +4,7 @@
 ])
 
 @php
+    $companyProfile = \App\Models\CompanyProfile::active();
     $typeFilter = $typeFilter ?? null;
     $filterUrl = fn (?string $type = null) => route('products.index', array_filter([
         'q' => $searchTerm ?: null,
@@ -93,7 +94,7 @@
                                 </div>
                                 <div>
                                     <dt>Default document price</dt>
-                                    <dd>MYR {{ number_format($product->selling_price, 2) }}</dd>
+                                    <dd>{{ $companyProfile->formatMoney($product->selling_price) }}</dd>
                                 </div>
                             </dl>
                         </aside>
