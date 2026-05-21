@@ -20,6 +20,8 @@ class CompanyProfile extends Model
         'country',
         'timezone',
         'base_currency',
+        'currency_display',
+        'currency_symbol_override',
         'date_format',
         'number_format',
         'tax_label',
@@ -57,6 +59,8 @@ class CompanyProfile extends Model
             'country' => 'Malaysia',
             'timezone' => 'Asia/Kuala_Lumpur',
             'base_currency' => 'MYR',
+            'currency_display' => null,
+            'currency_symbol_override' => null,
             'date_format' => 'd M Y',
             'number_format' => 'en-MY',
             'tax_label' => 'Tax',
@@ -114,6 +118,38 @@ class CompanyProfile extends Model
     public function baseCurrency(): string
     {
         return strtoupper((string) ($this->base_currency ?: static::defaults()['base_currency']));
+    }
+
+    public function currencyDisplay(): string
+    {
+        if (in_array($this->currency_display, ['code', 'symbol', 'symbol_with_code'], true)) {
+            return $this->currency_display;
+        }
+
+        return $this->baseCurrency() === 'MYR' ? 'symbol' : 'code';
+    }
+
+    public function currencySymbol(?string $currency = null): string
+    {
+        $currency = strtoupper((string) ($currency ?: $this->baseCurrency()));
+
+        if ($currency === $this->baseCurrency() && filled($this->currency_symbol_override)) {
+            return trim((string) $this->currency_symbol_override);
+        }
+
+        return static::currencySymbols()[$currency] ?? $currency;
+    }
+
+    public function currencyDisplayLabel(): string
+    {
+        $currency = $this->baseCurrency();
+        $symbol = $this->currencySymbol($currency);
+
+        return match ($this->currencyDisplay()) {
+            'symbol' => $symbol,
+            'symbol_with_code' => $symbol.' ('.$currency.')',
+            default => $currency,
+        };
     }
 
     public function dateFormat(): string
@@ -176,12 +212,43 @@ class CompanyProfile extends Model
 
     public function formatMoney(mixed $value, ?string $currency = null): string
     {
-        return trim(($currency ?: $this->baseCurrency()).' '.$this->formatNumber($value));
+        $currency = strtoupper((string) ($currency ?: $this->baseCurrency()));
+        $amount = $this->formatNumber($value);
+
+        return match ($this->currencyDisplay()) {
+            'symbol' => trim($this->currencySymbol($currency).' '.$amount),
+            'symbol_with_code' => trim($this->currencySymbol($currency).' '.$amount.' ('.$currency.')'),
+            default => trim($currency.' '.$amount),
+        };
     }
 
     public function formatPercent(mixed $value, int $decimals = 2): string
     {
         return $this->formatNumber($value, $decimals).'%';
+    }
+
+    public static function currencySymbols(): array
+    {
+        return [
+            'MYR' => 'RM',
+            'SGD' => 'S$',
+            'USD' => '$',
+            'EUR' => '€',
+            'GBP' => '£',
+            'AUD' => 'A$',
+            'NZD' => 'NZ$',
+            'CAD' => 'C$',
+            'JPY' => '¥',
+            'CNY' => '¥',
+            'HKD' => 'HK$',
+            'INR' => '₹',
+            'AED' => 'AED',
+            'IDR' => 'Rp',
+            'THB' => '฿',
+            'PHP' => '₱',
+            'VND' => '₫',
+            'BND' => 'B$',
+        ];
     }
 
     private function numberSeparators(): array
