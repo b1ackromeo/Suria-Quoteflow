@@ -86,7 +86,7 @@
                 <div class="supplier-invoice-file-toolbar">
                     <div class="min-w-0">
                         <strong>{{ $invoiceAttachment->original_name }}</strong>
-                        <span>{{ strtoupper($invoiceAttachment->mime_type ?: 'file') }} · {{ number_format(($invoiceAttachment->size ?? 0) / 1024, 1) }} KB</span>
+                        <span>{{ strtoupper($invoiceAttachment->mime_type ?: 'file') }} · {{ $companyProfile->formatNumber(($invoiceAttachment->size ?? 0) / 1024, 1) }} KB</span>
                     </div>
                     <div class="supplier-invoice-toolbar-actions">
                         @if($extraction?->status === 'verified')
