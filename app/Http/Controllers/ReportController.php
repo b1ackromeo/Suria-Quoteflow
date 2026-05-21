@@ -146,7 +146,7 @@ class ReportController extends Controller
             $handle = fopen('php://output', 'w');
 
             if ($report === 'payments') {
-                fputcsv($handle, ['Date', 'Payment Type', 'Document', 'Amount', 'Method', 'Reference']);
+                fputcsv($handle, ['Date', 'Payment Type', 'Document', 'Amount', 'Method', 'Reference', 'Currency']);
                 Payment::with('document')->orderBy('payment_date')->chunk(200, function ($payments) use ($handle) {
                     foreach ($payments as $payment) {
                         fputcsv($handle, [
@@ -156,6 +156,7 @@ class ReportController extends Controller
                             $payment->amount,
                             $payment->method,
                             $payment->reference,
+                            $payment->document?->currency,
                         ]);
                     }
                 });
@@ -165,7 +166,7 @@ class ReportController extends Controller
             }
 
             $type = $report === 'receivables' ? 'customer_invoice' : 'supplier_invoice';
-            fputcsv($handle, ['Document', 'Party', 'Issue Date', 'Due Date', 'Status', 'Total', 'Paid', 'Balance']);
+            fputcsv($handle, ['Document', 'Party', 'Issue Date', 'Due Date', 'Status', 'Total', 'Paid', 'Balance', 'Currency']);
             Document::with(['customer', 'supplier'])
                 ->withSum('payments as paid_total', 'amount')
                 ->where('type', $type)
@@ -183,6 +184,7 @@ class ReportController extends Controller
                             $document->total,
                             $paidTotal,
                             max(0, (float) $document->total - $paidTotal),
+                            $document->currency,
                         ]);
                     }
                 });
