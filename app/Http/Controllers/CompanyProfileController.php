@@ -37,6 +37,7 @@ class CompanyProfileController extends Controller
             'countries' => $this->countries(),
             'timezones' => $this->timezones(),
             'currencies' => $this->currencies(),
+            'currencyDisplays' => $this->currencyDisplays(),
             'dateFormats' => $this->dateFormats(),
             'numberFormats' => $this->numberFormats(),
             'countryDefaults' => $this->countryDefaults(),
@@ -55,6 +56,7 @@ class CompanyProfileController extends Controller
             }
 
             $data['base_currency'] = strtoupper($data['base_currency']);
+            $data['currency_symbol_override'] = filled($data['currency_symbol_override'] ?? null) ? trim((string) $data['currency_symbol_override']) : null;
             $data['is_active'] = true;
             CompanyProfile::whereKeyNot($companyProfile->id)->update(['is_active' => false]);
 
@@ -87,6 +89,8 @@ class CompanyProfileController extends Controller
             'country' => ['required', 'string', 'max:120'],
             'timezone' => ['required', Rule::in(timezone_identifiers_list())],
             'base_currency' => ['required', 'string', 'size:3'],
+            'currency_display' => ['required', Rule::in(array_keys($this->currencyDisplays()))],
+            'currency_symbol_override' => ['nullable', 'string', 'max:20'],
             'date_format' => ['required', Rule::in(array_keys($this->dateFormats()))],
             'number_format' => ['required', Rule::in(array_keys($this->numberFormats()))],
             'tax_label' => ['required', 'string', 'max:80'],
@@ -103,7 +107,7 @@ class CompanyProfileController extends Controller
     {
         $defaults = CompanyProfile::defaults();
 
-        foreach (['country', 'timezone', 'base_currency', 'date_format', 'number_format', 'tax_label', 'tax_registration_label', 'default_tax_rate'] as $field) {
+        foreach (['country', 'timezone', 'base_currency', 'currency_display', 'currency_symbol_override', 'date_format', 'number_format', 'tax_label', 'tax_registration_label', 'default_tax_rate'] as $field) {
             if (! $request->has($field)) {
                 $request->merge([$field => $defaults[$field]]);
             }
@@ -137,6 +141,8 @@ class CompanyProfileController extends Controller
             'Malaysia' => [
                 'timezone' => 'Asia/Kuala_Lumpur',
                 'base_currency' => 'MYR',
+                'currency_display' => 'symbol',
+                'currency_symbol_override' => 'RM',
                 'date_format' => 'd M Y',
                 'number_format' => 'en-MY',
                 'tax_label' => 'Tax',
@@ -146,6 +152,8 @@ class CompanyProfileController extends Controller
             'Singapore' => [
                 'timezone' => 'Asia/Singapore',
                 'base_currency' => 'SGD',
+                'currency_display' => 'code',
+                'currency_symbol_override' => '',
                 'date_format' => 'd M Y',
                 'number_format' => 'en-SG',
                 'tax_label' => 'GST',
@@ -155,6 +163,8 @@ class CompanyProfileController extends Controller
             'Indonesia' => [
                 'timezone' => 'Asia/Jakarta',
                 'base_currency' => 'IDR',
+                'currency_display' => 'code',
+                'currency_symbol_override' => '',
                 'date_format' => 'd/m/Y',
                 'number_format' => 'en-MY',
                 'tax_label' => 'Tax',
@@ -164,6 +174,8 @@ class CompanyProfileController extends Controller
             'Thailand' => [
                 'timezone' => 'Asia/Bangkok',
                 'base_currency' => 'THB',
+                'currency_display' => 'code',
+                'currency_symbol_override' => '',
                 'date_format' => 'd/m/Y',
                 'number_format' => 'en-MY',
                 'tax_label' => 'VAT',
@@ -173,6 +185,8 @@ class CompanyProfileController extends Controller
             'Philippines' => [
                 'timezone' => 'Asia/Manila',
                 'base_currency' => 'PHP',
+                'currency_display' => 'code',
+                'currency_symbol_override' => '',
                 'date_format' => 'd/m/Y',
                 'number_format' => 'en-US',
                 'tax_label' => 'VAT',
@@ -182,6 +196,8 @@ class CompanyProfileController extends Controller
             'Vietnam' => [
                 'timezone' => 'Asia/Ho_Chi_Minh',
                 'base_currency' => 'VND',
+                'currency_display' => 'code',
+                'currency_symbol_override' => '',
                 'date_format' => 'd/m/Y',
                 'number_format' => 'en-MY',
                 'tax_label' => 'VAT',
@@ -191,6 +207,8 @@ class CompanyProfileController extends Controller
             'Brunei' => [
                 'timezone' => 'Asia/Brunei',
                 'base_currency' => 'BND',
+                'currency_display' => 'code',
+                'currency_symbol_override' => '',
                 'date_format' => 'd M Y',
                 'number_format' => 'en-GB',
                 'tax_label' => 'Tax',
@@ -200,6 +218,8 @@ class CompanyProfileController extends Controller
             'Australia' => [
                 'timezone' => 'Australia/Sydney',
                 'base_currency' => 'AUD',
+                'currency_display' => 'code',
+                'currency_symbol_override' => '',
                 'date_format' => 'd/m/Y',
                 'number_format' => 'en-GB',
                 'tax_label' => 'GST',
@@ -209,6 +229,8 @@ class CompanyProfileController extends Controller
             'New Zealand' => [
                 'timezone' => 'Pacific/Auckland',
                 'base_currency' => 'NZD',
+                'currency_display' => 'code',
+                'currency_symbol_override' => '',
                 'date_format' => 'd/m/Y',
                 'number_format' => 'en-GB',
                 'tax_label' => 'GST',
@@ -218,6 +240,8 @@ class CompanyProfileController extends Controller
             'United Kingdom' => [
                 'timezone' => 'Europe/London',
                 'base_currency' => 'GBP',
+                'currency_display' => 'code',
+                'currency_symbol_override' => '',
                 'date_format' => 'd/m/Y',
                 'number_format' => 'en-GB',
                 'tax_label' => 'VAT',
@@ -227,6 +251,8 @@ class CompanyProfileController extends Controller
             'United States' => [
                 'timezone' => 'America/New_York',
                 'base_currency' => 'USD',
+                'currency_display' => 'code',
+                'currency_symbol_override' => '',
                 'date_format' => 'm/d/Y',
                 'number_format' => 'en-US',
                 'tax_label' => 'Sales tax',
@@ -236,6 +262,8 @@ class CompanyProfileController extends Controller
             'Other' => [
                 'timezone' => CompanyProfile::defaults()['timezone'],
                 'base_currency' => CompanyProfile::defaults()['base_currency'],
+                'currency_display' => 'code',
+                'currency_symbol_override' => '',
                 'date_format' => CompanyProfile::defaults()['date_format'],
                 'number_format' => CompanyProfile::defaults()['number_format'],
                 'tax_label' => CompanyProfile::defaults()['tax_label'],
@@ -274,6 +302,15 @@ class CompanyProfileController extends Controller
             'PHP' => 'PHP - Philippine Peso',
             'VND' => 'VND - Vietnamese Dong',
             'BND' => 'BND - Brunei Dollar',
+        ];
+    }
+
+    private function currencyDisplays(): array
+    {
+        return [
+            'code' => 'Currency code - MYR 1,234.56',
+            'symbol' => 'Currency symbol - RM 1,234.56',
+            'symbol_with_code' => 'Symbol and code - RM 1,234.56 (MYR)',
         ];
     }
 
