@@ -32,6 +32,8 @@ class CompanyProfileSettingsTest extends TestCase
             'country' => 'Singapore',
             'timezone' => 'Asia/Singapore',
             'base_currency' => 'SGD',
+            'currency_display' => 'symbol_with_code',
+            'currency_symbol_override' => 'S$',
             'date_format' => 'Y-m-d',
             'number_format' => 'en-SG',
             'tax_label' => 'GST',
@@ -49,6 +51,8 @@ class CompanyProfileSettingsTest extends TestCase
         $this->assertSame('Singapore', $company->displayCountry());
         $this->assertSame('Asia/Singapore', $company->displayTimezone());
         $this->assertSame('SGD', $company->baseCurrency());
+        $this->assertSame('symbol_with_code', $company->currencyDisplay());
+        $this->assertSame('S$', $company->currencySymbol('SGD'));
         $this->assertSame('Y-m-d', $company->dateFormat());
         $this->assertSame('en-SG', $company->numberFormat());
         $this->assertSame('GST', $company->taxLabel());
@@ -137,5 +141,27 @@ class CompanyProfileSettingsTest extends TestCase
         $this->assertSame('EUR 1.234,56', $company->formatMoney(1234.56));
         $this->assertSame('USD 1.234,56', $company->formatMoney(1234.56, 'USD'));
         $this->assertSame('9,00%', $company->formatPercent(9));
+    }
+
+    public function test_malaysia_money_defaults_to_rm_symbol(): void
+    {
+        $company = new CompanyProfile(CompanyProfile::defaults());
+
+        $this->assertSame('symbol', $company->currencyDisplay());
+        $this->assertSame('RM', $company->currencySymbol('MYR'));
+        $this->assertSame('RM 1,234.56', $company->formatMoney(1234.56));
+    }
+
+    public function test_company_profile_can_use_symbol_and_code_money_display(): void
+    {
+        $company = new CompanyProfile(array_merge(CompanyProfile::defaults(), [
+            'base_currency' => 'MYR',
+            'currency_display' => 'symbol_with_code',
+            'currency_symbol_override' => 'RM',
+            'number_format' => 'en-MY',
+        ]));
+
+        $this->assertSame('RM (MYR)', $company->currencyDisplayLabel());
+        $this->assertSame('RM 1,234.56 (MYR)', $company->formatMoney(1234.56));
     }
 }
