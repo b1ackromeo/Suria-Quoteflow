@@ -135,6 +135,44 @@ class CompanyProfileSettingsTest extends TestCase
         $response->assertSee('Sales tax');
     }
 
+    public function test_document_form_exposes_company_currency_display_config(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+
+        CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
+            'base_currency' => 'MYR',
+            'currency_display' => 'symbol',
+            'currency_symbol_override' => 'RM',
+            'number_format' => 'en-MY',
+            'date_format' => 'Y-m-d',
+            'tax_label' => 'SST',
+            'default_tax_rate' => 8,
+        ]));
+
+        $response = $this->actingAs($admin)->get(route('documents.create', 'customer-invoices'));
+
+        $response->assertOk();
+        $response->assertSee('"baseCurrency":"MYR"', false);
+        $response->assertSee('"currencyDisplay":"symbol"', false);
+        $response->assertSee('"currencySymbolOverride":"RM"', false);
+        $response->assertSee('"MYR":"RM"', false);
+        $response->assertSee('"taxLabel":"SST"', false);
+        $response->assertSee('"defaultTaxRate":8', false);
+    }
+
+    public function test_document_form_formatter_supports_symbol_money_display(): void
+    {
+        $formatter = file_get_contents(public_path('js/document-form-company-formatting.js'));
+
+        $this->assertStringContainsString("currencyDisplay === 'symbol'", $formatter);
+        $this->assertStringContainsString('currencySymbol(currency)', $formatter);
+        $this->assertStringContainsString("currencyDisplay === 'symbol_with_code'", $formatter);
+        $this->assertStringContainsString('currencySymbols', $formatter);
+    }
+
     public function test_company_profile_formats_dates_numbers_money_and_percentages(): void
     {
         $company = new CompanyProfile(array_merge(CompanyProfile::defaults(), [
