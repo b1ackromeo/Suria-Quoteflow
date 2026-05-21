@@ -1,5 +1,9 @@
 @extends('layouts.app', ['title' => 'Pending Approvals'])
 
+@php
+    $companyProfile = \App\Models\CompanyProfile::active();
+@endphp
+
 @section('content')
 <section class="panel">
     <div class="panel-header">
@@ -50,13 +54,13 @@
                     </td>
                     <td class="text-right font-bold text-slate-900">
                         @if($document)
-                            {{ $document->currency }} {{ number_format($document->total, 2) }}
+                            {{ $companyProfile->formatMoney($document->total, $document->currency) }}
                         @else
                             -
                         @endif
                     </td>
                     <td>{{ $approval->requester?->name ?? 'Unknown' }}</td>
-                    <td>{{ $approval->created_at->format('Y-m-d H:i') }}</td>
+                    <td>{{ $companyProfile->formatDate($approval->created_at) }}</td>
                     <td>
                         @if($document)
                             <a class="link" href="{{ route('documents.show', $document) }}">Open</a>
