@@ -48,21 +48,21 @@ class CompanyProfile extends Model
     public static function defaults(): array
     {
         return [
-            'name' => 'RC Technology Resources',
-            'registration_number' => '202603107223 (003844744-P)',
-            'email' => 'rctech@gmail.com',
-            'phone' => '+60 16-445 2786',
-            'address' => '1-3 Level 1, Jalan Perdana Blok 4801, CBD Perdana, Cyberjaya',
-            'tagline' => 'Reliable Infrastructure. Connected Future.',
+            'name' => 'Your Company Name',
+            'registration_number' => null,
+            'email' => null,
+            'phone' => null,
+            'address' => null,
+            'tagline' => 'Configure your company profile before issuing documents.',
             'primary_color' => '#0a345f',
             'accent_color' => '#0a4f93',
-            'country' => 'Malaysia',
-            'timezone' => 'Asia/Kuala_Lumpur',
-            'base_currency' => 'MYR',
-            'currency_display' => null,
+            'country' => 'Other',
+            'timezone' => 'UTC',
+            'base_currency' => 'USD',
+            'currency_display' => 'code',
             'currency_symbol_override' => null,
-            'date_format' => 'd M Y',
-            'number_format' => 'en-MY',
+            'date_format' => 'Y-m-d',
+            'number_format' => 'en-US',
             'tax_label' => 'Tax',
             'tax_registration_label' => 'Tax Registration No.',
             'tax_registration_number' => null,
@@ -261,13 +261,7 @@ class CompanyProfile extends Model
 
     private static function fallbackDefaults(): array
     {
-        $defaults = static::defaults();
-
-        if (app()->environment('testing')) {
-            $defaults['currency_display'] = 'code';
-        }
-
-        return $defaults;
+        return static::defaults();
     }
 
     private function numberSeparators(): array
@@ -305,6 +299,6 @@ class CompanyProfile extends Model
 
     private function shouldUseDefaultLogo(): bool
     {
-        return $this->displayName() === static::defaults()['name'];
+        return false;
     }
 }
