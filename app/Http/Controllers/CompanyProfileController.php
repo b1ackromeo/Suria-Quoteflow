@@ -89,7 +89,7 @@ class CompanyProfileController extends Controller
             'country' => ['required', 'string', 'max:120'],
             'timezone' => ['required', Rule::in(timezone_identifiers_list())],
             'base_currency' => ['required', 'string', 'size:3'],
-            'currency_display' => ['required', Rule::in(array_keys($this->currencyDisplays()))],
+            'currency_display' => ['nullable', Rule::in(array_keys($this->currencyDisplays()))],
             'currency_symbol_override' => ['nullable', 'string', 'max:20'],
             'date_format' => ['required', Rule::in(array_keys($this->dateFormats()))],
             'number_format' => ['required', Rule::in(array_keys($this->numberFormats()))],
