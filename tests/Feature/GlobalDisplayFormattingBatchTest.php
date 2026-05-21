@@ -78,6 +78,19 @@ class GlobalDisplayFormattingBatchTest extends TestCase
         $response->assertDontSee('22 May 2026');
     }
 
+    public function test_document_show_uses_company_money_and_date_formatting(): void
+    {
+        $document = $this->createCustomerInvoice('INV-FORMAT-003', '2026-05-21', 'EUR', 9876.54, 'issued');
+
+        $response = $this->actingAs($this->admin)->get(route('documents.show', $document));
+
+        $response->assertOk();
+        $response->assertSee('EUR 9 876,54');
+        $response->assertSee('2026-05-21');
+        $response->assertDontSee('EUR 9,876.54');
+        $response->assertDontSee('21 May 2026');
+    }
+
     private function createCustomerInvoice(string $documentNumber, string $issueDate, string $currency, float $total, string $status): Document
     {
         return Document::create([

@@ -4,6 +4,10 @@
 ])
 
 @php
+    $companyProfile = \App\Models\CompanyProfile::active();
+    $money = fn ($value, ?string $currency = null) => $companyProfile->formatMoney($value, $currency ?: $document->currency);
+    $date = fn ($value) => $value ? $companyProfile->formatDate($value) : 'Not set';
+
     $canWrite = auth()->user()->hasRole('admin', 'manager')
         || ($document->direction === 'outgoing' && auth()->user()->hasRole('sales', 'accounts'))
         || ($document->direction === 'incoming' && auth()->user()->hasRole('procurement', 'accounts'));
@@ -150,7 +154,7 @@
     if (filled($supplierQuoteReviewTotal)) {
         $supplierQuoteReviewNumber = preg_replace('/[^\d.\-]/', '', (string) $supplierQuoteReviewTotal);
         if ($supplierQuoteReviewNumber !== '' && is_numeric($supplierQuoteReviewNumber)) {
-            $supplierQuoteReviewAmount = $document->currency.' '.number_format((float) $supplierQuoteReviewNumber, 2);
+            $supplierQuoteReviewAmount = $money((float) $supplierQuoteReviewNumber);
         }
     }
     $nextAction = match (true) {
@@ -182,8 +186,8 @@
         default => 'Review document status, attachments, approvals, and payment balance.',
     };
     $detailRows = [
-        ['label' => $primaryDateLabel, 'value' => optional($document->issue_date)->format('d M Y') ?: 'Not set'],
-        ['label' => $secondaryDateLabel, 'value' => optional($document->due_date)->format('d M Y') ?: 'Not set'],
+        ['label' => $primaryDateLabel, 'value' => $date($document->issue_date)],
+        ['label' => $secondaryDateLabel, 'value' => $date($document->due_date)],
         ['label' => 'Reference', 'value' => $document->external_reference ?: 'Not set'],
         ['label' => 'Payment terms', 'value' => $document->paymentTermsDisplay()],
         ['label' => 'Project / site', 'value' => $document->project_name ?: 'Not set'],
@@ -191,7 +195,7 @@
     if ($document->isInvoice()) {
         $detailRows[] = ['label' => 'Progress invoice', 'value' => $document->progress_invoice_number && $document->progress_invoice_total ? 'No. '.$document->progress_invoice_number.' of '.$document->progress_invoice_total : 'Not set'];
         $detailRows[] = ['label' => 'Billing stage', 'value' => $document->billing_stage_name ?: 'Not set'];
-        $detailRows[] = ['label' => 'Balance', 'value' => $document->currency.' '.number_format($balanceDue, 2)];
+        $detailRows[] = ['label' => 'Balance', 'value' => $money($balanceDue)];
     }
     $readinessItems = [];
     if ($document->status === 'pending_approval') {
@@ -262,7 +266,7 @@
                 @if($hasActiveSupplierQuoteCapture)
                     <strong>{{ $supplierQuoteReviewAmount ? 'Detected quotation '.$supplierQuoteReviewAmount : 'Quotation total pending review' }}</strong>
                 @else
-                    <strong>{{ $document->currency }} {{ number_format($document->total, 2) }}</strong>
+                    <strong>{{ $money($document->total) }}</strong>
                 @endif
             </div>
         </div>
@@ -412,12 +416,12 @@
                                     <td><strong>{{ $item->description }}</strong></td>
                                     <td class="text-right">{{ \App\Models\Document::formatQuantity($item->quantity) }}</td>
                                     <td>{{ $item->unit }}</td>
-                                    <td class="text-right">{{ $document->currency }} {{ number_format((float) $item->quantity * (float) $item->unit_price, 2) }}</td>
+                                    <td class="text-right">{{ $money((float) $item->quantity * (float) $item->unit_price) }}</td>
                                 </tr>
                             @endforeach
                             </tbody>
                             <tfoot>
-                            <tr><th colspan="3">Total</th><td class="text-right">{{ $document->currency }} {{ number_format($document->total, 2) }}</td></tr>
+                            <tr><th colspan="3">Total</th><td class="text-right">{{ $money($document->total) }}</td></tr>
                             </tfoot>
                         </table>
                     </div>
@@ -556,7 +560,7 @@
                                     <strong>{{ $stage->stage_name }}</strong>
                                     <span>{{ $document->isInvoice() ? ($stage->is_current ? 'Current invoice stage' : 'Not billed on this invoice') : ($stage->condition_label ?: $stage->payment_term ?: '-') }}</span>
                                 </td>
-                                <td class="text-right">{{ $document->currency }} {{ number_format($document->isInvoice() ? $stage->current_invoice : $stage->amount, 2) }}</td>
+                                <td class="text-right">{{ $money($document->isInvoice() ? $stage->current_invoice : $stage->amount) }}</td>
                             </tr>
                         @endforeach
                         </tbody>
@@ -581,14 +585,14 @@
                         <tr>
                             <td>
                                 <strong>{{ $item->description }}</strong>
-                                <span>{{ \App\Models\Document::formatQuantity($item->quantity) }} {{ $item->unit }} x {{ $document->currency }} {{ number_format($item->unit_price, 2) }}</span>
+                                <span>{{ \App\Models\Document::formatQuantity($item->quantity) }} {{ $item->unit }} x {{ $money($item->unit_price) }}</span>
                             </td>
-                            <td class="text-right">{{ $document->currency }} {{ number_format((float) $item->quantity * (float) $item->unit_price, 2) }}</td>
+                            <td class="text-right">{{ $money((float) $item->quantity * (float) $item->unit_price) }}</td>
                         </tr>
                     @endforeach
                     </tbody>
                     <tfoot>
-                    <tr><th>Total</th><td class="text-right">{{ $document->currency }} {{ number_format($document->total, 2) }}</td></tr>
+                    <tr><th>Total</th><td class="text-right">{{ $money($document->total) }}</td></tr>
                     </tfoot>
                 </table>
             </div>
@@ -618,7 +622,7 @@
             <details class="document-side-card document-side-disclosure">
                 <summary>
                     <span>Payments</span>
-                    <strong>{{ $document->currency }} {{ number_format($balanceDue, 2) }} balance</strong>
+                    <strong>{{ $money($balanceDue) }} balance</strong>
                 </summary>
                 <div class="document-compact-table">
                     <table>
@@ -628,9 +632,9 @@
                             <tr>
                                 <td>
                                     <strong>{{ $payment->reference }}</strong>
-                                    <span>{{ optional($payment->payment_date)->format('d M Y') }} · {{ $payment->typeDisplay() }}</span>
+                                    <span>{{ $payment->payment_date ? $companyProfile->formatDate($payment->payment_date) : 'Not set' }} · {{ $payment->typeDisplay() }}</span>
                                 </td>
-                                <td class="text-right">{{ $document->currency }} {{ number_format($payment->amount, 2) }}</td>
+                                <td class="text-right">{{ $money($payment->amount) }}</td>
                             </tr>
                         @empty
                             <tr><td colspan="2">No payments recorded.</td></tr>
