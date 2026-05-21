@@ -151,6 +151,36 @@ class CompanyProfileSettingsTest extends TestCase
         $this->assertSame('9,00%', $company->formatPercent(9));
     }
 
+    public function test_company_profile_formats_expanded_number_formats(): void
+    {
+        $india = new CompanyProfile(array_merge(CompanyProfile::defaults(), [
+            'base_currency' => 'INR',
+            'currency_display' => 'code',
+            'number_format' => 'en-IN',
+        ]));
+        $switzerland = new CompanyProfile(array_merge(CompanyProfile::defaults(), [
+            'base_currency' => 'CHF',
+            'currency_display' => 'code',
+            'number_format' => 'de-CH',
+        ]));
+        $japan = new CompanyProfile(array_merge(CompanyProfile::defaults(), [
+            'base_currency' => 'JPY',
+            'currency_display' => 'code',
+            'number_format' => 'ja-JP',
+        ]));
+        $korea = new CompanyProfile(array_merge(CompanyProfile::defaults(), [
+            'base_currency' => 'KRW',
+            'currency_display' => 'code',
+            'number_format' => 'ko-KR',
+        ]));
+
+        $this->assertSame('12,34,567.89', $india->formatNumber(1234567.89));
+        $this->assertSame('INR 12,34,567.89', $india->formatMoney(1234567.89));
+        $this->assertSame("CHF 1'234.56", $switzerland->formatMoney(1234.56));
+        $this->assertSame('JPY 1,235', $japan->formatMoney(1234.56));
+        $this->assertSame('KRW 1,235', $korea->formatMoney(1234.56));
+    }
+
     public function test_malaysia_money_defaults_to_rm_symbol(): void
     {
         $company = new CompanyProfile(CompanyProfile::defaults());
