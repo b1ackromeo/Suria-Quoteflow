@@ -11,9 +11,24 @@
     const taxLabel = config.taxLabel || 'Tax';
     const defaultTaxRate = Number(config.defaultTaxRate || 0);
     const dateFormat = config.dateFormat || 'd M Y';
+    const currencyDisplay = ['code', 'symbol', 'symbol_with_code'].includes(config.currencyDisplay)
+        ? config.currencyDisplay
+        : (baseCurrency === 'MYR' ? 'symbol' : 'code');
+    const currencySymbols = config.currencySymbols || {};
+    const baseCurrencySymbolOverride = String(config.currencySymbolOverride || '').trim();
 
     function currencyInputValue() {
         return String(document.querySelector('[name="currency"]')?.value || baseCurrency).toUpperCase();
+    }
+
+    function currencySymbol(currency) {
+        const normalizedCurrency = String(currency || baseCurrency).toUpperCase();
+
+        if (normalizedCurrency === baseCurrency && baseCurrencySymbolOverride !== '') {
+            return baseCurrencySymbolOverride;
+        }
+
+        return currencySymbols[normalizedCurrency] || normalizedCurrency;
     }
 
     function formatNumberValue(amount, decimals = 2) {
@@ -24,7 +39,18 @@
     }
 
     function formatMoneyValue(amount) {
-        return `${currencyInputValue()} ${formatNumberValue(amount, 2)}`;
+        const currency = currencyInputValue();
+        const formattedAmount = formatNumberValue(amount, 2);
+
+        if (currencyDisplay === 'symbol') {
+            return `${currencySymbol(currency)} ${formattedAmount}`;
+        }
+
+        if (currencyDisplay === 'symbol_with_code') {
+            return `${currencySymbol(currency)} ${formattedAmount} (${currency})`;
+        }
+
+        return `${currency} ${formattedAmount}`;
     }
 
     function formatQuantityValue(amount) {
@@ -82,7 +108,7 @@
 
     function setInitialMoneyPlaceholders() {
         document.querySelectorAll('[data-summary-subtotal], [data-summary-tax], [data-summary-total], [data-preview-subtotal], [data-preview-tax], [data-preview-total]').forEach((target) => {
-            if (!target.textContent.trim() || /^(MYR|SGD|USD|EUR|GBP|AUD|NZD|IDR|THB|PHP|VND|BND)\s+0[.,]00$/i.test(target.textContent.trim())) {
+            if (!target.textContent.trim() || /^(MYR|RM|SGD|S\$|USD|\$|EUR|€|GBP|£|AUD|A\$|NZD|NZ\$|IDR|Rp|THB|฿|PHP|₱|VND|₫|BND|B\$)\s+0[.,]00(?:\s+\([A-Z]{3}\))?$/i.test(target.textContent.trim())) {
                 target.textContent = formatMoneyValue(0);
             }
         });
