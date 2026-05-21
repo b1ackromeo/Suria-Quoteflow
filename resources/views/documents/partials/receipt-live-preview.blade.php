@@ -27,7 +27,7 @@
             <div class="divide-y divide-slate-200 border border-slate-200 bg-slate-50">
                 <div class="flex justify-between gap-3 px-3 py-2">
                     <span class="font-semibold text-slate-500" data-receipt-label="dateLabel">Received date</span>
-                    <span class="text-right font-bold" data-preview-date>{{ optional($document->issue_date)->format('d M Y') ?? 'Received date' }}</span>
+                    <span class="text-right font-bold" data-preview-date>{{ $document->issue_date ? $companyProfile->formatDate($document->issue_date) : 'Received date' }}</span>
                 </div>
                 <div class="flex justify-between gap-3 px-3 py-2">
                     <span class="font-semibold text-slate-500" data-receipt-label="sourceLabel">Issued PO</span>

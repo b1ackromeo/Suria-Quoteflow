@@ -1,5 +1,7 @@
 @php
     $companyProfile = \App\Models\CompanyProfile::active();
+    $previewCurrency = $document->currency ?: $companyProfile->baseCurrency();
+    $zeroMoney = $companyProfile->formatMoney(0, $previewCurrency);
     $isInvoice = in_array($meta['type'], ['customer_invoice', 'supplier_invoice'], true);
     $isPo = in_array($meta['type'], ['customer_po', 'supplier_po'], true);
     $isQuotation = in_array($meta['type'], ['customer_quotation', 'supplier_quotation'], true);
@@ -97,11 +99,11 @@
             <div class="divide-y divide-slate-200 border border-slate-200 bg-slate-50">
                 <div class="flex justify-between gap-3 px-3 py-2">
                     <span class="font-semibold text-slate-500">{{ $primaryDateLabel }}</span>
-                    <span class="text-right font-bold" data-preview-date>{{ optional($document->issue_date)->format('d M Y') ?? 'Issue date' }}</span>
+                    <span class="text-right font-bold" data-preview-date>{{ $document->issue_date ? $companyProfile->formatDate($document->issue_date) : 'Issue date' }}</span>
                 </div>
                 <div class="flex justify-between gap-3 px-3 py-2">
                     <span class="font-semibold text-slate-500">{{ $secondaryDateLabel }}</span>
-                    <span class="text-right font-bold" data-preview-valid>{{ optional($document->due_date)->format('d M Y') ?? $secondaryDateFallback }}</span>
+                    <span class="text-right font-bold" data-preview-valid>{{ $document->due_date ? $companyProfile->formatDate($document->due_date) : $secondaryDateFallback }}</span>
                 </div>
                 <div class="flex justify-between gap-3 px-3 py-2">
                     <span class="font-semibold text-slate-500">Reference</span>
@@ -113,7 +115,7 @@
         <div class="grid gap-2 sm:grid-cols-3">
             <div class="border border-slate-200 bg-white p-3">
                 <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Currency</p>
-                <p class="mt-1 font-bold" data-preview-currency>{{ $document->currency ?: 'MYR' }}</p>
+                <p class="mt-1 font-bold" data-preview-currency>{{ $previewCurrency }}</p>
             </div>
             <div class="border border-slate-200 bg-white p-3">
                 <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Payment terms</p>
@@ -176,15 +178,15 @@
             <div class="divide-y divide-slate-200 border border-slate-200">
                 <div class="flex justify-between gap-3 px-3 py-2">
                     <span class="font-semibold">Subtotal</span>
-                    <span class="font-bold" data-preview-subtotal>MYR 0.00</span>
+                    <span class="font-bold" data-preview-subtotal>{{ $zeroMoney }}</span>
                 </div>
                 <div class="flex justify-between gap-3 px-3 py-2">
                     <span class="font-semibold">Tax</span>
-                    <span class="font-bold" data-preview-tax>MYR 0.00</span>
+                    <span class="font-bold" data-preview-tax>{{ $zeroMoney }}</span>
                 </div>
                 <div class="flex justify-between gap-3 bg-[#0a345f] px-3 py-3 text-white">
                     <span class="font-bold">{{ $totalLabel }}</span>
-                    <span class="font-bold" data-preview-total>MYR 0.00</span>
+                    <span class="font-bold" data-preview-total>{{ $zeroMoney }}</span>
                 </div>
             </div>
         </div>
