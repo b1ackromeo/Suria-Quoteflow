@@ -115,7 +115,15 @@ class CompanyProfileSettingsTest extends TestCase
         $response->assertOk();
         $response->assertSee('data-country-select', false);
         $response->assertSee('data-country-default-field="timezone"', false);
+        $response->assertSee('data-country-default-field="currency_display"', false);
+        $response->assertSee('data-country-default-field="currency_symbol_override"', false);
         $response->assertSee('data-country-default-field="tax_registration_label"', false);
+        $response->assertSee('Currency display');
+        $response->assertSee('Currency symbol override');
+        $response->assertSee('Currency symbol - RM 1,234.56');
+        $response->assertSee('Symbol and code - RM 1,234.56 (MYR)');
+        $response->assertSee('name="currency_display"', false);
+        $response->assertSee('name="currency_symbol_override"', false);
         $response->assertSee('Malaysia / English - 1,234.56');
         $response->assertSee('Singapore / English - 1,234.56');
         $response->assertSee('United States / English - 1,234.56');
