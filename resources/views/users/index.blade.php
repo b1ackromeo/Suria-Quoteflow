@@ -4,6 +4,7 @@
 ])
 
 @php
+    $companyProfile = \App\Models\CompanyProfile::active();
     $roleFilter = $roleFilter ?? null;
     $statusFilter = $statusFilter ?? null;
     $roleNotes = [
@@ -88,7 +89,7 @@
 
                         <div class="access-status-cell">
                             <span class="status-chip {{ $user->is_active ? 'status-approved' : 'status-cancelled' }}">{{ $user->is_active ? 'Active' : 'Inactive' }}</span>
-                            <small>Updated {{ optional($user->updated_at)->format('d M Y') }}</small>
+                            <small>Updated {{ $companyProfile->formatDate($user->updated_at) }}</small>
                         </div>
 
                         <div class="access-actions">
