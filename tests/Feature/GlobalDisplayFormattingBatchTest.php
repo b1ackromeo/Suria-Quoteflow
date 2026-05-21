@@ -48,13 +48,17 @@ class GlobalDisplayFormattingBatchTest extends TestCase
     {
         $document = $this->createCustomerInvoice('INV-FORMAT-001', '2026-05-21', 'USD', 1234.56, 'pending_approval');
 
-        Approval::create([
+        $approval = Approval::create([
             'document_id' => $document->id,
             'requested_by' => $this->admin->id,
             'status' => 'pending',
+        ]);
+
+        $approval->timestamps = false;
+        $approval->forceFill([
             'created_at' => '2026-05-21 14:30:00',
             'updated_at' => '2026-05-21 14:30:00',
-        ]);
+        ])->save();
 
         $response = $this->actingAs($this->admin)->get(route('approvals.pending'));
 

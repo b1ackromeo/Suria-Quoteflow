@@ -141,8 +141,10 @@ class DocumentLocalizationDefaultsTest extends TestCase
     public function test_document_form_loads_company_live_preview_formatting_config(): void
     {
         CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
-            'base_currency' => 'SGD',
-            'number_format' => 'en-SG',
+            'base_currency' => 'MYR',
+            'currency_display' => 'symbol_with_code',
+            'currency_symbol_override' => 'RM',
+            'number_format' => 'fr-FR',
             'date_format' => 'Y-m-d',
             'tax_label' => 'GST',
             'default_tax_rate' => 9,
@@ -157,8 +159,11 @@ class DocumentLocalizationDefaultsTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('window.QuoteFlowCompanyFormat', false);
-        $response->assertSee('"baseCurrency":"SGD"', false);
-        $response->assertSee('"numberFormat":"en-SG"', false);
+        $response->assertSee('"baseCurrency":"MYR"', false);
+        $response->assertSee('"currencyDisplay":"symbol_with_code"', false);
+        $response->assertSee('"currencySymbolOverride":"RM"', false);
+        $response->assertSee('"MYR":"RM"', false);
+        $response->assertSee('"numberFormat":"fr-FR"', false);
         $response->assertSee('"dateFormat":"Y-m-d"', false);
         $response->assertSee('"taxLabel":"GST"', false);
         $response->assertSee('"defaultTaxRate":9', false);
