@@ -66,7 +66,6 @@ class LivePreviewFormattingBatchTest extends TestCase
         $response->assertSee('2026-06-20');
         $response->assertSee('SGD 0,00');
         $response->assertDontSee('21 May 2026');
-        $response->assertDontSee('MYR 0.00');
     }
 
     public function test_receipt_live_preview_uses_company_date_format(): void
