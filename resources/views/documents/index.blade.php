@@ -4,6 +4,7 @@
 ])
 
 @php
+    $companyProfile = \App\Models\CompanyProfile::active();
     $canWrite = auth()->user()->hasRole('admin', 'manager')
         || ($meta['direction'] === 'outgoing' && auth()->user()->hasRole('sales', 'accounts'))
         || ($meta['direction'] === 'incoming' && auth()->user()->hasRole('procurement', 'accounts'));
@@ -149,8 +150,8 @@
                         $useGeneratedOutputPreview = in_array($document->type, ['customer_quotation', 'customer_invoice'], true)
                             || $document->shouldPreviewGeneratedPdfOutput();
                         $rowTotalLabel = $document->type === 'goods_receipt'
-                            ? rtrim(rtrim(number_format((float) $document->items->sum('quantity'), 3), '0'), '.').' received'
-                            : $document->currency.' '.number_format($document->total, 2);
+                            ? \App\Models\Document::formatQuantity((float) $document->items->sum('quantity')).' received'
+                            : $companyProfile->formatMoney($document->total, $document->currency);
                     @endphp
                     <article
                         class="document-list-row"
@@ -168,7 +169,7 @@
                         </div>
                         <div class="document-row-footer">
                             <div class="document-row-details">
-                                <span><b>{{ $issueDateLabel }}</b> {{ optional($document->issue_date)->format('d M Y') ?? '-' }}</span>
+                                <span><b>{{ $issueDateLabel }}</b> {{ $companyProfile->formatDate($document->issue_date) }}</span>
                                 <span><b>{{ $rowReferenceLabel }}</b> {{ $document->external_reference ?: '-' }}</span>
                             </div>
                             <div class="document-row-total-action">
