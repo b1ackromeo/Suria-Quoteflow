@@ -407,8 +407,10 @@ class CompanyProfileController extends Controller
 
     private function timezones(): array
     {
-        return collect(timezone_identifiers_list())
-            ->filter(fn (string $timezone) => str_starts_with($timezone, 'Asia/') || str_starts_with($timezone, 'Australia/') || str_starts_with($timezone, 'Pacific/') || str_starts_with($timezone, 'Europe/') || str_starts_with($timezone, 'America/') || str_starts_with($timezone, 'Africa/'))
+        return collect(['UTC'])
+            ->merge(collect(timezone_identifiers_list())
+                ->filter(fn (string $timezone) => str_starts_with($timezone, 'Asia/') || str_starts_with($timezone, 'Australia/') || str_starts_with($timezone, 'Pacific/') || str_starts_with($timezone, 'Europe/') || str_starts_with($timezone, 'America/') || str_starts_with($timezone, 'Africa/')))
+            ->unique()
             ->values()
             ->all();
     }
