@@ -144,11 +144,12 @@ class Document extends Model
     protected static function booted(): void
     {
         static::creating(function (self $document): void {
-            $legacyDefaultCurrency = CompanyProfile::defaults()['base_currency'];
             $currency = $document->getAttributes()['currency'] ?? null;
 
-            if (! filled($currency) || strtoupper((string) $currency) === $legacyDefaultCurrency) {
+            if (! filled($currency)) {
                 $document->currency = CompanyProfile::active()->baseCurrency();
+            } else {
+                $document->currency = strtoupper((string) $currency);
             }
         });
 
@@ -169,9 +170,7 @@ class Document extends Model
 
     public function getCurrencyAttribute(mixed $value): mixed
     {
-        $legacyDefaultCurrency = CompanyProfile::defaults()['base_currency'];
-
-        if (! $this->exists && (! filled($value) || strtoupper((string) $value) === $legacyDefaultCurrency)) {
+        if (! $this->exists && ! filled($value)) {
             return CompanyProfile::active()->baseCurrency();
         }
 

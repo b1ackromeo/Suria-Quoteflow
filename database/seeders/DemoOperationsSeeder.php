@@ -21,7 +21,19 @@ class DemoOperationsSeeder extends Seeder
         DB::transaction(function () {
             CompanyProfile::updateOrCreate(
                 ['name' => 'RC Technology Resources'],
-                CompanyProfile::defaults()
+                array_merge(CompanyProfile::defaults(), [
+                    'name' => 'RC Technology Resources',
+                    'tagline' => 'Reliable Infrastructure. Connected Future.',
+                    'country' => 'Malaysia',
+                    'timezone' => 'Asia/Kuala_Lumpur',
+                    'base_currency' => 'MYR',
+                    'currency_display' => 'symbol',
+                    'currency_symbol_override' => 'RM',
+                    'number_format' => 'en-MY',
+                    'tax_label' => 'Tax',
+                    'tax_registration_label' => 'Tax Registration No.',
+                    'default_tax_rate' => 0,
+                ])
             );
 
             $admin = User::updateOrCreate(

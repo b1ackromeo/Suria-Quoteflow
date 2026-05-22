@@ -9,11 +9,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('company_profiles', function (Blueprint $table) {
-            $table->string('country', 120)->default('Malaysia')->after('accent_color');
-            $table->string('timezone', 120)->default('Asia/Kuala_Lumpur')->after('country');
-            $table->string('base_currency', 3)->default('MYR')->after('timezone');
-            $table->string('date_format', 40)->default('d M Y')->after('base_currency');
-            $table->string('number_format', 40)->default('en-MY')->after('date_format');
+            $table->string('country', 120)->default('Other')->after('accent_color');
+            $table->string('timezone', 120)->default('UTC')->after('country');
+            $table->string('base_currency', 3)->default('USD')->after('timezone');
+            $table->string('date_format', 40)->default('Y-m-d')->after('base_currency');
+            $table->string('number_format', 40)->default('en-US')->after('date_format');
             $table->string('tax_label', 80)->default('Tax')->after('number_format');
             $table->string('tax_registration_number', 120)->nullable()->after('tax_label');
             $table->decimal('default_tax_rate', 5, 2)->default(0)->after('tax_registration_number');

@@ -64,6 +64,21 @@ class CompanyProfileSettingsTest extends TestCase
         ], $company->paymentInstructionLines());
     }
 
+    public function test_first_run_company_profile_defaults_are_neutral(): void
+    {
+        $company = CompanyProfile::active();
+
+        $this->assertSame('Your Company Name', $company->displayName());
+        $this->assertSame('', $company->displayTagline());
+        $this->assertSame('Other', $company->displayCountry());
+        $this->assertSame('UTC', $company->displayTimezone());
+        $this->assertSame('USD', $company->baseCurrency());
+        $this->assertSame('code', $company->currencyDisplay());
+        $this->assertSame('USD 1,234.56', $company->formatMoney(1234.56));
+        $this->assertSame('', $company->logoUrl());
+        $this->assertSame('', $company->logoPathForPdf());
+    }
+
     public function test_company_profile_page_shows_global_document_settings(): void
     {
         $admin = User::factory()->create([
@@ -181,9 +196,16 @@ class CompanyProfileSettingsTest extends TestCase
         $this->assertSame('KRW 1,235', $korea->formatMoney(1234.56));
     }
 
-    public function test_malaysia_money_defaults_to_rm_symbol(): void
+    public function test_malaysia_money_defaults_to_rm_symbol_when_company_is_malaysian(): void
     {
-        $company = new CompanyProfile(CompanyProfile::defaults());
+        $company = new CompanyProfile(array_merge(CompanyProfile::defaults(), [
+            'country' => 'Malaysia',
+            'timezone' => 'Asia/Kuala_Lumpur',
+            'base_currency' => 'MYR',
+            'currency_display' => null,
+            'currency_symbol_override' => null,
+            'number_format' => 'en-MY',
+        ]));
 
         $this->assertSame('symbol', $company->currencyDisplay());
         $this->assertSame('RM', $company->currencySymbol('MYR'));

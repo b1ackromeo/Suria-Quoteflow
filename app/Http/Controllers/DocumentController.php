@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Attachment;
 use App\Models\AttachmentExtraction;
 use App\Models\Approval;
+use App\Models\CompanyProfile;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\DocumentItem;
@@ -80,7 +81,7 @@ class DocumentController extends Controller
             'type' => $meta['type'],
             'direction' => $meta['direction'],
             'issue_date' => now()->toDateString(),
-            'currency' => 'MYR',
+            'currency' => CompanyProfile::active()->baseCurrency(),
             'payment_terms_type' => 'standard',
             'payment_due_days' => 30,
         ]);
@@ -102,8 +103,9 @@ class DocumentController extends Controller
         $this->ensureWriteAccess($meta);
         $data = $this->validated($request, $meta);
         $sourceAttachment = $request->file('source_attachment');
+        $defaultCurrency = CompanyProfile::active()->baseCurrency();
 
-        $document = DB::transaction(function () use ($data, $meta) {
+        $document = DB::transaction(function () use ($data, $meta, $defaultCurrency) {
             $document = Document::create([
                 'type' => $meta['type'],
                 'direction' => $meta['direction'],
@@ -119,7 +121,7 @@ class DocumentController extends Controller
                 'status' => 'draft',
                 'issue_date' => $data['issue_date'],
                 'due_date' => $data['due_date'] ?? null,
-                'currency' => strtoupper($data['currency'] ?? 'MYR'),
+                'currency' => strtoupper($data['currency'] ?? $defaultCurrency),
                 'payment_terms_type' => $data['payment_terms_type'] ?? 'standard',
                 'payment_due_days' => $data['payment_due_days'] ?? null,
                 'payment_terms_label' => $data['payment_terms_label'] ?? null,
@@ -196,8 +198,9 @@ class DocumentController extends Controller
 
         $data = $this->validated($request, $meta);
         $before = $document->load('items')->toArray();
+        $defaultCurrency = $document->currency ?: CompanyProfile::active()->baseCurrency();
 
-        DB::transaction(function () use ($document, $data) {
+        DB::transaction(function () use ($document, $data, $defaultCurrency) {
             $document->update([
                 'external_reference' => $data['external_reference'] ?? null,
                 'customer_id' => $data['customer_id'] ?? null,
@@ -209,7 +212,7 @@ class DocumentController extends Controller
                 'delivery_to' => $data['delivery_to'] ?? null,
                 'issue_date' => $data['issue_date'],
                 'due_date' => $data['due_date'] ?? null,
-                'currency' => strtoupper($data['currency'] ?? 'MYR'),
+                'currency' => strtoupper($data['currency'] ?? $defaultCurrency),
                 'payment_terms_type' => $data['payment_terms_type'] ?? 'standard',
                 'payment_due_days' => $data['payment_due_days'] ?? null,
                 'payment_terms_label' => $data['payment_terms_label'] ?? null,
@@ -1041,7 +1044,7 @@ class DocumentController extends Controller
             'source_type' => $this->sourceTypeForRelatedDocument($meta['type'], $sourceDocument->type),
             'project_name' => $sourceDocument->project_name,
             'delivery_to' => $sourceDocument->delivery_to,
-            'currency' => $sourceDocument->currency ?: 'MYR',
+            'currency' => $sourceDocument->currency ?: CompanyProfile::active()->baseCurrency(),
             'payment_terms_type' => $sourceDocument->payment_terms_type ?: 'standard',
             'payment_due_days' => $sourceDocument->payment_due_days,
             'payment_terms_label' => $sourceDocument->payment_terms_label,

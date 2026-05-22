@@ -1280,7 +1280,7 @@ class DocumentWorkflowTest extends TestCase
         $supplierPoIndex->assertOk();
         $supplierPoIndex->assertSee($supplierPo->document_number);
         $supplierPoIndex->assertSee('Purchase order PDF');
-        $supplierPoIndex->assertSee('Reliable Infrastructure. Connected Future.');
+        $supplierPoIndex->assertDontSee('Reliable Infrastructure. Connected Future.');
     }
 
     public function test_issued_supplier_po_listing_uses_final_pdf_output_preview_while_draft_stays_draft_preview(): void

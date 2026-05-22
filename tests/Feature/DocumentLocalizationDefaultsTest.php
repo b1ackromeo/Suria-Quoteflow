@@ -15,47 +15,40 @@ class DocumentLocalizationDefaultsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_new_documents_use_active_company_base_currency_when_legacy_default_is_submitted(): void
+    public function test_new_documents_use_active_company_base_currency_when_currency_is_missing(): void
+    {
+        CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
+            'base_currency' => 'SGD',
+        ]));
+        $document = Document::create([
+            'type' => 'customer_quotation',
+            'direction' => 'outgoing',
+            'document_number' => 'CQ-2026-00001',
+            'customer_id' => null,
+            'status' => 'draft',
+            'issue_date' => now()->toDateString(),
+        ]);
+
+        $this->assertSame('SGD', $document->currency);
+    }
+
+    public function test_new_documents_keep_explicit_myr_currency_when_company_uses_another_currency(): void
     {
         CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
             'base_currency' => 'SGD',
         ]));
 
-        $admin = User::factory()->create([
-            'role' => 'admin',
-            'is_active' => true,
-        ]);
-
-        $customer = Customer::create([
-            'name' => 'Global Customer Pte Ltd',
-            'code' => 'GLOBAL',
-            'email' => 'accounts@global-customer.test',
-            'payment_terms_days' => 30,
-            'is_active' => true,
-        ]);
-
-        $response = $this->actingAs($admin)->post(route('documents.store', 'customer-quotations'), [
-            'customer_id' => $customer->id,
-            'external_reference' => 'RFQ-SG-001',
+        $document = Document::create([
+            'type' => 'customer_quotation',
+            'direction' => 'outgoing',
+            'document_number' => 'CQ-2026-00002',
+            'customer_id' => null,
+            'status' => 'draft',
             'issue_date' => now()->toDateString(),
-            'due_date' => now()->addDays(14)->toDateString(),
             'currency' => 'MYR',
-            'payment_terms_type' => 'standard',
-            'payment_due_days' => 30,
-            'document_tax_rate' => 0,
-            'items' => [[
-                'description' => 'Implementation planning',
-                'quantity' => 1,
-                'unit' => 'job',
-                'unit_price' => 1200,
-            ]],
         ]);
 
-        $response->assertRedirect();
-
-        $document = Document::firstOrFail();
-
-        $this->assertSame('SGD', $document->currency);
+        $this->assertSame('MYR', $document->currency);
     }
 
     public function test_new_documents_keep_explicit_non_default_currency(): void
@@ -67,7 +60,7 @@ class DocumentLocalizationDefaultsTest extends TestCase
         $document = Document::create([
             'type' => 'customer_quotation',
             'direction' => 'outgoing',
-            'document_number' => 'CQ-2026-00001',
+            'document_number' => 'CQ-2026-00003',
             'customer_id' => null,
             'status' => 'draft',
             'issue_date' => now()->toDateString(),
