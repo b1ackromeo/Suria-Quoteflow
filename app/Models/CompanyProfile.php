@@ -53,7 +53,7 @@ class CompanyProfile extends Model
             'email' => null,
             'phone' => null,
             'address' => null,
-            'tagline' => 'Reliable Infrastructure. Connected Future.',
+            'tagline' => '',
             'primary_color' => '#0a345f',
             'accent_color' => '#0a4f93',
             'country' => 'Other',

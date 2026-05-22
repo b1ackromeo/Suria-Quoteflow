@@ -52,6 +52,8 @@
     $isQuotationDocument = in_array($meta['type'], ['customer_quotation', 'supplier_quotation'], true);
     $usesDocumentStudio = true;
     $companyProfile = \App\Models\CompanyProfile::active();
+    $documentCurrency = strtoupper((string) old('currency', $document->currency ?: $companyProfile->baseCurrency()));
+    $currencySymbols = \App\Models\CompanyProfile::currencySymbols();
     $sourceOptions = match ($meta['type']) {
         'customer_po' => [
             'quotation' => ['title' => 'From approved quotation', 'copy' => 'Use when the customer PO follows an approved quotation.'],
@@ -504,13 +506,13 @@
             </label>
             @if($isGoodsReceipt)
                 <input type="hidden" name="due_date" data-due-date value="{{ old('due_date', optional($document->due_date)->format('Y-m-d')) }}">
-                <input type="hidden" name="currency" value="{{ old('currency', $document->currency ?? 'MYR') }}">
+                <input type="hidden" name="currency" value="{{ $documentCurrency }}">
             @else
                 <label class="form-label">{{ $validityLabel }}
                     <input class="form-input" type="date" name="due_date" data-due-date value="{{ old('due_date', optional($document->due_date)->format('Y-m-d')) }}">
                 </label>
                 <label class="form-label">Currency
-                    <input class="form-input uppercase" name="currency" maxlength="3" value="{{ old('currency', $document->currency ?? 'MYR') }}" required>
+                    <input class="form-input uppercase" name="currency" maxlength="3" value="{{ $documentCurrency }}" required>
                 </label>
             @endif
             <label class="form-label">Project / site
@@ -756,15 +758,15 @@
             <div class="mt-4 grid gap-3 md:grid-cols-3" aria-live="polite">
                 <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
                     <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Subtotal</p>
-                    <p class="mt-2 text-lg font-bold text-slate-950" data-summary-subtotal>MYR 0.00</p>
+                    <p class="mt-2 text-lg font-bold text-slate-950" data-summary-subtotal>{{ $companyProfile->formatMoney(0, $documentCurrency) }}</p>
                 </div>
                 <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
                     <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Tax</p>
-                    <p class="mt-2 text-lg font-bold text-slate-950" data-summary-tax>MYR 0.00</p>
+                    <p class="mt-2 text-lg font-bold text-slate-950" data-summary-tax>{{ $companyProfile->formatMoney(0, $documentCurrency) }}</p>
                 </div>
                 <div class="rounded-lg border border-blue-900 bg-[#0a345f] p-4 text-white">
                     <p class="text-xs font-bold uppercase tracking-wide text-slate-300">{{ $summaryTotalLabel }}</p>
-                    <p class="mt-2 text-lg font-bold" data-summary-total>MYR 0.00</p>
+                    <p class="mt-2 text-lg font-bold" data-summary-total>{{ $companyProfile->formatMoney(0, $documentCurrency) }}</p>
                 </div>
             </div>
         @endif
@@ -837,7 +839,7 @@
                         </div>
                         <div>
                             <dt>Recorded total</dt>
-                            <dd data-summary-total>MYR 0.00</dd>
+                            <dd data-summary-total>{{ $companyProfile->formatMoney(0, $documentCurrency) }}</dd>
                         </div>
                         <div>
                             <dt>Matching basis</dt>
@@ -965,6 +967,13 @@
 </template>
 
 <script>
+const companyNumberFormat = @json($companyProfile->numberFormat());
+const companyCurrencyDisplay = @json($companyProfile->currencyDisplay());
+const companyCurrencySymbolOverride = @json($companyProfile->currency_symbol_override);
+const companyBaseCurrency = @json($companyProfile->baseCurrency());
+const companyCurrencySymbols = @json($currencySymbols);
+const documentCurrencyFallback = @json($documentCurrency);
+
 function wireNamedTemplate(template, index, prefix) {
     template.querySelectorAll('[data-name]').forEach((field) => {
         field.name = `${prefix}[${index}][${field.dataset.name}]`;
@@ -975,9 +984,27 @@ function lineField(row, key) {
     return row.querySelector(`[name$="[${key}]"]`);
 }
 
+function currencySymbol(currency) {
+    if (currency === companyBaseCurrency && companyCurrencySymbolOverride) {
+        return companyCurrencySymbolOverride;
+    }
+
+    return companyCurrencySymbols[currency] || currency;
+}
+
 function formatMoney(amount) {
-    const currency = (document.querySelector('[name="currency"]')?.value || 'MYR').toUpperCase();
-    return `${currency} ${amount.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const currency = (document.querySelector('[name="currency"]')?.value || documentCurrencyFallback).toUpperCase();
+    const formatted = formatNumber(amount, 2);
+
+    if (companyCurrencyDisplay === 'symbol') {
+        return `${currencySymbol(currency)} ${formatted}`.trim();
+    }
+
+    if (companyCurrencyDisplay === 'symbol_with_code') {
+        return `${currencySymbol(currency)} ${formatted} (${currency})`.trim();
+    }
+
+    return `${currency} ${formatted}`.trim();
 }
 
 function updateDocumentTotals() {
@@ -1095,14 +1122,14 @@ function formValue(selector, fallback = '') {
 }
 
 function formatNumber(amount, decimals = 2) {
-    return Number(amount || 0).toLocaleString('en-MY', {
+    return Number(amount || 0).toLocaleString(companyNumberFormat, {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals,
     });
 }
 
 function formatQuantity(amount) {
-    return Number(amount || 0).toLocaleString('en-MY', {
+    return Number(amount || 0).toLocaleString(companyNumberFormat, {
         minimumFractionDigits: 0,
         maximumFractionDigits: 3,
     });
@@ -1270,7 +1297,7 @@ function syncQuotationPreview() {
     setText('[data-preview-reference]', formValue('[name="external_reference"]'), '{{ $previewReferenceFallback }}');
     setText('[data-preview-date]', formatPreviewDate(formValue('[name="issue_date"]'), 'Issue date'));
     setText('[data-preview-valid]', formatPreviewDate(formValue('[name="due_date"]'), '{{ $previewSecondaryDateFallback }}'));
-    setText('[data-preview-currency]', formValue('[name="currency"]', 'MYR').toUpperCase());
+    setText('[data-preview-currency]', formValue('[name="currency"]', documentCurrencyFallback).toUpperCase());
     setText('[data-preview-payment]', formValue('[name="payment_terms_label"]', paymentFallback));
     setText('[data-preview-site]', formValue('[name="project_name"]'), 'Project / site');
     setText('[data-preview-delivery]', formValue('[name="delivery_to"]'), 'Delivery / service location');

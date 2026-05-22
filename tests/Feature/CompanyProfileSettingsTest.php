@@ -69,6 +69,7 @@ class CompanyProfileSettingsTest extends TestCase
         $company = CompanyProfile::active();
 
         $this->assertSame('Your Company Name', $company->displayName());
+        $this->assertSame('', $company->displayTagline());
         $this->assertSame('Other', $company->displayCountry());
         $this->assertSame('UTC', $company->displayTimezone());
         $this->assertSame('USD', $company->baseCurrency());

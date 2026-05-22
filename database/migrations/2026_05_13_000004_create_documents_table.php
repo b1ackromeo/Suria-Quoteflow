@@ -42,7 +42,7 @@ return new class extends Migration
             ])->default('draft');
             $table->date('issue_date');
             $table->date('due_date')->nullable();
-            $table->string('currency', 3)->default('MYR');
+            $table->string('currency', 3)->default('USD');
             $table->decimal('subtotal', 15, 2)->default(0);
             $table->decimal('tax_total', 15, 2)->default(0);
             $table->decimal('total', 15, 2)->default(0);
