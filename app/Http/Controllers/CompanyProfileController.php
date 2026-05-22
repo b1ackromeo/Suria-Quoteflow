@@ -87,7 +87,7 @@ class CompanyProfileController extends Controller
             'primary_color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'accent_color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'country' => ['required', 'string', 'max:120'],
-            'timezone' => ['required', Rule::in(timezone_identifiers_list())],
+            'timezone' => ['required', Rule::in($this->timezones())],
             'base_currency' => ['required', 'string', 'size:3'],
             'currency_display' => ['nullable', Rule::in(array_keys($this->currencyDisplays()))],
             'currency_symbol_override' => ['nullable', 'string', 'max:20'],
