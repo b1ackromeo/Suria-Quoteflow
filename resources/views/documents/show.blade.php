@@ -60,7 +60,8 @@
     $canTrySupplierInvoiceMatch = in_array($document->status, ['received', 'issued', 'approved'], true) && $document->type === 'supplier_invoice';
     $canMarkMatched = $canTrySupplierInvoiceMatch && $supplierInvoiceCanMatch;
     $canOverrideSupplierInvoiceMatch = $canTrySupplierInvoiceMatch && ! $supplierInvoiceCanMatch && auth()->user()->hasRole('admin', 'manager');
-    $hasWorkflowActions = $canWrite && (
+    $canCancelDocument = $canWrite && auth()->user()->hasRole('admin', 'manager') && $document->canBeCancelled();
+    $hasWorkflowActions = ($canWrite && (
         $canSubmitForApproval
         || $canApproveDocument
         || $canRejectDocument
@@ -70,7 +71,8 @@
         || $canMarkMatched
         || $canOverrideSupplierInvoiceMatch
         || $canCloseDocument
-    ) || $canRecordPayment;
+        || $canCancelDocument
+    )) || $canRecordPayment;
     $issueActionLabel = match ($document->type) {
         'customer_po' => 'Accept customer PO',
         'supplier_po' => 'Issue purchase order',
@@ -182,6 +184,7 @@
         $document->isInvoice() && in_array($document->status, ['issued', 'part_paid'], true) => 'Record payment against this invoice.',
         $document->isInvoice() && $document->status === 'paid' => 'Close the invoice after payment is confirmed.',
         $document->isInvoice() && $document->status === 'closed' && $balanceDue > 0 => 'Closed with a remaining balance. Review payment records before relying on this invoice status.',
+        $document->status === 'cancelled' => 'Document is cancelled. No further document changes are available.',
         $document->status === 'closed' => 'Document is closed.',
         default => 'Review document status, attachments, approvals, and payment balance.',
     };
@@ -198,10 +201,12 @@
         $detailRows[] = ['label' => 'Balance', 'value' => $money($balanceDue)];
     }
     $readinessItems = [];
-    if ($document->status === 'pending_approval') {
+    if ($document->status === 'cancelled') {
+        $readinessItems[] = ['state' => 'blocked', 'label' => 'Document cancelled', 'message' => 'No further document actions are available.'];
+    } elseif ($document->status === 'pending_approval') {
         $readinessItems[] = ['state' => 'waiting', 'label' => 'Approval waiting', 'message' => 'Manager approval is required before this document can continue.'];
     }
-    if ($document->type === 'purchase_request') {
+    if ($document->status !== 'cancelled' && $document->type === 'purchase_request') {
         if ($supplierQuoteAttachment) {
             if ($supplierQuoteExtraction?->status === 'verified') {
                 $readinessItems[] = ['state' => 'ready', 'label' => 'Supplier quotation verified', 'message' => 'The uploaded supplier quotation has been checked and can support approval.'];
@@ -218,7 +223,7 @@
             $readinessItems[] = ['state' => 'blocked', 'label' => 'Supplier quotation missing', 'message' => 'Upload supplier quotation evidence, or record a quotation exception reason, before approval.'];
         }
     }
-    if ($document->type === 'supplier_invoice' && $supplierInvoiceVerification) {
+    if ($document->status !== 'cancelled' && $document->type === 'supplier_invoice' && $supplierInvoiceVerification) {
         if ($supplierInvoiceVerification['verified'] ?? false) {
             $verifiedBy = $supplierInvoiceVerification['verifier']?->name ?? 'Verified';
             $readinessItems[] = [
@@ -232,14 +237,14 @@
             }
         }
     }
-    if ($document->type === 'supplier_invoice' && $supplierInvoiceMatching) {
+    if ($document->status !== 'cancelled' && $document->type === 'supplier_invoice' && $supplierInvoiceMatching) {
         $readinessItems[] = $supplierInvoiceCanMatch
             ? ['state' => 'ready', 'label' => 'Matching checklist ready', 'message' => 'Invoice can be matched against its source.']
             : ['state' => 'blocked', 'label' => 'Matching blocked', 'message' => implode(' ', $supplierInvoiceMatchingBlockers)];
     }
-    if ($showPaymentBlockedReason) {
+    if ($document->status !== 'cancelled' && $showPaymentBlockedReason) {
         $readinessItems[] = ['state' => 'blocked', 'label' => 'Payment not available yet', 'message' => $paymentBlockedReason];
-    } elseif ($canRecordPayment) {
+    } elseif ($document->status !== 'cancelled' && $canRecordPayment) {
         $readinessItems[] = ['state' => 'money', 'label' => 'Payment ready', 'message' => 'Payment can be recorded for this invoice.'];
     }
     if ($readinessItems === []) {
@@ -251,6 +256,7 @@
         && $canDecideDocument;
     $showReadinessPanel = $showGenericCommandSections && ! $approvalReadinessIsDuplicated;
     $actionPanelTitle = $canDecideDocument ? 'Approval decision' : 'Available actions';
+    $showActionPanel = $hasWorkflowActions && ! $canUseInlineSubmitAction;
 @endphp
 
 <div class="document-open-workspace @if($document->type === 'purchase_request' && $supplierQuoteAttachment) document-open-workspace-source @endif">
@@ -262,7 +268,11 @@
                 <p>{{ $meta['singular'] }} for {{ $document->partyName() }}</p>
             </div>
             <div class="document-open-summary">
-                <span class="status-chip status-{{ $document->status }}">{{ $document->statusDisplay() }}</span>
+                <span
+                    class="status-chip status-{{ $document->status }}"
+                    aria-label="{{ $document->statusAriaLabel() }}"
+                    data-status-group="{{ $document->statusSemanticGroupDisplay() }}"
+                >{{ $document->statusDisplay() }}</span>
                 @if($hasActiveSupplierQuoteCapture)
                     <strong>{{ $supplierQuoteReviewAmount ? 'Detected quotation '.$supplierQuoteReviewAmount : 'Quotation total pending review' }}</strong>
                 @else
@@ -293,6 +303,12 @@
                         <input type="hidden" name="_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-primary w-full">Submit for approval</button>
                     </form>
+                @endif
+                @if($canUseInlineSubmitAction && $canCancelDocument)
+                    @include('documents.partials.cancel-document-form', [
+                        'document' => $document,
+                        'cancelFormClass' => 'mt-4 space-y-2',
+                    ])
                 @endif
                 @if($nextDocumentLinks !== [])
                     <div class="mt-4 grid gap-2">
@@ -331,13 +347,13 @@
             </section>
         @endif
 
-        @if($hasWorkflowActions && ! $canUseInlineSubmitAction)
+        @if($showActionPanel)
             <section class="document-side-card document-action-stack @if($canDecideDocument) document-decision-card @endif">
                 <h2 class="panel-title">{{ $actionPanelTitle }}</h2>
                 @if($canRecordPayment)
                     <a class="btn btn-primary w-full" href="{{ route('payments.create', $document) }}">Record payment</a>
                 @endif
-                @if($canSubmitForApproval)
+                @if($canSubmitForApproval && ! $canUseInlineSubmitAction)
                     <form method="post" action="{{ route('documents.submit', $document) }}"><input type="hidden" name="_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-primary w-full">Submit for approval</button></form>
                 @endif
                 @if($canApproveDocument)
@@ -390,6 +406,9 @@
                 @if($canCloseDocument)
                     <form method="post" action="{{ route('documents.transition', [$document, 'close']) }}"><input type="hidden" name="_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-secondary w-full">Close</button></form>
                 @endif
+                @if($canCancelDocument)
+                    @include('documents.partials.cancel-document-form', ['document' => $document])
+                @endif
             </section>
         @endif
 
@@ -413,10 +432,10 @@
                             <tbody>
                             @foreach($document->items as $item)
                                 <tr>
-                                    <td><strong>{{ $item->description }}</strong></td>
-                                    <td class="text-right">{{ \App\Models\Document::formatQuantity($item->quantity) }}</td>
-                                    <td>{{ $item->unit }}</td>
-                                    <td class="text-right">{{ $money((float) $item->quantity * (float) $item->unit_price) }}</td>
+                                    <td data-label="Description"><strong>{{ $item->description }}</strong></td>
+                                    <td data-label="Qty" class="text-right">{{ \App\Models\Document::formatQuantity($item->quantity) }}</td>
+                                    <td data-label="Unit">{{ $item->unit }}</td>
+                                    <td data-label="Amount" class="text-right">{{ $money((float) $item->quantity * (float) $item->unit_price) }}</td>
                                 </tr>
                             @endforeach
                             </tbody>
@@ -487,7 +506,7 @@
                         <dd>{{ $document->relatedDocument?->document_number ?? 'None' }}</dd>
                     </div>
                 </dl>
-                @include('documents.partials.workflow-timeline', ['meta' => $meta, 'document' => $document])
+                @include('documents.partials.workflow-timeline', ['meta' => $meta, 'document' => $document, 'documentChain' => $documentChain ?? null])
             </section>
             @endif
         @endif
@@ -556,11 +575,11 @@
                         <tbody>
                         @foreach($document->billingStages as $stage)
                             <tr class="{{ $stage->is_current ? 'is-current' : '' }}">
-                                <td>
+                                <td data-label="Stage">
                                     <strong>{{ $stage->stage_name }}</strong>
                                     <span>{{ $document->isInvoice() ? ($stage->is_current ? 'Current invoice stage' : 'Not billed on this invoice') : ($stage->condition_label ?: $stage->payment_term ?: '-') }}</span>
                                 </td>
-                                <td class="text-right">{{ $money($document->isInvoice() ? $stage->current_invoice : $stage->amount) }}</td>
+                                <td data-label="Amount" class="text-right">{{ $money($document->isInvoice() ? $stage->current_invoice : $stage->amount) }}</td>
                             </tr>
                         @endforeach
                         </tbody>
@@ -583,11 +602,11 @@
                     <tbody>
                     @foreach($document->items as $item)
                         <tr>
-                            <td>
+                            <td data-label="Description">
                                 <strong>{{ $item->description }}</strong>
                                 <span>{{ \App\Models\Document::formatQuantity($item->quantity) }} {{ $item->unit }} x {{ $money($item->unit_price) }}</span>
                             </td>
-                            <td class="text-right">{{ $money((float) $item->quantity * (float) $item->unit_price) }}</td>
+                            <td data-label="Total" class="text-right">{{ $money((float) $item->quantity * (float) $item->unit_price) }}</td>
                         </tr>
                     @endforeach
                     </tbody>
@@ -630,11 +649,11 @@
                         <tbody>
                         @forelse($document->payments as $payment)
                             <tr>
-                                <td>
+                                <td data-label="Reference">
                                     <strong>{{ $payment->reference }}</strong>
                                     <span>{{ $payment->payment_date ? $companyProfile->formatDate($payment->payment_date) : 'Not set' }} · {{ $payment->typeDisplay() }}</span>
                                 </td>
-                                <td class="text-right">{{ $money($payment->amount) }}</td>
+                                <td data-label="Amount" class="text-right">{{ $money($payment->amount) }}</td>
                             </tr>
                         @empty
                             <tr><td colspan="2">No payments recorded.</td></tr>

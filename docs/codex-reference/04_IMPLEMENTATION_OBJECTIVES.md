@@ -2,9 +2,31 @@
 
 Implement these objectives in priority order. Each objective should preserve Exabytes/Plesk shared-hosting compatibility.
 
+## Current implementation status
+
+As of 2026-05-23, the objectives below have been implemented in the Laravel Blade monolith and covered by feature tests:
+
+- manual supplier invoice verification fallback using `AttachmentExtraction`
+- server-side payment eligibility for customer and supplier invoices
+- supplier invoice matching checklist with tolerance checks, duplicate checks, source/supplier validation, override reason, and audit trail
+- global pending approvals page
+- visible cancel workflow with cancellation reason and audit trail
+- direct exception source note controls
+- goods receipt source validation against issued purchase orders
+- linked document progress chain with bounded traversal
+- purchase request quote-first capture with supplier quotation verification or quote exception
+- action-first dashboard, command center, form studio, semantic statuses, and mobile task mode
+- document index workbench with separate Preview/Open actions and full-height selected preview
+- compact generated PDF output without blank trailing pages
+- neutral first-run company profile defaults with no default logo
+
+Keep this file as the business-rule roadmap. New work should extend the current implementation instead of reintroducing the old placeholder behavior.
+
 ## Objective 1: Add manual supplier invoice verification fallback
 
 Goal: supplier invoice approval should require verified invoice details, but not strictly successful OCR.
+
+Status: implemented. Supplier invoice files can be verified from OCR output or manually when OCR fails/unavailable. Submission and approval are blocked until verification is complete.
 
 Desired behavior:
 
@@ -29,6 +51,8 @@ If adding columns is too large for the current task, reuse `attachment_extractio
 
 Goal: prevent payment recording before an invoice is workflow-ready.
 
+Status: implemented through `PaymentEligibilityService`, controller enforcement, and document show messaging.
+
 Suggested rules:
 
 ```text
@@ -47,6 +71,8 @@ Add a helper/service so rules are not duplicated.
 
 Goal: `Mark matched` should mean a real matching check happened.
 
+Status: implemented through `SupplierInvoiceMatchingService`. Matching requires verified details, valid source path or direct exception, supplier/source consistency, duplicate invoice number check, amount tolerance, and audited override when allowed.
+
 Suggested matching checks:
 
 - invoice has verified invoice fields
@@ -61,6 +87,8 @@ Implementation may start simple with a service and visible checklist.
 ## Objective 4: Fix global pending approval navigation
 
 Goal: notification bell count and destination should match.
+
+Status: implemented as a global pending approvals page at `approvals.pending`.
 
 Current problem:
 
@@ -77,6 +105,8 @@ Target:
 
 Goal: no hidden backend-only cancellation unless intentional.
 
+Status: implemented for allowed statuses with admin/manager authorization, cancellation reason, audit payload, and no further transition/editing from cancelled status.
+
 Target:
 
 - add cancel button on show page when allowed
@@ -88,6 +118,8 @@ Alternative: restrict cancel to admin/manager only or remove transition if busin
 ## Objective 6: Tighten direct exception paths
 
 Goal: direct paths should not silently bypass normal workflow controls.
+
+Status: implemented. Direct exception source types require a source note and are recorded in audit context.
 
 When source type is one of these:
 
@@ -108,6 +140,8 @@ For higher control, require manager/admin approval before issue/payment.
 
 Goal: receiving against a PO should require an issued supplier PO.
 
+Status: implemented. Normal goods receipt path requires an issued supplier PO for the same supplier; direct receipt requires a source note.
+
 Rules:
 
 - if goods receipt `source_type = supplier_po`, related document must be supplier PO and status `issued`
@@ -116,6 +150,8 @@ Rules:
 ## Objective 8: Improve timeline from decorative to operational
 
 Goal: timeline should show actual linked records when available.
+
+Status: implemented through `DocumentChainService` and the `workflow-timeline` partial. Chain traversal is bounded and falls back to generic steps when no linked records exist.
 
 Target:
 

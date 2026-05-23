@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Approval;
+use App\Models\CompanyProfile;
 use App\Models\Document;
 use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,7 @@ class DashboardController extends Controller
 {
     public function __invoke(): View
     {
+        $companyProfile = CompanyProfile::active();
         $receivableTotal = Document::where('type', 'customer_invoice')
             ->whereNotIn('status', ['paid', 'closed', 'cancelled'])
             ->sum('total');
@@ -107,7 +109,7 @@ class DashboardController extends Controller
             [
                 'label' => 'Overdue receivables',
                 'count' => $overdueReceivablesCount,
-                'note' => 'RM '.number_format($overdueReceivablesTotal, 2).' overdue',
+                'note' => $companyProfile->formatMoney($overdueReceivablesTotal).' overdue',
                 'route' => route('documents.index', 'customer-invoices'),
                 'action' => 'Review invoices',
                 'tone' => 'danger',
@@ -115,7 +117,7 @@ class DashboardController extends Controller
             [
                 'label' => 'Supplier payments due',
                 'count' => $supplierPaymentsDueCount,
-                'note' => 'RM '.number_format($supplierPaymentsDueTotal, 2).' due within 7 days',
+                'note' => $companyProfile->formatMoney($supplierPaymentsDueTotal).' due within 7 days',
                 'route' => route('documents.index', ['module' => 'supplier-invoices', 'status' => 'matched']),
                 'action' => 'Review payments',
                 'tone' => 'money',
@@ -157,6 +159,7 @@ class DashboardController extends Controller
         $monthlyMovement = $this->monthlyMovement();
 
         return view('dashboard.index', [
+            'companyProfile' => $companyProfile,
             'todayWork' => $todayWork,
             'todayWorkItemCount' => $todayWorkItemCount,
             'financialExposure' => $financialExposure,

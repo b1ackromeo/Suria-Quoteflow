@@ -122,4 +122,76 @@ class DocumentPdfCompanyTextTest extends TestCase
         $this->assertStringContainsString('inline', $response->headers->get('content-disposition'));
         $this->assertStringContainsString('INV-PDF-001.pdf', $response->headers->get('content-disposition'));
     }
+
+    public function test_compact_business_document_pdf_does_not_create_blank_extra_page(): void
+    {
+        $company = CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
+            'name' => 'Global QuoteFlow Pte Ltd',
+            'base_currency' => 'SGD',
+            'number_format' => 'en-SG',
+        ]));
+
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+
+        $customer = Customer::create([
+            'name' => 'Global Customer Pte Ltd',
+            'code' => 'GLOBAL',
+            'email' => 'customer@example.test',
+            'payment_terms_days' => 30,
+            'is_active' => true,
+        ]);
+
+        $product = Product::create([
+            'type' => 'service',
+            'sku' => 'IMPLEMENT',
+            'name' => 'Implementation service',
+            'description' => 'Implementation service package',
+            'unit' => 'job',
+            'selling_price' => 1000,
+            'cost_price' => 500,
+            'tax_rate' => 9,
+            'is_active' => true,
+        ]);
+
+        $invoice = Document::create([
+            'type' => 'customer_invoice',
+            'direction' => 'outgoing',
+            'document_number' => 'INV-PDF-ONE-PAGE',
+            'customer_id' => $customer->id,
+            'status' => 'issued',
+            'issue_date' => '2026-05-20',
+            'due_date' => '2026-06-19',
+            'currency' => 'SGD',
+            'payment_terms_type' => 'standard',
+            'payment_due_days' => 30,
+            'payment_terms_label' => '30 days from invoice date',
+            'subtotal' => 1000,
+            'tax_total' => 90,
+            'total' => 1090,
+            'created_by' => $admin->id,
+        ]);
+
+        $invoice->items()->create([
+            'product_id' => $product->id,
+            'description' => 'Implementation service package',
+            'quantity' => 1,
+            'unit' => 'job',
+            'unit_price' => 1000,
+            'tax_rate' => 9,
+            'tax_amount' => 90,
+            'line_total' => 1000,
+        ]);
+
+        $invoice->load(['customer', 'supplier', 'relatedDocument.items', 'items.product', 'billingStages', 'payments', 'attachments', 'creator', 'approver']);
+        $html = view('documents.pdf', [
+            'document' => $invoice,
+            'meta' => Document::metaForSlug(Document::slugForType($invoice->type)),
+        ])->render();
+        $html = app(\App\Support\CompanyPdfText::class)->apply($html, $company, $invoice);
+
+        $pdf = Pdf::loadHTML($html)->setPaper('a4');
+        $pdf->render();
+
+        $this->assertSame(1, $pdf->getDomPDF()->getCanvas()->get_page_count());
+    }
 }

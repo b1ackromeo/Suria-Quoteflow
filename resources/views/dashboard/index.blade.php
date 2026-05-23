@@ -4,7 +4,7 @@
 ])
 
 @php
-    $companyProfile = \App\Models\CompanyProfile::active();
+    $companyProfile = $companyProfile ?? \App\Models\CompanyProfile::active();
     $salesPurchasingGroups = [
         [
             'key' => 'sales',

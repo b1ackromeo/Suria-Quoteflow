@@ -27,7 +27,11 @@
 >
     <div class="business-letterhead-main">
         <div class="business-letterhead-brand">
-            <img class="business-letterhead-logo" src="{{ $companyProfile->logoUrl() }}" alt="{{ $companyProfile->displayName() }}">
+            @include('company_profiles.partials.logo-mark', [
+                'company' => $companyProfile,
+                'imageClass' => 'business-letterhead-logo',
+                'placeholderClass' => 'business-letterhead-logo-placeholder',
+            ])
             <div class="business-letterhead-copy">
                 <p class="business-letterhead-name">{{ $companyProfile->displayName() }}</p>
                 <p class="business-letterhead-tagline">{{ $companyProfile->displayTagline() }}</p>

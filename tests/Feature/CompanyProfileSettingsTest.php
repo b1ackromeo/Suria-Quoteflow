@@ -75,8 +75,46 @@ class CompanyProfileSettingsTest extends TestCase
         $this->assertSame('USD', $company->baseCurrency());
         $this->assertSame('code', $company->currencyDisplay());
         $this->assertSame('USD 1,234.56', $company->formatMoney(1234.56));
+        $this->assertSame('YC', $company->initials());
         $this->assertSame('', $company->logoUrl());
         $this->assertSame('', $company->logoPathForPdf());
+    }
+
+    public function test_logo_less_company_profile_surfaces_render_initials_without_empty_images(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+
+        $login = $this->get(route('login'));
+
+        $login->assertOk();
+        $login->assertSee('company-logo-placeholder', false);
+        $login->assertSee('YC');
+        $login->assertDontSee('src=""', false);
+
+        $company = CompanyProfile::create(CompanyProfile::defaults());
+
+        $profile = $this->actingAs($admin)->get(route('company-profiles.index'));
+
+        $profile->assertOk();
+        $profile->assertSee('company-logo-placeholder', false);
+        $profile->assertSee('YC');
+        $profile->assertDontSee('src=""', false);
+
+        $edit = $this->actingAs($admin)->get(route('company-profiles.edit', $company));
+
+        $edit->assertOk();
+        $edit->assertSee('company-logo-placeholder', false);
+        $edit->assertDontSee('src=""', false);
+
+        $dashboard = $this->actingAs($admin)->get(route('dashboard'));
+
+        $dashboard->assertOk();
+        $dashboard->assertSee('Your Company Name');
+        $dashboard->assertSee('company-logo-placeholder', false);
+        $dashboard->assertDontSee('src=""', false);
     }
 
     public function test_company_profile_page_shows_global_document_settings(): void

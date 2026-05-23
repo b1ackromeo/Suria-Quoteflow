@@ -23,6 +23,18 @@ For every changed workflow action:
 - Success messages are clear.
 - Audit trail records important business events.
 
+## Document index and preview workbench
+
+Test cases:
+
+- List rows expose separate Preview and Open actions.
+- The selected row is visually obvious and has accurate `aria-current` and preview button state.
+- Desktop document lists render as list + selected preview at `1366x768`.
+- Mobile and tablet do not force the full two-pane preview; preview is collapsed until requested.
+- Generated PDF preview, uploaded PDF/image preview, and unavailable-preview states fit inside the preview pane without creating a large blank panel.
+- Only the selected generated PDF iframe is loaded initially; hidden rows must not eagerly load every PDF.
+- Browser check includes at least laptop `1366x768`, mobile around `390px`, and zoom-like reduced widths for full-screen workspaces.
+
 ## Supplier invoice verification
 
 Test cases:
@@ -35,6 +47,16 @@ Test cases:
 - Unauthorized user cannot verify supplier invoice fields.
 - Verified invoice fields update relevant document fields where intended.
 - Audit trail records OCR-assisted and manual verification.
+
+## Purchase request quote-first capture
+
+Test cases:
+
+- Purchase request can start from supplier quotation upload.
+- Supplier quotation OCR/extraction is reviewed as supplier quotation evidence.
+- Only selected verified quotation lines become purchase request items.
+- Purchase request approval is blocked until supplier quotation evidence is verified or a quote exception reason is recorded.
+- Quote exception requires approver comment before approval.
 
 ## Payment eligibility
 
@@ -64,6 +86,7 @@ Test cases:
 - `Mark matched` is hidden or disabled until matching passes.
 - Backend rejects direct POST to match if checklist fails.
 - Override, if implemented, requires reason and audit trail.
+- Amount tolerance messages use the active company/document money format instead of hardcoded RM defaults.
 
 ## Pending approvals
 
@@ -108,6 +131,26 @@ Test cases if cancel is implemented:
 - Cancelled document cannot be edited or transitioned further.
 - Audit trail includes reason and user.
 
+## Company profile and localization defaults
+
+Test cases:
+
+- First-run company profile defaults are neutral: `Your Company Name`, `Other`, `UTC`, `USD`, code-based currency display, no default logo.
+- Malaysia/MYR behavior remains available when explicitly configured.
+- Logo-less company surfaces show initials instead of broken empty images.
+- Dashboard, reports, search, pending approvals, document lists, document show pages, and previews use active company date/money formatting.
+- Demo/UAT seeding may create an explicit RC Technology Malaysia profile, but global fallback defaults must remain neutral.
+
+## Generated PDF output
+
+Test cases:
+
+- Compact generated business documents render as one page, without a blank extra page.
+- Preview and download routes render the same document content.
+- Company profile text, tax labels, payment instructions, and footer text appear where configured.
+- Goods receipt/service acceptance PDFs preserve their receiving format.
+- DomPDF remains the rendering engine; do not introduce headless browser PDF generation for normal workflow documents.
+
 ## Exabytes/Plesk compatibility
 
 Before deployment:
@@ -116,6 +159,7 @@ Before deployment:
 - Confirm storage and bootstrap cache paths are writable.
 - Confirm attachment upload limit is within 50M PHP limits.
 - Confirm DomPDF renders a real quotation/invoice.
+- Confirm short demo/UAT PDFs do not create blank extra pages.
 - Confirm OCR command availability if OCR is enabled:
   - `tesseract --version`
   - `gs --version`

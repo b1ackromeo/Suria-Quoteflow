@@ -77,6 +77,11 @@
         @apply h-8 w-8 shrink-0 rounded-lg bg-white object-contain shadow-sm ring-1 ring-blue-100;
     }
 
+    .company-logo-placeholder {
+        color: #0a4f93;
+        @apply grid shrink-0 place-items-center bg-white font-bold uppercase shadow-sm ring-1 ring-blue-100;
+    }
+
     .sidebar-workspace-name {
         @apply block truncate text-xs font-bold leading-tight text-slate-950;
     }
@@ -109,6 +114,11 @@
 
     .business-letterhead-logo {
         @apply h-[72px] w-[72px] shrink-0 rounded-none bg-white object-contain shadow-none;
+    }
+
+    .business-letterhead-logo-placeholder {
+        color: var(--doc-primary);
+        @apply grid h-[72px] w-[72px] shrink-0 place-items-center rounded-none bg-white text-[18px] font-bold uppercase shadow-none ring-1 ring-slate-200;
     }
 
     .business-letterhead-copy {
@@ -178,6 +188,10 @@
             @apply h-[68px] w-[68px];
         }
 
+        .business-letterhead-logo-placeholder {
+            @apply h-[68px] w-[68px];
+        }
+
         .business-letterhead-name {
             @apply text-[20px];
         }
@@ -214,6 +228,54 @@
 
     .mobile-nav-menu[open] > summary::after {
         content: "-";
+    }
+
+    .mobile-nav-summary-copy {
+        @apply grid min-w-0 gap-0.5;
+    }
+
+    .mobile-nav-summary-copy span:first-child {
+        @apply text-sm font-bold text-slate-900;
+    }
+
+    .mobile-nav-summary-copy span:last-child {
+        @apply text-xs font-semibold text-slate-500;
+    }
+
+    .mobile-task-strip {
+        @apply border-b border-slate-200 bg-white px-4 py-3 lg:hidden;
+    }
+
+    .mobile-task-strip-heading {
+        @apply flex items-center justify-between gap-3;
+    }
+
+    .mobile-task-strip-heading span:first-child {
+        @apply text-sm font-bold text-slate-950;
+    }
+
+    .mobile-task-strip-heading span:last-child {
+        @apply text-xs font-semibold text-slate-500;
+    }
+
+    .mobile-task-grid {
+        @apply mt-2 grid grid-cols-2 gap-2;
+    }
+
+    .mobile-task-card {
+        @apply flex min-h-11 min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-[#0a4f93] focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2;
+    }
+
+    .mobile-task-card span {
+        @apply min-w-0 leading-4;
+    }
+
+    .mobile-task-card-active {
+        @apply border-blue-500 bg-blue-50 text-[#0a4f93] ring-2 ring-blue-100;
+    }
+
+    .mobile-task-card-active .nav-icon {
+        @apply text-[#0a4f93];
     }
 
     .sidebar-nav {
@@ -802,6 +864,14 @@
         @apply min-w-0 leading-4;
     }
 
+    .workflow-timeline-label strong {
+        @apply block truncate text-xs font-bold;
+    }
+
+    .workflow-timeline-label span {
+        @apply mt-0.5 block truncate text-[11px] font-semibold text-slate-500;
+    }
+
     .workflow-timeline-step-complete {
         @apply text-[#0a4f93];
     }
@@ -812,6 +882,10 @@
 
     .workflow-timeline-step-active {
         @apply bg-white text-slate-950 shadow-sm ring-1 ring-blue-100;
+    }
+
+    .workflow-timeline-step-active .workflow-timeline-label span {
+        @apply text-slate-600;
     }
 
     .workflow-timeline-step-active .workflow-timeline-dot {
@@ -851,7 +925,11 @@
     }
 
     .status-chip {
-        @apply inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold;
+        @apply inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-bold;
+    }
+
+    .status-count {
+        @apply border-slate-200 bg-white text-slate-700;
     }
 
     .status-draft {
@@ -870,8 +948,14 @@
         @apply border-sky-200 bg-sky-50 text-sky-800;
     }
 
-    .status-fulfilled,
-    .status-received,
+    .status-fulfilled {
+        @apply border-purple-200 bg-purple-50 text-purple-800;
+    }
+
+    .status-received {
+        @apply border-sky-300 bg-sky-50 text-sky-900;
+    }
+
     .status-matched {
         @apply border-teal-200 bg-teal-50 text-teal-800;
     }
@@ -881,7 +965,7 @@
     }
 
     .status-closed {
-        @apply border-slate-300 bg-white text-slate-700;
+        @apply border-slate-700 bg-slate-900 text-white;
     }
 
     .status-rejected,
@@ -918,7 +1002,7 @@
     }
 
     .quotation-form-workspace {
-        @apply grid gap-0 xl:grid-cols-[minmax(38rem,1fr)_minmax(32rem,0.86fr)];
+        @apply grid gap-0 xl:grid-cols-[minmax(34rem,1fr)_minmax(28rem,0.82fr)];
     }
 
     .quotation-form-workspace .document-studio-form,
@@ -931,7 +1015,7 @@
     }
 
     .receiving-form-workspace {
-        @apply xl:grid-cols-[minmax(45rem,1.25fr)_minmax(25rem,0.75fr)];
+        @apply xl:grid-cols-[minmax(36rem,1.2fr)_minmax(24rem,0.8fr)];
     }
 
     .document-studio-form {
@@ -976,6 +1060,42 @@
 
     .studio-step-label {
         @apply mt-1 block text-xs font-bold text-slate-800;
+    }
+
+    .studio-readiness-strip {
+        @apply mt-3 grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6;
+    }
+
+    .studio-readiness-heading {
+        @apply rounded-md bg-white px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-500;
+    }
+
+    .studio-readiness-heading strong {
+        @apply mt-1 block text-sm normal-case tracking-normal text-slate-950;
+    }
+
+    .studio-readiness-item {
+        @apply rounded-md border bg-white px-3 py-2;
+    }
+
+    .studio-readiness-item span {
+        @apply block text-[10px] font-bold uppercase tracking-wide text-slate-500;
+    }
+
+    .studio-readiness-item strong {
+        @apply mt-1 block text-xs font-bold leading-5 text-slate-950;
+    }
+
+    .studio-readiness-ready {
+        @apply border-emerald-200;
+    }
+
+    .studio-readiness-attention {
+        @apply border-amber-300 bg-amber-50;
+    }
+
+    .studio-readiness-waiting {
+        @apply border-slate-300;
     }
 
     .studio-section {
@@ -1092,7 +1212,7 @@
     }
 
     .document-workbench {
-        @apply flex min-h-0 flex-col bg-[#edf3f7];
+        @apply flex h-full min-h-0 flex-col overflow-hidden bg-[#edf3f7];
     }
 
     .workflow-page-header {
@@ -1111,12 +1231,41 @@
         @apply grid min-h-0 flex-1 gap-0 xl:grid-cols-[minmax(28rem,0.48fr)_minmax(34rem,0.52fr)];
     }
 
+    .document-preview-disclosure {
+        @apply min-h-0 border-t border-slate-200 bg-[#e9f0f6] xl:contents xl:border-t-0;
+    }
+
+    .document-preview-disclosure > summary {
+        @apply flex cursor-pointer list-none items-center justify-between gap-3 bg-white px-4 py-3 text-left shadow-sm xl:hidden;
+    }
+
+    .document-preview-disclosure > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .document-preview-disclosure > summary::after {
+        content: "+";
+        @apply grid h-7 w-7 shrink-0 place-items-center rounded-md bg-slate-50 text-lg font-bold text-[#0a4f93] ring-1 ring-slate-200;
+    }
+
+    .document-preview-disclosure[open] > summary::after {
+        content: "-";
+    }
+
+    .document-preview-disclosure-title {
+        @apply block text-sm font-bold text-slate-950;
+    }
+
+    .document-preview-disclosure-copy {
+        @apply mt-0.5 block text-xs font-semibold leading-4 text-slate-500;
+    }
+
     .document-list-pane {
-        @apply flex min-h-0 flex-col overflow-hidden border-r border-slate-200 bg-[#f8fafc];
+        @apply flex h-full min-h-0 flex-col overflow-hidden border-r border-slate-200 bg-[#f8fafc];
     }
 
     .document-preview-pane {
-        @apply flex min-h-0 flex-col overflow-hidden bg-[#e9f0f6];
+        @apply flex h-full min-h-0 flex-col overflow-hidden bg-[#e9f0f6];
     }
 
     .document-pane-toolbar {
@@ -1163,7 +1312,7 @@
     }
 
     .document-list-row {
-        @apply relative w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-left shadow-sm outline-none transition hover:border-blue-200 hover:bg-white hover:shadow-md focus:ring-2 focus:ring-blue-100;
+        @apply relative w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-left shadow-sm outline-none transition hover:border-blue-200 hover:bg-white hover:shadow-md focus-within:ring-2 focus-within:ring-blue-700 focus-within:ring-offset-2;
     }
 
     .document-list-row[data-preview-active="true"] {
@@ -1248,7 +1397,7 @@
     }
 
     .document-preview-scroll {
-        @apply min-h-0 flex-1 overflow-y-auto px-2.5 py-2;
+        @apply h-full min-h-0 flex-1 overflow-y-auto px-2.5 py-2;
     }
 
     .document-preview-scroll [data-quotation-preview-card] {
@@ -2195,6 +2344,10 @@
 
     .document-chain-card .workflow-timeline-card {
         @apply mt-3 grid-cols-1 border-0 bg-slate-50;
+    }
+
+    .document-chain-note {
+        @apply mt-2 text-xs font-semibold text-slate-500;
     }
 
     .document-side-section-heading {
@@ -4033,14 +4186,25 @@
             @apply block;
         }
 
+        .document-list-row-main {
+            @apply flex-col;
+        }
+
         .document-row-total-action {
             @apply mt-3 items-stretch;
         }
 
-        .document-row-actions,
+        .document-row-actions {
+            @apply grid grid-cols-1;
+        }
+
         .document-row-actions .btn,
         .document-row-preview-button {
             @apply w-full;
+        }
+
+        .document-row-open-link {
+            order: -1;
         }
 
         .document-row-open-link,
@@ -4062,7 +4226,20 @@
 
         .document-open-preview-pane {
             order: 2;
-            max-height: none;
+            max-height: 22rem;
+        }
+
+        .document-open-preview-body {
+            @apply p-2;
+        }
+
+        .document-open-preview-body .generated-pdf-viewer,
+        .document-open-preview-body .external-document-pdf-viewer,
+        .document-open-preview-body .external-document-image-viewer,
+        .document-open-preview-body .supplier-invoice-pdf-viewer,
+        .document-open-preview-body .supplier-invoice-image-viewer {
+            height: 16rem;
+            min-height: 16rem;
         }
 
         .document-detail-list div {
@@ -4071,6 +4248,71 @@
 
         .document-side-disclosure summary {
             @apply flex-col;
+        }
+
+        .document-compact-table {
+            @apply overflow-visible;
+        }
+
+        .document-compact-table table,
+        .document-compact-table thead,
+        .document-compact-table tbody,
+        .document-compact-table tfoot,
+        .document-compact-table tr,
+        .document-compact-table th,
+        .document-compact-table td {
+            display: block;
+        }
+
+        .document-compact-table thead {
+            @apply sr-only;
+        }
+
+        .document-compact-table tbody,
+        .document-compact-table tfoot {
+            @apply grid gap-2 p-3;
+        }
+
+        .document-compact-table tr {
+            @apply rounded-lg border border-slate-200 bg-slate-50 p-2.5;
+        }
+
+        .document-compact-table td {
+            @apply flex min-w-0 items-start justify-between gap-3 border-t-0 px-0 py-1 text-right;
+        }
+
+        .document-compact-table td::before {
+            content: attr(data-label);
+            @apply max-w-[9rem] shrink-0 text-left text-xs font-bold uppercase tracking-wide text-slate-400;
+        }
+
+        .document-compact-table td:first-child {
+            @apply block text-left;
+        }
+
+        .document-compact-table td:first-child::before {
+            @apply mb-1 block max-w-none;
+        }
+
+        .document-compact-table td[colspan] {
+            @apply block text-left;
+        }
+
+        .document-compact-table td[colspan]::before {
+            display: none;
+        }
+
+        .document-compact-table tfoot tr {
+            @apply border-blue-100 bg-blue-50;
+        }
+
+        .document-compact-table tfoot th,
+        .document-compact-table tfoot td {
+            @apply border-0 bg-transparent px-0 py-1;
+        }
+
+        .document-compact-table tfoot th[colspan] {
+            @apply text-sm text-slate-500;
         }
     }
 }

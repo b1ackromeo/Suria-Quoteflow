@@ -4,12 +4,13 @@ Use this checklist to test QuoteFlow like a business user. It covers the MVP wor
 
 ## Test Environment
 
-- Local URL: `http://127.0.0.1:8000`
-- Login page: `http://127.0.0.1:8000/login`
+- Local Laragon URL: `http://suria-quoteflow.test`
+- Login page: `http://suria-quoteflow.test/login`
+- Local project folder: `C:\laragon\www\Suria_Quoteflow`
 - Demo seed command:
 
 ```powershell
-& 'D:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe' artisan db:seed --class=DemoOperationsSeeder
+& 'C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe' artisan db:seed --class=DemoOperationsSeeder
 ```
 
 Run the demo seed only in the local testing database. Do not run it on production.
@@ -36,7 +37,7 @@ Password123!
 - Record the actual document number created by the system.
 - After every Save, Submit, Approve, Issue, Receive, Match, Pay, or Close action, confirm the status chip changed correctly.
 - Use the Related document field when creating the next document in a workflow.
-- Preview and download at least one PDF, then export one CSV during testing.
+- Preview and download at least one PDF, confirm there is no blank extra page for a compact generated document, then export one CSV.
 - Upload one small attachment to a customer invoice and one to a supplier invoice.
 - Check Audit Trail after completing the workflows.
 
@@ -44,7 +45,7 @@ Password123!
 
 | Step | User | Action | Expected Result |
 | --- | --- | --- | --- |
-| 1 | Admin | Log in at `/login` | Dashboard opens |
+| 1 | Admin | Log in at `http://suria-quoteflow.test/login` | Dashboard opens |
 | 2 | Admin | Open Users | User list opens |
 | 3 | Manager | Open Users | Access is denied |
 | 4 | Sales | Open Suppliers | Access is denied |
@@ -95,35 +96,40 @@ Customer inquiry -> quotation -> approval -> PO received -> delivery/service com
 Business flow:
 
 ```text
-Purchase request -> supplier quotation -> approval -> purchase order -> goods/service receipt -> supplier invoice -> invoice matching -> payment -> close
+Purchase request with supplier quotation evidence -> approval -> purchase order -> goods/service receipt -> supplier invoice verification -> invoice matching -> payment -> close
 ```
 
 | Step | User | Action | Expected Result |
 | --- | --- | --- | --- |
-| 1 | Procurement/Admin | Create Purchase Request | Status is Draft |
-| 2 | Procurement/Admin | Submit for approval | Status is Pending Approval |
-| 3 | Manager/Admin | Approve Purchase Request | Status is Approved |
-| 4 | Procurement/Admin | Create Supplier Quotation and select the Purchase Request as Related document | Status is Draft, Related shows the Purchase Request |
-| 5 | Procurement/Admin | Submit Supplier Quotation for approval | Status is Pending Approval |
-| 6 | Manager/Admin | Approve Supplier Quotation | Status is Approved |
-| 7 | Procurement/Admin | Create Purchase Order and select the Supplier Quotation as Related document | Status is Draft, Related shows the Supplier Quotation |
-| 8 | Procurement/Admin | Submit Purchase Order for approval | Status is Pending Approval |
-| 9 | Manager/Admin | Approve Purchase Order | Status is Approved |
-| 10 | Procurement/Admin | Mark issued | Status is Issued |
-| 11 | Procurement/Admin | Create Goods / Service Receipt and select the Purchase Order as Related document | Status is Draft, Related shows the Purchase Order |
-| 12 | Procurement/Admin | Submit receipt for approval | Status is Pending Approval |
-| 13 | Manager/Admin | Approve receipt | Status is Approved |
-| 14 | Procurement/Admin | Mark received | Status is Received |
-| 15 | Procurement/Admin | Create Supplier Invoice and select the receipt as Related document | Status is Draft, Related shows the receipt |
-| 16 | Procurement/Admin | Submit supplier invoice for approval | Status is Pending Approval |
-| 17 | Manager/Admin | Approve supplier invoice | Status is Approved |
-| 18 | Procurement/Admin | Mark matched | Status is Matched |
-| 19 | Accounts/Admin | Record full payment | Status is Paid |
-| 20 | Accounts/Admin | Close supplier invoice | Status is Closed |
-| 21 | Any allowed user | Preview PDF | PDF opens in a browser tab |
-| 22 | Any allowed user | Download PDF | PDF downloads |
-| 23 | Any allowed user | Upload attachment | Attachment appears in attachment list |
-| 24 | Any allowed user | Export Supplier Invoices CSV | CSV downloads |
+| 1 | Procurement/Admin | Create Purchase Request and upload supplier quotation evidence if available | Status is Draft, supplier quotation evidence is visible |
+| 2 | Procurement/Admin | Review extracted supplier quotation details or enter them manually | Supplier quotation evidence becomes verified |
+| 3 | Procurement/Admin | Submit for approval | Status is Pending Approval |
+| 4 | Manager/Admin | Approve Purchase Request | Status is Approved |
+| 5 | Procurement/Admin | Create Purchase Order and select the Purchase Request or verified Supplier Quotation as Related document | Status is Draft, Related shows the selected source |
+| 6 | Procurement/Admin | Submit Purchase Order for approval | Status is Pending Approval |
+| 7 | Manager/Admin | Approve Purchase Order | Status is Approved |
+| 8 | Procurement/Admin | Mark issued | Status is Issued |
+| 9 | Procurement/Admin | Create Goods / Service Receipt and select the Purchase Order as Related document | Status is Draft, Related shows the Purchase Order |
+| 10 | Procurement/Admin | Submit receipt for approval | Status is Pending Approval |
+| 11 | Manager/Admin | Approve receipt | Status is Approved |
+| 12 | Procurement/Admin | Mark received | Status is Received |
+| 13 | Procurement/Admin | Create Supplier Invoice and select the receipt as Related document | Status is Draft, Related shows the receipt |
+| 14 | Procurement/Admin | Upload supplier invoice file and verify invoice details | Verification panel shows verified invoice details |
+| 15 | Procurement/Admin | Submit supplier invoice for approval | Status is Pending Approval |
+| 16 | Manager/Admin | Approve supplier invoice | Status is Approved |
+| 17 | Procurement/Admin | Review matching checklist and mark matched | Status is Matched |
+| 18 | Accounts/Admin | Record full payment | Status is Paid |
+| 19 | Accounts/Admin | Close supplier invoice | Status is Closed |
+| 20 | Any allowed user | Preview PDF | PDF opens in a browser tab |
+| 21 | Any allowed user | Download PDF | PDF downloads |
+| 22 | Any allowed user | Upload attachment | Attachment appears in attachment list |
+| 23 | Any allowed user | Export Supplier Invoices CSV | CSV downloads |
+
+Quote exception path:
+
+- If no supplier quotation is available for a purchase request, record a quote exception reason.
+- Approval is blocked until the quote exception reason exists.
+- The approver must add a comment when approving a purchase request that uses the quote exception path.
 
 ## Workflow 5: Approval Rejection And Resubmission
 
@@ -160,13 +166,25 @@ Expected payment directions:
 | 3 | Admin/Manager/Accounts | Export receivables, payables, and payments | CSV files download |
 | 4 | Admin/Manager | Open Audit Trail | Created, approval, transition, payment, and attachment events are listed |
 
+## Workflow 8: Document Lists, Previews, And Company Profile
+
+| Step | User | Action | Expected Result |
+| --- | --- | --- | --- |
+| 1 | Admin | Open Company Profile | Active company details appear; logo-less companies show initials instead of a broken image |
+| 2 | Admin | Confirm currency/date display | Dashboard, search, document lists, and previews use the active company settings |
+| 3 | Any allowed user | Open Purchase Requests at desktop size | List and selected preview fill the workbench height |
+| 4 | Any allowed user | Select a different row with Preview | Right preview changes without opening the document |
+| 5 | Any allowed user | Use Open on the selected row | Document command center opens |
+| 6 | Any allowed user | Open the same list on mobile width | Preview is collapsed instead of squeezed into two columns |
+| 7 | Any allowed user | Preview a compact generated PDF | PDF has content only, without a blank trailing page |
+
 ## Known MVP Limitations To Watch
 
 These are expected in the current MVP and should be recorded as product improvements, not treated as test failures:
 
 - There is no one-click Convert Quotation to PO or Convert PO to Invoice action yet.
 - The tester must manually create the next document and choose the Related document.
-- Supplier invoice matching is currently a manual status action, not a full 3-way matching engine.
+- Supplier invoice matching is checklist-driven and blocks obvious mismatches, but it is not a full inventory/accounting 3-way reconciliation engine.
 - Approval is single-step: submit, approve, reject.
 - Reports are simple CSV/table reports, not advanced analytics.
 

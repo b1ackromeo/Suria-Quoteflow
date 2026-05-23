@@ -17,7 +17,11 @@
     <section class="rounded-xl border border-blue-100 bg-blue-50 p-5">
         <p class="text-xs font-bold uppercase tracking-wide text-blue-800">Current document issuer</p>
         <div class="mt-3 flex items-center gap-3">
-            <img class="h-12 w-12 rounded-xl object-cover shadow-sm" src="{{ $company->logoUrl() }}" alt="{{ $company->displayName() }}">
+            @include('company_profiles.partials.logo-mark', [
+                'company' => $company,
+                'imageClass' => 'h-12 w-12 rounded-xl object-cover shadow-sm',
+                'placeholderClass' => 'company-logo-placeholder h-12 w-12 rounded-xl text-sm',
+            ])
             <div class="min-w-0">
                 <p class="truncate text-sm font-bold text-slate-950">{{ $company->displayName() }}</p>
                 <p class="truncate text-xs font-semibold text-slate-500">{{ $company->email ?: 'No email set' }}</p>
@@ -29,7 +33,11 @@
 <section class="panel mt-5">
     <div class="grid gap-5 lg:grid-cols-[18rem_1fr]">
         <aside class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <img class="aspect-square w-28 rounded-2xl object-cover shadow-sm" src="{{ $company->logoUrl() }}" alt="{{ $company->displayName() }}">
+            @include('company_profiles.partials.logo-mark', [
+                'company' => $company,
+                'imageClass' => 'aspect-square w-28 rounded-2xl object-cover shadow-sm',
+                'placeholderClass' => 'company-logo-placeholder aspect-square w-28 rounded-2xl text-2xl',
+            ])
             <div class="mt-4 flex gap-2">
                 <span class="h-8 w-8 rounded-lg border border-slate-200" style="background: {{ $company->primary_color }}"></span>
                 <span class="h-8 w-8 rounded-lg border border-slate-200" style="background: {{ $company->accent_color }}"></span>

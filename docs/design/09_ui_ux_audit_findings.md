@@ -21,6 +21,27 @@ QuoteFlow already has stronger UX foundations than a normal CRUD system:
 
 The correct direction is to harden and polish the existing architecture, not throw it away.
 
+## Implementation status - 2026-05-23
+
+The main audit priorities have now been implemented in the Blade monolith:
+
+- global pending approvals route and sidebar/header entry behavior
+- payment eligibility messages and server-side payment blocking
+- supplier invoice verification and matching checklist behavior
+- visible blockers before submit, approve, match, pay, close, and cancel
+- separate Preview and Open actions on document list rows
+- action-first dashboard with fewer duplicate controls
+- document show command center hierarchy
+- form studio wording, readiness, and source-path guidance
+- semantic status styling and text-first state meaning
+- linked document progress chain
+- task-focused mobile layout behavior
+- neutral company profile defaults, initials fallback, and active-company money/date formatting
+- full-height document index preview pane with generated PDF loading fallback
+- compact generated PDF output without blank trailing pages
+
+Keep the historical findings below as design guardrails. New work should preserve these completed improvements instead of recreating the older CRUD-heavy patterns.
+
 ## Current weaknesses
 
 ### 1. Cognitive overload
@@ -141,6 +162,8 @@ Accessibility-aware interactions
 
 ## P0 UI/UX priorities
 
+Status: implemented as of 2026-05-23. Preserve these behaviors during future changes.
+
 1. Fix pending approval destination and make it a real global action surface.
 2. Add payment eligibility messaging and blocked-state UI.
 3. Add supplier invoice verification/matching checklist panels.
@@ -150,6 +173,8 @@ Accessibility-aware interactions
 
 ## P1 UI/UX priorities
 
+Status: implemented as of 2026-05-23, with remaining work limited to polish and future workflow expansion.
+
 1. Redesign document show side panel hierarchy.
 2. Add role-aware My Work shortcuts.
 3. Reduce form copy by 30-40 percent.
@@ -158,6 +183,8 @@ Accessibility-aware interactions
 6. Add linked-document workflow chain.
 
 ## P2 UI/UX priorities
+
+Status: mostly implemented as of 2026-05-23. Treat future work as consistency polish.
 
 1. Tighten spacing scale.
 2. Reduce overuse of equal-weight cards and shadows.

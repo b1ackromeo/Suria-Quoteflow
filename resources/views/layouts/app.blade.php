@@ -59,10 +59,29 @@
                 'companyProfile' => $companyProfile,
             ])
 
+            @if(! empty($taskLinks))
+                <nav class="mobile-task-strip" aria-label="My work shortcuts">
+                    <div class="mobile-task-strip-heading">
+                        <span>My work</span>
+                        <span>Tasks ready for action</span>
+                    </div>
+                    <div class="mobile-task-grid">
+                        @foreach($taskLinks as $item)
+                            <a class="mobile-task-card {{ $item['active'] ? 'mobile-task-card-active' : '' }}" href="{{ $item['route'] }}">
+                                <x-icon :name="$item['icon']" class="nav-icon" aria-hidden="true" />
+                                <span>{{ $item['label'] }}</span>
+                            </a>
+                        @endforeach
+                    </div>
+                </nav>
+            @endif
+
             <details class="mobile-nav-menu">
                 <summary>
-                    <span class="font-bold text-slate-900">Menu</span>
-                    <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Navigation</span>
+                    <span class="mobile-nav-summary-copy">
+                        <span>Navigation</span>
+                        <span>Sales, purchasing, directory</span>
+                    </span>
                 </summary>
                 @include('layouts.partials.navigation', [
                     'primaryNav' => $primaryNav,
@@ -71,6 +90,7 @@
                     'procurementLinks' => $procurementLinks,
                     'isModule' => $isModule,
                     'mobile' => true,
+                    'showMobileTasksInMenu' => false,
                 ])
                 @include('layouts.partials.sidebar-account')
             </details>

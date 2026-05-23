@@ -94,6 +94,9 @@ Rules:
 - eager load only the party/source fields shown in the list
 - preview panel should not require loading huge attachment content
 - avoid rendering every document preview at once
+- load only the selected preview iframe on first render, then swap preview URLs when the user selects another row
+- keep PDF/image/object previews inside a bounded pane so one preview cannot create a full-page blank scroll area
+- clear preview loading text after the iframe loads, with a fallback timeout for browsers that do not expose PDF plugin load consistently
 
 ## Document show performance
 
@@ -164,6 +167,8 @@ Rules:
 - avoid remote assets
 - avoid JavaScript-rendered PDF dependencies
 - avoid generating large reports as single PDFs
+- avoid page boxes that are taller than the printable A4 area after padding and borders; compact generated documents should not create blank trailing pages
+- include a page-count regression test for compact generated business PDFs when changing PDF layout CSS
 
 ## OCR performance
 

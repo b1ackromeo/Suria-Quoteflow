@@ -481,9 +481,9 @@ close after paid
 
 Important target:
 
-Payment eligibility must be enforced server-side.
+Payment eligibility is enforced server-side through `App\Services\Documents\PaymentEligibilityService`.
 
-Suggested rules:
+Current rules:
 
 ```text
 customer_invoice: issued or part_paid
@@ -492,9 +492,9 @@ supplier_invoice: matched or part_paid
 
 ## Matching architecture
 
-Supplier invoice matching should be a business rule layer, not just a status button.
+Supplier invoice matching is a business rule layer, not just a status button.
 
-Target matching service:
+Current matching service:
 
 ```text
 SupplierInvoiceMatchingService
@@ -536,6 +536,7 @@ Keep PDFs simple:
 - local assets only where possible
 - no JavaScript rendering dependency
 - avoid huge images
+- compact generated business documents should not create blank trailing pages in preview or download
 
 Do not require headless Chrome/Puppeteer on production shared hosting.
 

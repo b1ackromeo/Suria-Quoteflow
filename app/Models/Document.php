@@ -95,6 +95,13 @@ class Document extends Model
         'cancelled' => 'Cancelled',
     ];
 
+    public const CANCELLABLE_STATUSES = [
+        'draft',
+        'rejected',
+        'approved',
+        'issued',
+    ];
+
     protected $fillable = [
         'type',
         'direction',
@@ -320,6 +327,32 @@ class Document extends Model
         }
 
         return self::STATUSES[$this->status] ?? ucwords(str_replace('_', ' ', $this->status));
+    }
+
+    public function canBeCancelled(): bool
+    {
+        return in_array($this->status, self::CANCELLABLE_STATUSES, true);
+    }
+
+    public function statusSemanticGroupDisplay(): string
+    {
+        return match ($this->status) {
+            'draft' => 'Draft status',
+            'pending_approval' => 'Waiting for action',
+            'approved' => 'Ready for next step',
+            'issued', 'fulfilled', 'received' => 'External movement',
+            'matched' => 'Control passed',
+            'part_paid' => 'Payment in progress',
+            'paid' => 'Payment complete',
+            'rejected', 'cancelled' => 'Stopped',
+            'closed' => 'Final',
+            default => 'Status',
+        };
+    }
+
+    public function statusAriaLabel(): string
+    {
+        return 'Status: '.$this->statusDisplay().'. '.$this->statusSemanticGroupDisplay().'.';
     }
 
     public function sourceTypeDisplay(): string

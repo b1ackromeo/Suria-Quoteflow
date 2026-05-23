@@ -115,6 +115,8 @@ Rules:
 - selected row must be visually obvious
 - filters must remain compact
 - preview panel should show useful empty/loading/unavailable states
+- on desktop, the preview panel should fill the available workbench height instead of leaving a large blank area below the PDF or file preview
+- generated PDF iframes should fill the preview surface and clear loading text after the iframe loads or after a safe fallback timeout
 - mobile should not force the full two-pane layout
 
 Document index anti-redundancy rules:
@@ -124,6 +126,7 @@ Document index anti-redundancy rules:
 - do not add visible preview headers such as "Previewing...", "Uploaded file preview", or repeated document titles when the selected row and page title already provide that context
 - keep detailed preview headers, summaries, verification panels, and matching information on the document show command center, where the preview is no longer beside an already-selected list row
 - when fixing document index layout, verify the actual rendered page for generated PDFs, uploaded files, and unavailable-preview states before calling the anti-redundancy issue resolved
+- compact generated business PDFs should not create blank trailing pages in preview or download
 
 ## Document show command center
 
@@ -155,6 +158,13 @@ Examples:
 [Record payment]
 [Close document]
 ```
+
+Current implemented command-center rules:
+
+- show blockers before actions for submit, approve, match, pay, close, and cancel
+- keep cancellation visible only when backend rules allow it, and require a cancellation reason
+- show linked document progress using actual related records when available
+- keep OCR/manual verification panels focused on the current document task
 
 ## OCR-assisted capture pages
 
@@ -259,6 +269,8 @@ View summary
 ```
 
 Desktop workbench features can become tabs, drawers, or separate screens on mobile.
+
+Implemented mobile behavior should preserve the task strip, compact actions, readable status text, and collapsed document previews. Do not regress mobile into a squeezed desktop two-column layout.
 
 ## Layout anti-patterns
 

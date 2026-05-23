@@ -47,7 +47,11 @@
                     <td>{{ $document?->partyName() ?? 'Unavailable' }}</td>
                     <td>
                         @if($document)
-                            <span class="status-chip status-{{ $document->status }}">{{ $document->statusDisplay() }}</span>
+                            <span
+                                class="status-chip status-{{ $document->status }}"
+                                aria-label="{{ $document->statusAriaLabel() }}"
+                                data-status-group="{{ $document->statusSemanticGroupDisplay() }}"
+                            >{{ $document->statusDisplay() }}</span>
                         @else
                             <span class="status-chip status-cancelled">Unavailable</span>
                         @endif

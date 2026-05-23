@@ -48,7 +48,11 @@
                 <strong>{{ $document->document_number }}</strong>
                 <span>{{ $document->supplier?->name ?? 'Supplier not selected' }} · {{ $document->external_reference ?: 'No supplier invoice no.' }} · {{ $companyProfile->formatDate($document->issue_date) }} · {{ $companyProfile->formatMoney($document->total, $currency) }}@if($invoiceAttachment) · {{ $invoiceAttachment->original_name }}@endif</span>
             </div>
-            <span class="status-chip status-{{ $document->status }}">{{ $document->statusDisplay() }}</span>
+            <span
+                class="status-chip status-{{ $document->status }}"
+                aria-label="{{ $document->statusAriaLabel() }}"
+                data-status-group="{{ $document->statusSemanticGroupDisplay() }}"
+            >{{ $document->statusDisplay() }}</span>
         </div>
     @else
         <div class="supplier-invoice-preview-header">
@@ -57,7 +61,11 @@
                 <h3>Supplier invoice review</h3>
                 <p>Check the uploaded invoice against the extracted details before approval.</p>
             </div>
-            <span class="status-chip status-{{ $document->status }}">{{ $document->statusDisplay() }}</span>
+            <span
+                class="status-chip status-{{ $document->status }}"
+                aria-label="{{ $document->statusAriaLabel() }}"
+                data-status-group="{{ $document->statusSemanticGroupDisplay() }}"
+            >{{ $document->statusDisplay() }}</span>
         </div>
 
         <div class="supplier-invoice-summary-strip">

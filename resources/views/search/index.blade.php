@@ -61,7 +61,11 @@
                                 <a class="mt-1 block text-base font-bold text-[#0a4f93]" href="{{ route('documents.show', $document) }}">{{ $document->document_number }}</a>
                                 <p class="mt-1 truncate text-sm font-bold text-slate-900">{{ $document->partyName() }}</p>
                             </div>
-                            <span class="status-chip status-{{ $document->status }}">{{ $document->statusDisplay() }}</span>
+                            <span
+                                class="status-chip status-{{ $document->status }}"
+                                aria-label="{{ $document->statusAriaLabel() }}"
+                                data-status-group="{{ $document->statusSemanticGroupDisplay() }}"
+                            >{{ $document->statusDisplay() }}</span>
                         </div>
                         <dl class="mt-3 grid gap-3 text-sm md:grid-cols-3">
                             <div>

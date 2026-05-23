@@ -85,7 +85,11 @@
             <h3>{{ $outputLabel }}</h3>
             <p>{{ $outputNote }}</p>
         </div>
-        <span class="status-chip status-{{ $document->status }}">{{ $document->statusDisplay() }}</span>
+        <span
+            class="status-chip status-{{ $document->status }}"
+            aria-label="{{ $document->statusAriaLabel() }}"
+            data-status-group="{{ $document->statusSemanticGroupDisplay() }}"
+        >{{ $document->statusDisplay() }}</span>
     </div>
     <section class="generated-pdf-preview-frame">
         <div class="generated-pdf-loading" data-pdf-loading>Loading PDF preview...</div>

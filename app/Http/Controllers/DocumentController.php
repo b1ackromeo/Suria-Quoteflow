@@ -12,6 +12,7 @@ use App\Models\DocumentItem;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Services\Documents\BusinessDocumentCaptureService;
+use App\Services\Documents\DocumentChainService;
 use App\Services\Documents\ExternalDocumentExtractionService;
 use App\Services\Documents\PaymentEligibilityService;
 use App\Services\Invoices\SupplierInvoiceMatchingService;
@@ -160,7 +161,7 @@ class DocumentController extends Controller
         return redirect()->route('documents.show', $document)->with('status', $meta['singular'].' created.');
     }
 
-    public function show(Document $document, PaymentEligibilityService $paymentEligibility): View
+    public function show(Document $document, PaymentEligibilityService $paymentEligibility, DocumentChainService $documentChain): View
     {
         $document->load(['customer', 'supplier', 'relatedDocument', 'items.product', 'billingStages', 'payments.creator', 'approvals.requester', 'approvals.decider', 'attachments.uploader', 'attachments.extraction.verifier', 'creator', 'approver']);
         $supplierInvoiceVerification = $document->type === 'supplier_invoice'
@@ -178,6 +179,7 @@ class DocumentController extends Controller
             'paymentBlockedReason' => $paymentEligibility->blockedReason($document),
             'supplierInvoiceVerification' => $supplierInvoiceVerification,
             'supplierInvoiceMatching' => $supplierInvoiceMatching,
+            'documentChain' => $documentChain->chainFor($document),
         ]);
     }
 
@@ -359,13 +361,32 @@ class DocumentController extends Controller
                 $document->type === 'customer_po' => ['fulfilled'],
                 default => [],
             },
-            'cancel' => ['draft', 'rejected', 'approved', 'issued'],
+            'cancel' => Document::CANCELLABLE_STATUSES,
         ];
 
         abort_unless($this->transitionAppliesToDocument($document, $action), 422, 'This action does not apply to this document type.');
         abort_unless(in_array($document->status, $allowed[$action], true), 422, 'This status change is not allowed.');
 
         $matchingOverride = null;
+        $cancellationReason = null;
+
+        if ($action === 'cancel') {
+            abort_unless($request->user()->hasRole('admin', 'manager'), 403);
+
+            $validated = $request->validate([
+                'cancellation_reason' => ['required', 'string', 'max:2000'],
+            ], [
+                'cancellation_reason.required' => 'Add a cancellation reason before cancelling this document.',
+            ]);
+
+            $cancellationReason = trim($validated['cancellation_reason']);
+
+            if ($cancellationReason === '') {
+                throw ValidationException::withMessages([
+                    'cancellation_reason' => 'Add a cancellation reason before cancelling this document.',
+                ]);
+            }
+        }
 
         if ($action === 'match' && $document->type === 'supplier_invoice') {
             $matchingChecklist = $this->supplierInvoiceMatching->checklist($document);
@@ -401,7 +422,13 @@ class DocumentController extends Controller
         }
 
         $document->update($payload);
-        Audit::record('document_'.$action, $document, $before, $document->only(['status', 'fulfilled_at']));
+        $auditAfter = $document->only(['status', 'fulfilled_at']);
+
+        if ($cancellationReason !== null) {
+            $auditAfter['cancellation_reason'] = $cancellationReason;
+        }
+
+        Audit::record('document_'.$action, $document, $before, $auditAfter);
 
         if ($matchingOverride) {
             Audit::record('supplier_invoice_match_override', $document, $before, [
@@ -411,9 +438,11 @@ class DocumentController extends Controller
             ]);
         }
 
-        $message = $matchingOverride
-            ? $document->statusDisplay().' recorded with audited override.'
-            : $document->statusDisplay().' recorded.';
+        $message = match (true) {
+            $action === 'cancel' => 'Document cancelled.',
+            (bool) $matchingOverride => $document->statusDisplay().' recorded with audited override.',
+            default => $document->statusDisplay().' recorded.',
+        };
 
         return back()->with('status', $message);
     }

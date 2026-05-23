@@ -422,6 +422,10 @@ class DocumentWorkflowTest extends TestCase
         $response->assertSee('sidebar-workspace', false);
         $response->assertSee('Current company');
         $response->assertSee('sidebar-account-panel', false);
+        $response->assertSee('mobile-task-strip', false);
+        $response->assertSee('aria-label="My work shortcuts"', false);
+        $response->assertSee('Tasks ready for action');
+        $response->assertSee('Sales, purchasing, directory');
         $response->assertSee($this->admin->name);
         $response->assertSee('Logout');
         $response->assertDontSee('date-control', false);
@@ -607,6 +611,145 @@ class DocumentWorkflowTest extends TestCase
         $response->assertSee('Document progress');
         $response->assertSee('Evidence and attachments');
         $response->assertSee('Approval history');
+        $response->assertSee('aria-label="Status: Draft. Draft status."', false);
+        $response->assertSee('data-status-group="Draft status"', false);
+        $response->assertSee('data-label="Description"', false);
+        $response->assertSee('data-label="Total"', false);
+    }
+
+    public function test_document_status_semantic_groups_distinguish_business_states(): void
+    {
+        $groups = [
+            'draft' => 'Draft status',
+            'pending_approval' => 'Waiting for action',
+            'approved' => 'Ready for next step',
+            'issued' => 'External movement',
+            'received' => 'External movement',
+            'matched' => 'Control passed',
+            'part_paid' => 'Payment in progress',
+            'paid' => 'Payment complete',
+            'cancelled' => 'Stopped',
+            'closed' => 'Final',
+        ];
+
+        foreach ($groups as $status => $group) {
+            $document = new Document([
+                'type' => 'supplier_invoice',
+                'status' => $status,
+            ]);
+
+            $this->assertSame($group, $document->statusSemanticGroupDisplay());
+            $this->assertStringContainsString($group, $document->statusAriaLabel());
+        }
+    }
+
+    public function test_document_progress_uses_generic_steps_when_no_linked_chain_exists(): void
+    {
+        $invoice = $this->createDocument('customer-invoices', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'GENERIC-TIMELINE-INV',
+            'description' => 'Standalone invoice uses generic document progress',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+
+        $response = $this->get(route('documents.show', $invoice));
+
+        $response->assertOk();
+        $response->assertSee('Document progress');
+        $response->assertSee('Customer PO received');
+        $response->assertSee('Payment');
+        $response->assertDontSee('data-document-chain-timeline', false);
+    }
+
+    public function test_document_progress_shows_linked_upstream_chain(): void
+    {
+        $quotation = $this->createDocument('customer-quotations', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'CHAIN-CQ',
+            'description' => 'Linked customer quotation',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+
+        $customerPo = $this->createDocument('customer-pos', [
+            'customer_id' => $this->customer->id,
+            'related_document_id' => $quotation->id,
+            'external_reference' => 'CHAIN-CPO',
+            'description' => 'Linked customer PO',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+
+        $invoice = $this->createDocument('customer-invoices', [
+            'customer_id' => $this->customer->id,
+            'related_document_id' => $customerPo->id,
+            'external_reference' => 'CHAIN-INV',
+            'description' => 'Linked customer invoice',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+
+        $response = $this->get(route('documents.show', $invoice));
+        $content = $response->getContent();
+        $timelineStart = strpos($content, 'data-document-chain-timeline');
+        $this->assertNotFalse($timelineStart);
+        $timelineHtml = substr($content, $timelineStart);
+
+        $response->assertOk();
+        $response->assertSee('data-document-chain-timeline', false);
+        $response->assertSee('href="'.route('documents.show', $quotation).'"', false);
+        $response->assertSee('href="'.route('documents.show', $customerPo).'"', false);
+        $response->assertSee('href="'.route('documents.show', $invoice).'"', false);
+
+        $quotationPosition = strpos($timelineHtml, $quotation->document_number);
+        $customerPoPosition = strpos($timelineHtml, $customerPo->document_number);
+        $invoicePosition = strpos($timelineHtml, $invoice->document_number);
+
+        $this->assertNotFalse($quotationPosition);
+        $this->assertNotFalse($customerPoPosition);
+        $this->assertNotFalse($invoicePosition);
+        $this->assertLessThan($customerPoPosition, $quotationPosition);
+        $this->assertLessThan($invoicePosition, $customerPoPosition);
+        $this->assertStringContainsString('Customer quotation - Draft', $timelineHtml);
+        $this->assertStringContainsString('Customer PO received - Draft', $timelineHtml);
+        $this->assertStringContainsString('Customer invoice - Draft', $timelineHtml);
+    }
+
+    public function test_document_progress_chain_traversal_is_bounded_when_links_loop(): void
+    {
+        $quotation = $this->createDocument('customer-quotations', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'CHAIN-LOOP-CQ',
+            'description' => 'Quotation with looped related document',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+
+        $customerPo = $this->createDocument('customer-pos', [
+            'customer_id' => $this->customer->id,
+            'related_document_id' => $quotation->id,
+            'external_reference' => 'CHAIN-LOOP-CPO',
+            'description' => 'Customer PO with looped related document',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+
+        $quotation->update(['related_document_id' => $customerPo->id]);
+
+        $response = $this->get(route('documents.show', $quotation));
+        $content = $response->getContent();
+        $timelineStart = strpos($content, 'data-document-chain-timeline');
+        $this->assertNotFalse($timelineStart);
+        $timelineHtml = substr($content, $timelineStart);
+        $timelineEnd = strpos($timelineHtml, 'data-document-chain-limited');
+        $chainHtml = substr($timelineHtml, 0, $timelineEnd === false ? null : $timelineEnd);
+
+        $response->assertOk();
+        $response->assertSee('data-document-chain-limited', false);
+        $response->assertSee('Only the nearest linked records are shown.');
+        $this->assertSame(1, substr_count($chainHtml, $quotation->document_number));
+        $this->assertSame(1, substr_count($chainHtml, $customerPo->document_number));
     }
 
     public function test_pending_approval_show_focuses_on_the_decision_without_duplicate_blocker(): void
@@ -636,6 +779,165 @@ class DocumentWorkflowTest extends TestCase
         $response->assertDontSee('No approval events.');
         $response->assertDontSee('Required before continuing');
         $response->assertDontSee('Approval waiting');
+    }
+
+    public function test_admin_can_cancel_allowed_statuses_with_reason_and_audit_payload(): void
+    {
+        foreach (Document::CANCELLABLE_STATUSES as $status) {
+            $quotation = $this->createDocument('customer-quotations', [
+                'customer_id' => $this->customer->id,
+                'external_reference' => 'CANCEL-ALLOWED-'.strtoupper($status),
+                'description' => 'Quotation cancelled from '.$status,
+                'quantity' => 1,
+                'unit_price' => 1200,
+            ]);
+            $quotation->update(['status' => $status]);
+            $reason = 'Customer stopped this document while it was '.$status.'.';
+
+            $show = $this->get(route('documents.show', $quotation));
+            $show->assertOk();
+            $show->assertSee('Cancellation reason');
+            $show->assertSee('Cancel document');
+
+            $this->from(route('documents.show', $quotation))
+                ->post(route('documents.transition', [$quotation, 'cancel']), [
+                    'cancellation_reason' => $reason,
+                ])
+                ->assertRedirect(route('documents.show', $quotation))
+                ->assertSessionHas('status', 'Document cancelled.');
+
+            $this->assertSame('cancelled', $quotation->refresh()->status);
+
+            $audit = AuditTrail::where('action', 'document_cancel')
+                ->where('auditable_type', Document::class)
+                ->where('auditable_id', $quotation->id)
+                ->latest('id')
+                ->firstOrFail();
+
+            $this->assertSame($this->admin->id, $audit->user_id);
+            $this->assertSame('cancelled', $audit->after_values['status'] ?? null);
+            $this->assertSame($reason, $audit->after_values['cancellation_reason'] ?? null);
+        }
+    }
+
+    public function test_cancellation_without_reason_fails(): void
+    {
+        $quotation = $this->createDocument('customer-quotations', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'CANCEL-REASON-REQUIRED',
+            'description' => 'Quotation cancellation requires a reason',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+
+        $this->from(route('documents.show', $quotation))
+            ->post(route('documents.transition', [$quotation, 'cancel']))
+            ->assertRedirect(route('documents.show', $quotation))
+            ->assertSessionHasErrors([
+                'cancellation_reason' => 'Add a cancellation reason before cancelling this document.',
+            ]);
+
+        $this->assertSame('draft', $quotation->refresh()->status);
+        $this->assertDatabaseMissing('audit_trails', [
+            'action' => 'document_cancel',
+            'auditable_type' => Document::class,
+            'auditable_id' => $quotation->id,
+        ]);
+    }
+
+    public function test_disallowed_statuses_cannot_be_cancelled(): void
+    {
+        $blockedStatuses = [
+            'pending_approval',
+            'fulfilled',
+            'received',
+            'matched',
+            'part_paid',
+            'paid',
+            'closed',
+            'cancelled',
+        ];
+
+        foreach ($blockedStatuses as $status) {
+            $quotation = $this->createDocument('customer-quotations', [
+                'customer_id' => $this->customer->id,
+                'external_reference' => 'CANCEL-BLOCKED-'.strtoupper($status),
+                'description' => 'Quotation cannot be cancelled from '.$status,
+                'quantity' => 1,
+                'unit_price' => 1200,
+            ]);
+            $quotation->update(['status' => $status]);
+
+            $show = $this->get(route('documents.show', $quotation));
+            $show->assertOk();
+            $show->assertDontSee('Cancel document');
+
+            $this->post(route('documents.transition', [$quotation, 'cancel']), [
+                'cancellation_reason' => 'Attempted cancellation from blocked status.',
+            ])->assertStatus(422);
+
+            $this->assertSame($status, $quotation->refresh()->status);
+            $this->assertDatabaseMissing('audit_trails', [
+                'action' => 'document_cancel',
+                'auditable_type' => Document::class,
+                'auditable_id' => $quotation->id,
+            ]);
+        }
+    }
+
+    public function test_non_manager_write_user_cannot_cancel_document(): void
+    {
+        $quotation = $this->createDocument('customer-quotations', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'CANCEL-NON-MANAGER',
+            'description' => 'Quotation cancellation is manager controlled',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+
+        $salesUser = User::factory()->create([
+            'role' => 'sales',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($salesUser);
+
+        $show = $this->get(route('documents.show', $quotation));
+        $show->assertOk();
+        $show->assertDontSee('Cancel document');
+
+        $this->post(route('documents.transition', [$quotation, 'cancel']), [
+            'cancellation_reason' => 'Sales user tried to cancel this quotation.',
+        ])->assertForbidden();
+
+        $this->assertSame('draft', $quotation->refresh()->status);
+    }
+
+    public function test_cancelled_document_cannot_be_edited_or_transitioned_further(): void
+    {
+        $quotation = $this->createDocument('customer-quotations', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'CANCEL-NO-FURTHER-ACTION',
+            'description' => 'Cancelled quotation cannot continue',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+
+        $this->from(route('documents.show', $quotation))
+            ->post(route('documents.transition', [$quotation, 'cancel']), [
+                'cancellation_reason' => 'Customer confirmed the request should stop.',
+            ])
+            ->assertRedirect(route('documents.show', $quotation));
+
+        $this->assertSame('cancelled', $quotation->refresh()->status);
+
+        $this->get(route('documents.edit', $quotation))
+            ->assertStatus(422);
+
+        $this->post(route('documents.transition', [$quotation, 'issue']))
+            ->assertStatus(422);
+
+        $this->assertSame('cancelled', $quotation->refresh()->status);
     }
 
     public function test_supplier_invoice_payment_is_available_only_after_matching(): void
@@ -721,7 +1023,8 @@ class DocumentWorkflowTest extends TestCase
             'source_document_id' => $purchaseRequest->id,
         ]));
         $supplierQuotePrefill->assertOk();
-        $supplierQuotePrefill->assertSee('From purchase request');
+        $supplierQuotePrefill->assertSee('Purchase request');
+        $supplierQuotePrefill->assertSee('value="purchase_request"', false);
         $supplierQuotePrefill->assertSee($purchaseRequest->document_number);
         $supplierQuotePrefill->assertSee('Internal purchase request should not be issued');
 
@@ -750,7 +1053,8 @@ class DocumentWorkflowTest extends TestCase
             'source_document_id' => $supplierQuotation->id,
         ]));
         $supplierPoPrefill->assertOk();
-        $supplierPoPrefill->assertSee('From supplier quotation');
+        $supplierPoPrefill->assertSee('Supplier quotation');
+        $supplierPoPrefill->assertSee('value="supplier_quote"', false);
         $supplierPoPrefill->assertSee($supplierQuotation->document_number);
         $supplierPoPrefill->assertSee('Incoming supplier quotation should become PO source');
 
@@ -2398,13 +2702,13 @@ class DocumentWorkflowTest extends TestCase
         $rounding = $this->createApprovedSupplierInvoiceForAmountCheck('AMOUNT-ROUNDING', 1000, 1000.009);
         $roundingShow = $this->get(route('documents.show', $rounding));
         $roundingShow->assertOk();
-        $roundingShow->assertSee('Invoice total is within the RM 0.01 rounding tolerance for the purchase order amount.');
+        $roundingShow->assertSee('Invoice total is within the MYR 0.01 rounding tolerance for the purchase order amount.');
         $this->transition($rounding, 'match', 'matched');
 
         $soft = $this->createApprovedSupplierInvoiceForAmountCheck('AMOUNT-SOFT', 1000, 1000.463);
         $softShow = $this->get(route('documents.show', $soft));
         $softShow->assertOk();
-        $softShow->assertSee('Invoice total variance of RM 0.50 is within the soft tolerance of RM 1.00 for the purchase order amount.');
+        $softShow->assertSee('Invoice total variance of MYR 0.50 is within the soft tolerance of MYR 1.00 for the purchase order amount.');
         $this->transition($soft, 'match', 'matched');
     }
 
@@ -2417,7 +2721,7 @@ class DocumentWorkflowTest extends TestCase
 
         $show = $this->get(route('documents.show', $supplierInvoice));
         $show->assertOk();
-        $show->assertSee('Invoice total variance of RM 1.08 exceeds the soft tolerance of RM 1.00.');
+        $show->assertSee('Invoice total variance of MYR 1.08 exceeds the soft tolerance of MYR 1.00.');
         $show->assertSee('Match with audited override');
         $show->assertDontSee('>Match supplier invoice</button>', false);
 
@@ -2450,7 +2754,7 @@ class DocumentWorkflowTest extends TestCase
 
         $show = $this->get(route('documents.show', $supplierInvoice));
         $show->assertOk();
-        $show->assertSee('Partial supplier invoice amount differs from the purchase order by RM 540.00.');
+        $show->assertSee('Partial supplier invoice amount differs from the purchase order by MYR 540.00.');
         $show->assertSee('Partial matching is not treated as a normal match');
         $show->assertDontSee('>Match supplier invoice</button>', false);
 
@@ -2547,9 +2851,15 @@ class DocumentWorkflowTest extends TestCase
         $response->assertDontSee('Tax %');
         $response->assertDontSee('data-name="tax_rate"', false);
         $response->assertSee('Select billing basis');
-        $response->assertSee('From customer PO');
+        $response->assertSee('Customer PO');
         $response->assertSee('Progress claim');
         $response->assertSee('Direct invoice');
+        $response->assertSee('No recorded PO. Add a reason.');
+        $response->assertSee('Document readiness');
+        $response->assertSee('data-form-readiness-summary', false);
+        $response->assertSee('value="customer_po"', false);
+        $response->assertSee('value="progress_claim"', false);
+        $response->assertSee('value="direct_invoice"', false);
         $response->assertSee('Document form sections');
         $response->assertSee('Customer and invoice details');
         $response->assertSee('Payment terms');
@@ -2591,6 +2901,7 @@ class DocumentWorkflowTest extends TestCase
         $response->assertDontSee('Party and dates');
         $response->assertDontSee('Money and terms');
         $response->assertSee('Document form sections');
+        $response->assertSee('Document readiness');
         $response->assertSee('Simple payment terms');
         $response->assertSee('Project scope summary');
         $response->assertSee('data-billing-stage-panel', false);
@@ -2617,17 +2928,19 @@ class DocumentWorkflowTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('New supplier quotation');
-        $response->assertSee('Record the supplier offer, pricing, validity, and terms before creating a purchase order.');
+        $response->assertSee('Record supplier pricing, validity, and terms before PO.');
         $response->assertSee('Quotation basis');
         $response->assertSee('What is this supplier quotation for?');
-        $response->assertSee('Link the supplier quotation to a purchase request or an earlier supplier quotation.');
+        $response->assertSee('Link to a purchase request or earlier supplier quotation.');
+        $response->assertSee('Purchase request');
+        $response->assertSee('Previous quotation');
         $response->assertSee('Supplier and quotation details');
         $response->assertSee('Supplier quotation no. / reference');
         $response->assertSee('Pricing and terms');
         $response->assertSee('Payment terms text');
         $response->assertSee('Quoted items');
         $response->assertSee('Supplier notes and terms');
-        $response->assertSee('Record supplier remarks, exclusions, validity notes, and commercial terms.');
+        $response->assertSee('Record supplier remarks, exclusions, and terms.');
         $response->assertSee('Supplier quotation summary');
         $response->assertSee('Supplier quotation reference');
         $response->assertSee('Supplier quotation summary');
@@ -2638,6 +2951,60 @@ class DocumentWorkflowTest extends TestCase
         $response->assertDontSee('Source path');
         $response->assertDontSee('Party and dates');
         $response->assertDontSee('Money and terms');
+    }
+
+    public function test_document_studio_forms_keep_source_values_and_required_guidance(): void
+    {
+        $modules = [
+            'customer-pos' => ['quotation', 'direct_customer_po'],
+            'customer-invoices' => ['customer_po', 'progress_claim', 'direct_invoice'],
+            'purchase-requests' => ['supplier_quote', 'quote_exception'],
+            'supplier-quotations' => ['purchase_request', 'supplier_quote'],
+            'supplier-pos' => ['supplier_quote', 'purchase_request', 'direct_supplier_po'],
+            'goods-receipts' => ['supplier_po', 'direct_receipt'],
+            'supplier-invoices' => ['goods_receipt', 'supplier_po', 'direct_supplier_invoice'],
+        ];
+
+        foreach ($modules as $module => $sourceValues) {
+            $response = $this->get(route('documents.create', $module));
+
+            $response->assertOk();
+            $response->assertSee('Document readiness');
+            $response->assertSee('data-form-readiness-summary', false);
+
+            foreach ($sourceValues as $sourceValue) {
+                $response->assertSee('value="'.$sourceValue.'"', false);
+            }
+        }
+
+        $supplierInvoiceForm = $this->get(route('documents.create', 'supplier-invoices'));
+        $supplierInvoiceForm->assertSee('No PO or receipt required. Add a reason.');
+        $supplierInvoiceForm->assertSee('Required for direct supplier invoice. Explain why no PO or receipt is required.');
+
+        $goodsReceiptForm = $this->get(route('documents.create', 'goods-receipts'));
+        $goodsReceiptForm->assertSee('No PO yet. Add a reason.');
+        $goodsReceiptForm->assertSee('Required for direct receipt. Normal receiving must use an issued purchase order.');
+    }
+
+    public function test_document_form_validation_errors_remain_visible_after_redirect(): void
+    {
+        $payload = $this->documentPayload('customer-invoices', [
+            'customer_id' => $this->customer->id,
+            'source_type' => 'direct_invoice',
+            'external_reference' => 'FORM-DIRECT-NO-REASON',
+            'description' => 'Direct invoice without reason',
+            'quantity' => 1,
+            'unit_price' => 1200,
+        ]);
+        unset($payload['source_note']);
+
+        $this->followingRedirects()
+            ->from(route('documents.create', 'customer-invoices'))
+            ->post(route('documents.store', 'customer-invoices'), $payload)
+            ->assertOk()
+            ->assertSee('Please fix the highlighted fields.')
+            ->assertSee('Add a reason for this direct customer invoice.')
+            ->assertSee('Document readiness');
     }
 
     public function test_customer_quotation_listing_embeds_preview_for_each_visible_quote(): void
@@ -2694,9 +3061,17 @@ class DocumentWorkflowTest extends TestCase
         $response = $this->get(route('documents.index', 'customer-quotations'));
 
         $response->assertOk();
+        $response->assertSee('data-document-preview-disclosure', false);
+        $response->assertSee('Selected document preview');
         $response->assertSee('data-preview-trigger', false);
         $response->assertSee('aria-controls="document-preview-'.$quotation->id.'"', false);
-        $response->assertSee('>Preview</button>', false);
+        $response->assertSee('aria-current="true"', false);
+        $response->assertSee('aria-pressed="true"', false);
+        $response->assertSee('aria-label="Preview selected for '.$quotation->document_number.'"', false);
+        $response->assertSee('>Preview selected</button>', false);
+        $response->assertSee('aria-label="Open '.$quotation->document_number.' details"', false);
+        $response->assertSee('aria-label="Status: Draft. Draft status."', false);
+        $response->assertSee('data-status-group="Draft status"', false);
         $response->assertSee('href="'.route('documents.show', $quotation).'"', false);
         $response->assertDontSee('role="button"', false);
     }

@@ -2,8 +2,8 @@
     $party = $document->customer ?? $document->supplier;
     $items = $document->items ?? collect();
     $billingStages = $document->billingStages ?? collect();
-    $currency = strtoupper($document->currency ?: 'MYR');
     $companyProfile = \App\Models\CompanyProfile::active();
+    $currency = strtoupper($document->currency ?: $companyProfile->baseCurrency());
     $isInvoice = $document->isInvoice();
     $isPo = $document->isPurchaseOrder();
     $isQuotation = $document->isQuotation();

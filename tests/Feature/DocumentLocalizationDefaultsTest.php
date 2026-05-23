@@ -131,6 +131,34 @@ class DocumentLocalizationDefaultsTest extends TestCase
         $response->assertDontSee('value="MYR"', false);
     }
 
+    public function test_document_preview_uses_company_base_currency_when_document_currency_is_missing(): void
+    {
+        CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
+            'base_currency' => 'SGD',
+            'number_format' => 'en-SG',
+        ]));
+
+        $document = new Document([
+            'type' => 'customer_quotation',
+            'direction' => 'outgoing',
+            'document_number' => 'CQ-DRAFT',
+            'status' => 'draft',
+            'issue_date' => now()->toDateString(),
+            'subtotal' => 100,
+            'tax_total' => 0,
+            'total' => 100,
+        ]);
+
+        $view = $this->view('documents.partials.quotation-preview', [
+            'document' => $document,
+            'meta' => ['singular' => 'Customer quotation'],
+        ]);
+
+        $view->assertSee('SGD');
+        $view->assertSee('SGD 100.00');
+        $view->assertDontSee('MYR 100.00');
+    }
+
     public function test_document_form_loads_company_live_preview_formatting_config(): void
     {
         CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
@@ -211,7 +239,11 @@ class DocumentLocalizationDefaultsTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('SGD 1,000.00');
+        $response->assertSee('SGD 0.00 overdue');
+        $response->assertSee('SGD 0.00 due within 7 days');
         $response->assertDontSee('RM 1,000.00');
+        $response->assertDontSee('RM 0.00 overdue');
+        $response->assertDontSee('RM 0.00 due within 7 days');
     }
 
     public function test_reports_use_company_money_formatting(): void

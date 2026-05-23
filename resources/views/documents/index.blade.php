@@ -117,7 +117,7 @@
             <p class="document-browser-subtitle">{{ $moduleSubtitle }}</p>
         </div>
         <div class="document-browser-actions">
-            <span class="status-chip {{ $meta['direction'] === 'outgoing' ? 'status-approved' : 'status-pending_approval' }}">{{ $documents->total() }} records</span>
+            <span class="status-chip status-count">{{ $documents->total() }} records</span>
             <a class="btn btn-secondary" href="{{ route('documents.export', $meta['slug']) }}">Export CSV</a>
             @if($canWrite)
                 <a class="btn btn-primary" href="{{ route('documents.create', $meta['slug']) }}">{{ $createActionLabel }}</a>
@@ -159,13 +159,18 @@
                         @if($isQuotationIndex) data-quotation-row @endif
                         data-preview-target="document-preview-{{ $document->id }}"
                         data-preview-active="{{ $loop->first ? 'true' : 'false' }}"
+                        aria-current="{{ $loop->first ? 'true' : 'false' }}"
                     >
                         <div class="document-list-row-main">
                             <div class="min-w-0">
                                 <a class="document-row-title" href="{{ route('documents.show', $document) }}">{{ $document->document_number }}</a>
                                 <p class="document-row-party">{{ $document->partyName() }}</p>
                             </div>
-                            <span class="status-chip status-{{ $document->status }}">{{ $document->statusDisplay() }}</span>
+                            <span
+                                class="status-chip status-{{ $document->status }}"
+                                aria-label="{{ $document->statusAriaLabel() }}"
+                                data-status-group="{{ $document->statusSemanticGroupDisplay() }}"
+                            >{{ $document->statusDisplay() }}</span>
                         </div>
                         <div class="document-row-footer">
                             <div class="document-row-details">
@@ -182,8 +187,11 @@
                                         data-preview-target="document-preview-{{ $document->id }}"
                                         aria-controls="document-preview-{{ $document->id }}"
                                         aria-pressed="{{ $loop->first ? 'true' : 'false' }}"
-                                    >Preview</button>
-                                    <a class="btn btn-primary document-row-open-link" href="{{ route('documents.show', $document) }}">Open</a>
+                                        aria-label="{{ $loop->first ? 'Preview selected for '.$document->document_number : 'Preview '.$document->document_number.' in the preview pane' }}"
+                                        data-preview-label="Preview {{ $document->document_number }} in the preview pane"
+                                        data-preview-selected-label="Preview selected for {{ $document->document_number }}"
+                                    >{{ $loop->first ? 'Preview selected' : 'Preview' }}</button>
+                                    <a class="btn btn-primary document-row-open-link" href="{{ route('documents.show', $document) }}" aria-label="Open {{ $document->document_number }} details">Open</a>
                                 </div>
                             </div>
                         </div>
@@ -199,43 +207,51 @@
             <div class="border-t border-slate-200 bg-white px-5 py-3">{{ $documents->links() }}</div>
         </section>
 
-        <aside
-            class="document-preview-pane"
-            data-document-preview-list
-            data-document-preview-panel
-            @if($isQuotationIndex) data-quotation-preview-list data-quotation-preview-panel @endif
-        >
-            <div class="sr-only">
-                <p>{{ $previewKicker }}</p>
-                <h2>{{ $previewTitle }}</h2>
-            </div>
+        <details class="document-preview-disclosure" data-document-preview-disclosure open>
+            <summary>
+                <span>
+                    <span class="document-preview-disclosure-title">Selected document preview</span>
+                    <span class="document-preview-disclosure-copy">{{ $previewCaption }}</span>
+                </span>
+            </summary>
+            <aside
+                class="document-preview-pane"
+                data-document-preview-list
+                data-document-preview-panel
+                @if($isQuotationIndex) data-quotation-preview-list data-quotation-preview-panel @endif
+            >
+                <div class="sr-only">
+                    <p>{{ $previewKicker }}</p>
+                    <h2>{{ $previewTitle }}</h2>
+                </div>
 
-            <div class="document-preview-scroll">
-                @forelse($documents as $document)
-                    @php
-                        $useGeneratedOutputPreview = in_array($document->type, ['customer_quotation', 'customer_invoice'], true)
-                            || $document->shouldPreviewGeneratedPdfOutput();
-                    @endphp
-                    <div class="{{ $loop->first ? '' : 'hidden' }}" data-preview-card-wrapper id="document-preview-{{ $document->id }}">
-                        @if($useGeneratedOutputPreview)
-                            @include('documents.partials.generated-pdf-output-preview', ['document' => $document, 'meta' => $meta, 'isActive' => $loop->first])
-                        @elseif($meta['type'] === 'supplier_invoice')
-                            @include('documents.partials.supplier-invoice-file-preview', ['document' => $document, 'meta' => $meta, 'previewOnly' => true])
-                        @elseif($usesReceivedFilePreview)
-                            @include('documents.partials.external-document-preview', ['document' => $document, 'meta' => $meta, 'previewOnly' => true])
-                        @else
-                            @include('documents.partials.quotation-preview', ['document' => $document, 'meta' => $meta])
-                        @endif
-                    </div>
-                @empty
-                    <div class="document-preview-empty">
-                        <p class="document-pane-kicker">Preview</p>
-                        <h2>No record selected</h2>
-                        <p>{{ $previewCaption }}</p>
-                    </div>
-                @endforelse
-            </div>
-        </aside>
+                <div class="document-preview-scroll">
+                    @forelse($documents as $document)
+                        @php
+                            $useGeneratedOutputPreview = in_array($document->type, ['customer_quotation', 'customer_invoice'], true)
+                                || $document->shouldPreviewGeneratedPdfOutput();
+                        @endphp
+                        <div class="{{ $loop->first ? '' : 'hidden' }}" data-preview-card-wrapper id="document-preview-{{ $document->id }}">
+                            @if($useGeneratedOutputPreview)
+                                @include('documents.partials.generated-pdf-output-preview', ['document' => $document, 'meta' => $meta, 'isActive' => $loop->first])
+                            @elseif($meta['type'] === 'supplier_invoice')
+                                @include('documents.partials.supplier-invoice-file-preview', ['document' => $document, 'meta' => $meta, 'previewOnly' => true])
+                            @elseif($usesReceivedFilePreview)
+                                @include('documents.partials.external-document-preview', ['document' => $document, 'meta' => $meta, 'previewOnly' => true])
+                            @else
+                                @include('documents.partials.quotation-preview', ['document' => $document, 'meta' => $meta])
+                            @endif
+                        </div>
+                    @empty
+                        <div class="document-preview-empty">
+                            <p class="document-pane-kicker">Preview</p>
+                            <h2>No record selected</h2>
+                            <p>{{ $previewCaption }}</p>
+                        </div>
+                    @endforelse
+                </div>
+            </aside>
+        </details>
     </div>
 </div>
 
@@ -244,14 +260,31 @@
     const rows = document.querySelectorAll('[data-document-row]');
     const triggers = document.querySelectorAll('[data-preview-trigger]');
     const wrappers = document.querySelectorAll('[data-preview-card-wrapper]');
+    const previewDisclosure = document.querySelector('[data-document-preview-disclosure]');
+    const compactPreviewMedia = window.matchMedia('(max-width: 1279px)');
+
+    function syncPreviewDisclosure() {
+        if (!previewDisclosure) return;
+
+        previewDisclosure.open = !compactPreviewMedia.matches;
+    }
 
     function loadOutputPreview(wrapper) {
         if (!wrapper) return;
 
         wrapper.querySelectorAll('iframe[data-pdf-src]').forEach((frame) => {
+            const hideLoading = () => frame
+                .closest('.generated-pdf-preview-frame')
+                ?.querySelector('[data-pdf-loading]')
+                ?.classList.add('hidden');
+
+            frame.addEventListener('load', hideLoading, { once: true });
+
             if (!frame.getAttribute('src')) {
                 frame.setAttribute('src', frame.dataset.pdfSrc);
             }
+
+            window.setTimeout(hideLoading, 1500);
         });
     }
 
@@ -260,9 +293,13 @@
         rows.forEach((row) => {
             const active = row.dataset.previewTarget === targetId;
             row.dataset.previewActive = active ? 'true' : 'false';
+            row.setAttribute('aria-current', active ? 'true' : 'false');
         });
         triggers.forEach((trigger) => {
-            trigger.setAttribute('aria-pressed', trigger.dataset.previewTarget === targetId ? 'true' : 'false');
+            const active = trigger.dataset.previewTarget === targetId;
+            trigger.setAttribute('aria-pressed', active ? 'true' : 'false');
+            trigger.setAttribute('aria-label', active ? trigger.dataset.previewSelectedLabel : trigger.dataset.previewLabel);
+            trigger.textContent = active ? 'Preview selected' : 'Preview';
         });
 
         loadOutputPreview(document.getElementById(targetId));
@@ -271,8 +308,20 @@
     triggers.forEach((trigger) => {
         trigger.addEventListener('click', () => {
             selectPreview(trigger.dataset.previewTarget);
+
+            if (previewDisclosure && compactPreviewMedia.matches) {
+                previewDisclosure.open = true;
+                previewDisclosure.scrollIntoView({ block: 'start' });
+            }
         });
     });
+
+    syncPreviewDisclosure();
+    if (compactPreviewMedia.addEventListener) {
+        compactPreviewMedia.addEventListener('change', syncPreviewDisclosure);
+    } else if (compactPreviewMedia.addListener) {
+        compactPreviewMedia.addListener(syncPreviewDisclosure);
+    }
 
     loadOutputPreview(document.querySelector('[data-preview-card-wrapper]:not(.hidden)'));
 })();

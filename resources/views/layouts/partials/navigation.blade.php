@@ -1,5 +1,5 @@
 <nav class="sidebar-nav {{ ($mobile ?? false) ? 'sidebar-nav-mobile' : 'sidebar-nav-desktop' }}" aria-label="{{ ($mobile ?? false) ? 'Mobile navigation' : 'Main navigation' }}">
-    @if(($mobile ?? false) && ! empty($taskLinks ?? []))
+    @if(($mobile ?? false) && ($showMobileTasksInMenu ?? true) && ! empty($taskLinks ?? []))
         <div class="nav-section mobile-task-section">
             <p class="nav-heading">My work</p>
             @foreach($taskLinks as $item)

@@ -46,12 +46,15 @@ Important actions:
 - submit for approval
 - approve/reject
 - transition actions: `issue`, `fulfill`, `receive`, `match`, `close`, `cancel`
+- purchase request supplier quotation evidence verification or quote exception
+- supplier invoice verification and matching checks
 - attachment upload/preview/download
 - OCR extraction and extraction verification
 - PDF preview/download
 - CSV export
 
 Payment routes are handled by `App\Http\Controllers\PaymentController`.
+PDF preview/download routes are handled by `App\Http\Controllers\DocumentPdfController`.
 
 ## Important UI files
 
@@ -67,8 +70,12 @@ Important document partials:
 - `resources/views/documents/partials/supplier-invoice-file-preview.blade.php`
 - `resources/views/documents/partials/generated-pdf-output-preview.blade.php`
 - `resources/views/documents/partials/external-document-preview.blade.php`
+- `resources/views/documents/partials/external-document-capture-lines.blade.php`
 - `resources/views/documents/partials/receipt-live-preview.blade.php`
 - `resources/views/documents/partials/quotation-live-preview.blade.php`
+- `resources/views/documents/partials/business-document-header.blade.php`
+- `resources/views/documents/partials/cancel-document-form.blade.php`
+- `resources/views/company_profiles/partials/logo-mark.blade.php`
 
 Layout/navigation:
 
@@ -91,7 +98,7 @@ Customer inquiry -> customer quotation -> approval -> issue quotation -> PO rece
 ### Supplier / incoming flow
 
 ```text
-Purchase request -> approval -> supplier quotation -> supplier PO -> issue PO -> goods/service receipt -> supplier invoice -> invoice verification -> matching -> payment -> close
+Purchase request with supplier quotation evidence or quote exception -> approval -> purchase order -> issue PO -> goods/service receipt -> supplier invoice verification -> matching -> payment -> close
 ```
 
 ## Development guidance

@@ -100,6 +100,17 @@ class CompanyProfile extends Model
         return $this->name ?: static::defaults()['name'];
     }
 
+    public function initials(): string
+    {
+        $initials = collect(preg_split('/\s+/', trim($this->displayName())) ?: [])
+            ->filter()
+            ->take(2)
+            ->map(fn (string $word) => strtoupper(substr($word, 0, 1)))
+            ->implode('');
+
+        return $initials ?: 'CO';
+    }
+
     public function displayTagline(): string
     {
         return $this->tagline ?: static::defaults()['tagline'];

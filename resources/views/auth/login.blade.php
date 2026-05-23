@@ -17,7 +17,11 @@
     </div>
     <div class="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3">
         <div class="flex items-center gap-3">
-            <img class="h-10 w-10 rounded-lg object-cover shadow-sm" src="{{ $companyProfile->logoUrl() }}" alt="{{ $companyProfile->displayName() }}">
+            @include('company_profiles.partials.logo-mark', [
+                'company' => $companyProfile,
+                'imageClass' => 'h-10 w-10 rounded-lg object-cover shadow-sm',
+                'placeholderClass' => 'company-logo-placeholder h-10 w-10 rounded-lg text-xs',
+            ])
             <div class="min-w-0">
                 <p class="text-sm font-bold leading-tight text-slate-950">{{ $companyProfile->displayName() }}</p>
             </div>

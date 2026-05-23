@@ -3,6 +3,7 @@
 namespace App\Services\Invoices;
 
 use App\Models\AttachmentExtraction;
+use App\Models\CompanyProfile;
 use App\Models\Document;
 
 class SupplierInvoiceMatchingService
@@ -170,29 +171,27 @@ class SupplierInvoiceMatchingService
         $sourceTotal = (float) $relatedDocument->total;
         $difference = abs($invoiceTotal - $sourceTotal);
         $policy = $this->amountTolerancePolicy($sourceTotal);
+        $companyProfile = CompanyProfile::active();
+        $currency = strtoupper($document->currency ?: $relatedDocument->currency ?: $companyProfile->baseCurrency());
+        $money = fn (float $amount): string => $companyProfile->formatMoney($amount, $currency);
 
         if ($difference == 0.0) {
             return [true, 'Invoice total matches the '.$this->linkedDocumentLabel($relatedDocument).' amount exactly.'];
         }
 
         if ($difference <= $policy['rounding_tolerance']) {
-            return [true, 'Invoice total is within the RM '.$this->money($policy['rounding_tolerance']).' rounding tolerance for the '.$this->linkedDocumentLabel($relatedDocument).' amount.'];
+            return [true, 'Invoice total is within the '.$money($policy['rounding_tolerance']).' rounding tolerance for the '.$this->linkedDocumentLabel($relatedDocument).' amount.'];
         }
 
         if ($difference <= $policy['soft_tolerance_limit']) {
-            return [true, 'Invoice total variance of RM '.$this->money($difference).' is within the soft tolerance of RM '.$this->money($policy['soft_tolerance_limit']).' for the '.$this->linkedDocumentLabel($relatedDocument).' amount.'];
+            return [true, 'Invoice total variance of '.$money($difference).' is within the soft tolerance of '.$money($policy['soft_tolerance_limit']).' for the '.$this->linkedDocumentLabel($relatedDocument).' amount.'];
         }
 
         if ($invoiceTotal < $sourceTotal) {
-            return [false, 'Partial supplier invoice amount differs from the '.$this->linkedDocumentLabel($relatedDocument).' by RM '.$this->money($difference).'. Partial matching is not treated as a normal match; use admin or manager override with notes if this partial invoice is accepted.'];
+            return [false, 'Partial supplier invoice amount differs from the '.$this->linkedDocumentLabel($relatedDocument).' by '.$money($difference).'. Partial matching is not treated as a normal match; use admin or manager override with notes if this partial invoice is accepted.'];
         }
 
-        return [false, 'Invoice total variance of RM '.$this->money($difference).' exceeds the soft tolerance of RM '.$this->money($policy['soft_tolerance_limit']).'. Admin or manager override with notes is required.'];
-    }
-
-    private function money(float $amount): string
-    {
-        return number_format($amount, 2, '.', '');
+        return [false, 'Invoice total variance of '.$money($difference).' exceeds the soft tolerance of '.$money($policy['soft_tolerance_limit']).'. Admin or manager override with notes is required.'];
     }
 
     private function linkedDocumentLabel(?Document $document): string

@@ -2,11 +2,7 @@
     $companyProfile = \App\Models\CompanyProfile::active();
     $companyAddress = trim(preg_replace('/\s+/', ' ', (string) $companyProfile->address));
     $companyContactLine = collect([$companyProfile->email, $companyProfile->phone])->filter()->implode(' | ');
-    $companyInitials = collect(preg_split('/\s+/', trim($companyProfile->displayName())))
-        ->filter()
-        ->take(2)
-        ->map(fn (string $word) => strtoupper(substr($word, 0, 1)))
-        ->implode('') ?: 'CO';
+    $companyInitials = $companyProfile->initials();
     $primaryColor = preg_match('/^#[0-9A-Fa-f]{6}$/', (string) $companyProfile->primary_color)
         ? $companyProfile->primary_color
         : '#0a345f';
@@ -137,7 +133,7 @@
             line-height: 1.42;
             background: #fff;
         }
-        .page { position: relative; min-height: 1123px; padding: 0 44px 34px; }
+        .page { position: relative; min-height: 1050px; padding: 0 44px 34px; }
         .masthead {
             margin: 0 -44px 25px;
             padding: 26px 44px 0;
@@ -1002,4 +998,3 @@
 </div>
 </body>
 </html>
-
