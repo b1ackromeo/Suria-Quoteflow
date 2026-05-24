@@ -176,6 +176,7 @@ class SingleCompanyReadinessCommandTest extends TestCase
             'ocr.enabled' => false,
             'quoteflow_backup.mysqldump_path' => PHP_BINARY,
             'quoteflow_backup.directory' => storage_path('framework/testing-readiness-backups'),
+            'quoteflow_backup.files.directory' => storage_path('framework/testing-readiness-backups'),
         ]);
     }
 

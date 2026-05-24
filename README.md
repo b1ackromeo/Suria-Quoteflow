@@ -30,13 +30,16 @@ Run the single-company readiness check after setup:
 php artisan quoteflow:single-company-readiness
 php artisan quoteflow:ocr-smoke-test
 php artisan quoteflow:backup-database --dry-run
+php artisan quoteflow:backup-files --dry-run
 ```
 
-Create a local database backup before UAT data changes or deployment handover:
+Create local database and uploaded-file backups before UAT data changes or deployment handover:
 
 ```powershell
 php artisan quoteflow:backup-database
 php artisan quoteflow:backup-database --verify-latest
+php artisan quoteflow:backup-files
+php artisan quoteflow:backup-files --verify-latest
 ```
 
 If local demo/imported documents already exist, sync numbering counters upward before UAT:
@@ -64,6 +67,9 @@ php artisan view:cache
 php artisan quoteflow:backup-database --dry-run
 php artisan quoteflow:backup-database
 php artisan quoteflow:backup-database --verify-latest
+php artisan quoteflow:backup-files --dry-run
+php artisan quoteflow:backup-files
+php artisan quoteflow:backup-files --verify-latest
 php artisan quoteflow:single-company-readiness --strict
 ```
 

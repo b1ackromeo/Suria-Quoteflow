@@ -10,6 +10,8 @@ Use this checklist to test QuoteFlow like a business user. It covers the MVP wor
 - Technical readiness command: `php artisan quoteflow:single-company-readiness`
 - Database backup command: `php artisan quoteflow:backup-database`
 - Backup verification command: `php artisan quoteflow:backup-database --verify-latest`
+- Uploaded-file backup command: `php artisan quoteflow:backup-files`
+- Uploaded-file backup verification command: `php artisan quoteflow:backup-files --verify-latest`
 - Demo seed command:
 
 ```powershell
@@ -43,7 +45,7 @@ Password123!
 - Preview and download at least one PDF, confirm there is no blank extra page for a compact generated document, then export one CSV.
 - Upload one small attachment to a customer invoice and one to a supplier invoice.
 - Check Audit Trail after completing the workflows.
-- Create and verify a database backup before resetting or replacing UAT data.
+- Create and verify database and uploaded-file backups before resetting or replacing UAT data.
 
 ## Workflow 1: User Login And Role Access
 
@@ -203,4 +205,4 @@ The UAT round passes when:
 - Payments update invoice status correctly.
 - Role access matches the role table above.
 - Audit Trail records the major workflow actions.
-- A database backup has been created, verified, and stored outside the public web root.
+- Database and uploaded-file backups have been created, verified, and stored outside the public web root.

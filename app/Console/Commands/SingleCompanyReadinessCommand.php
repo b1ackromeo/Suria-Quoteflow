@@ -38,6 +38,7 @@ class SingleCompanyReadinessCommand extends Command
         $this->checkStaticAssets();
         $this->checkPdfRenderer();
         $this->checkDatabaseBackupTool();
+        $this->checkFileBackupTool();
 
         if ($databaseReady && $this->checkCoreTables()) {
             $this->checkCompanyProfile();
@@ -175,6 +176,28 @@ class SingleCompanyReadinessCommand extends Command
             (is_dir($directory) && is_writable($directory)) || (is_dir($parent) && is_writable($parent)),
             'Backup directory can be written under '.$this->relativePath($directory).'.',
             'Backup directory or its parent is not writable: '.$directory,
+            'warn'
+        );
+    }
+
+    private function checkFileBackupTool(): void
+    {
+        $this->check(
+            'File backup tool',
+            class_exists(\ZipArchive::class),
+            'PHP ZipArchive is available for uploaded file backups.',
+            'PHP ZipArchive is missing. Enable the PHP zip extension before production use.',
+            'warn'
+        );
+
+        $directory = (string) config('quoteflow_backup.files.directory', storage_path('app/backups'));
+        $parent = dirname($directory);
+
+        $this->check(
+            'File backup directory',
+            (is_dir($directory) && is_writable($directory)) || (is_dir($parent) && is_writable($parent)),
+            'File backup directory can be written under '.$this->relativePath($directory).'.',
+            'File backup directory or its parent is not writable: '.$directory,
             'warn'
         );
     }
