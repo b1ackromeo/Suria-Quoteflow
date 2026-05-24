@@ -25,9 +25,10 @@ Before UAT data changes or production handover, verify and create a database bac
 ```powershell
 php artisan quoteflow:backup-database --dry-run
 php artisan quoteflow:backup-database
+php artisan quoteflow:backup-database --verify-latest
 ```
 
-The backup command uses the configured MySQL/MariaDB connection and writes a private SQL dump under `storage/app/backups` by default.
+The backup command uses the configured MySQL/MariaDB connection and writes a private SQL dump under `storage/app/backups` by default. The verify mode checks the SQL dump header, completion marker, and required QuoteFlow tables without restoring or modifying any database.
 
 If imported or demo documents already exist and `document_sequences` is behind them, sync the counters upward:
 
@@ -88,7 +89,7 @@ The command does not replace business UAT. Before saying the single-company setu
 - Upload and preview at least one PDF and one image attachment.
 - Run `php artisan quoteflow:ocr-smoke-test` on Laragon and again on production if OCR is enabled there.
 - Confirm OCR availability on the target hosting only if OCR is enabled.
-- Run `php artisan quoteflow:backup-database --dry-run` and create one real backup before production use.
+- Run `php artisan quoteflow:backup-database --dry-run`, create one real backup, and verify it with `php artisan quoteflow:backup-database --verify-latest` before production use.
 
 ## Current MVP Boundaries
 

@@ -12,6 +12,7 @@ Use this checklist before accepting Codex-generated changes.
 - `php artisan quoteflow:single-company-readiness` works.
 - `php artisan quoteflow:ocr-smoke-test` works when OCR is enabled.
 - `php artisan quoteflow:backup-database --dry-run` works.
+- `php artisan quoteflow:backup-database --verify-latest` works after a backup exists.
 - No production Node/Vite dependency is introduced.
 - No Redis, Horizon, WebSocket, queue worker, Docker, or VPS-only dependency is introduced.
 - CSS remains prebuilt/static for production.
@@ -176,7 +177,7 @@ Before deployment:
 - Keep `.env` using file cache/session and sync queue unless intentionally changed.
 - Confirm storage and bootstrap cache paths are writable.
 - Confirm `mysqldump` is available through `MYSQLDUMP_PATH` and `php artisan quoteflow:backup-database --dry-run`.
-- Create one real database backup before production use.
+- Create and verify one real database backup before production use.
 - Confirm attachment upload limit is within 50M PHP limits.
 - Confirm DomPDF renders a real quotation/invoice.
 - Confirm short demo/UAT PDFs do not create blank extra pages.

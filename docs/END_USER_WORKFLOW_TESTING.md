@@ -9,6 +9,7 @@ Use this checklist to test QuoteFlow like a business user. It covers the MVP wor
 - Local project folder: `C:\laragon\www\Suria_Quoteflow`
 - Technical readiness command: `php artisan quoteflow:single-company-readiness`
 - Database backup command: `php artisan quoteflow:backup-database`
+- Backup verification command: `php artisan quoteflow:backup-database --verify-latest`
 - Demo seed command:
 
 ```powershell
@@ -42,7 +43,7 @@ Password123!
 - Preview and download at least one PDF, confirm there is no blank extra page for a compact generated document, then export one CSV.
 - Upload one small attachment to a customer invoice and one to a supplier invoice.
 - Check Audit Trail after completing the workflows.
-- Create a database backup before resetting or replacing UAT data.
+- Create and verify a database backup before resetting or replacing UAT data.
 
 ## Workflow 1: User Login And Role Access
 
@@ -202,4 +203,4 @@ The UAT round passes when:
 - Payments update invoice status correctly.
 - Role access matches the role table above.
 - Audit Trail records the major workflow actions.
-- A database backup has been created and the backup file is stored outside the public web root.
+- A database backup has been created, verified, and stored outside the public web root.

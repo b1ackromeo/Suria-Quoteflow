@@ -11,13 +11,51 @@ use Symfony\Component\Process\Process;
 class DatabaseBackupCommand extends Command
 {
     protected $signature = 'quoteflow:backup-database
-        {--dry-run : Verify backup settings without creating a dump file}';
+        {--dry-run : Verify backup settings without creating a dump file}
+        {--verify= : Verify a specific backup SQL file without restoring it}
+        {--verify-latest : Verify the newest backup SQL file without restoring it}';
 
     protected $description = 'Create a MySQL/MariaDB database backup using mysqldump.';
+
+    private const REQUIRED_TABLES = [
+        'users',
+        'company_profiles',
+        'customers',
+        'suppliers',
+        'products',
+        'documents',
+        'document_items',
+        'document_sequences',
+        'payments',
+        'approvals',
+        'attachments',
+        'attachment_extractions',
+        'audit_trails',
+        'document_billing_stages',
+    ];
 
     public function handle(): int
     {
         try {
+            if ($this->option('verify') && $this->option('verify-latest')) {
+                throw new RuntimeException('Use either --verify or --verify-latest, not both.');
+            }
+
+            if ($this->option('verify') || $this->option('verify-latest')) {
+                $backupDirectory = $this->ensureBackupDirectory();
+                $backupPath = $this->option('verify')
+                    ? $this->resolveBackupFilePath((string) $this->option('verify'))
+                    : $this->latestBackupPath($backupDirectory);
+
+                $this->verifyBackupFile($backupPath);
+                $this->info('Database backup verified.');
+                $this->line('File: '.$backupPath);
+                $this->line('Size: '.$this->formatBytes((int) filesize($backupPath)));
+                $this->line('Tables: '.count(self::REQUIRED_TABLES).' required table(s) found.');
+
+                return self::SUCCESS;
+            }
+
             $connectionName = (string) config('database.default');
             $connection = $this->connectionConfig($connectionName);
             $mysqldump = $this->resolveMysqldumpPath();
@@ -51,9 +89,11 @@ class DatabaseBackupCommand extends Command
                 throw new RuntimeException('mysqldump finished, but the backup file was not created.');
             }
 
+            $this->verifyBackupFile($backupPath);
             $this->info('Database backup created.');
             $this->line('File: '.$backupPath);
             $this->line('Size: '.$this->formatBytes((int) filesize($backupPath)));
+            $this->line('Verified: '.count(self::REQUIRED_TABLES).' required table(s) found.');
 
             return self::SUCCESS;
         } catch (\Throwable $exception) {
@@ -137,6 +177,34 @@ class DatabaseBackupCommand extends Command
         return $directory;
     }
 
+    private function resolveBackupFilePath(string $path): string
+    {
+        $path = trim($path);
+
+        if ($path === '') {
+            throw new RuntimeException('Backup file path is empty.');
+        }
+
+        if (! preg_match('/^(?:[A-Za-z]:[\/\\\\]|[\/\\\\])/', $path)) {
+            $path = base_path($path);
+        }
+
+        return $path;
+    }
+
+    private function latestBackupPath(string $backupDirectory): string
+    {
+        $files = glob(rtrim($backupDirectory, DIRECTORY_SEPARATOR.'/\\').DIRECTORY_SEPARATOR.'quoteflow-*.sql') ?: [];
+
+        if ($files === []) {
+            throw new RuntimeException('No QuoteFlow SQL backups were found in '.$backupDirectory.'.');
+        }
+
+        usort($files, fn (string $left, string $right): int => filemtime($right) <=> filemtime($left));
+
+        return $files[0];
+    }
+
     private function backupPath(string $backupDirectory): string
     {
         $environment = preg_replace('/[^A-Za-z0-9_-]+/', '-', app()->environment()) ?: 'app';
@@ -182,6 +250,52 @@ class DatabaseBackupCommand extends Command
         $process->setTimeout((int) config('quoteflow_backup.timeout', 300));
 
         return $process;
+    }
+
+    private function verifyBackupFile(string $backupPath): void
+    {
+        if (! is_file($backupPath) || ! is_readable($backupPath)) {
+            throw new RuntimeException('Backup file is not readable: '.$backupPath);
+        }
+
+        if (filesize($backupPath) === 0) {
+            throw new RuntimeException('Backup file is empty: '.$backupPath);
+        }
+
+        $foundTables = [];
+        $hasMysqlHeader = false;
+        $hasCompletionMarker = false;
+        $file = new \SplFileObject($backupPath, 'r');
+
+        while (! $file->eof()) {
+            $line = (string) $file->fgets();
+
+            if (! $hasMysqlHeader && str_starts_with($line, '-- MySQL dump')) {
+                $hasMysqlHeader = true;
+            }
+
+            if (! $hasCompletionMarker && str_starts_with($line, '-- Dump completed on')) {
+                $hasCompletionMarker = true;
+            }
+
+            if (preg_match('/^CREATE TABLE `([^`]+)` /', $line, $matches)) {
+                $foundTables[$matches[1]] = true;
+            }
+        }
+
+        if (! $hasMysqlHeader) {
+            throw new RuntimeException('Backup file does not look like a mysqldump SQL file.');
+        }
+
+        if (! $hasCompletionMarker) {
+            throw new RuntimeException('Backup file is missing the mysqldump completion marker.');
+        }
+
+        $missingTables = array_values(array_diff(self::REQUIRED_TABLES, array_keys($foundTables)));
+
+        if ($missingTables !== []) {
+            throw new RuntimeException('Backup file is missing required table(s): '.implode(', ', $missingTables).'.');
+        }
     }
 
     private function formatBytes(int $bytes): string

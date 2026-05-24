@@ -36,6 +36,7 @@ Create a local database backup before UAT data changes or deployment handover:
 
 ```powershell
 php artisan quoteflow:backup-database
+php artisan quoteflow:backup-database --verify-latest
 ```
 
 If local demo/imported documents already exist, sync numbering counters upward before UAT:
@@ -61,6 +62,8 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 php artisan quoteflow:backup-database --dry-run
+php artisan quoteflow:backup-database
+php artisan quoteflow:backup-database --verify-latest
 php artisan quoteflow:single-company-readiness --strict
 ```
 

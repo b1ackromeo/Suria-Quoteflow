@@ -69,6 +69,64 @@ class DatabaseBackupCommandTest extends TestCase
         $this->assertStringContainsString('Database backups require a MySQL or MariaDB connection. Current driver: sqlite.', $output);
     }
 
+    public function test_verify_latest_backup_passes_for_valid_dump_file(): void
+    {
+        $directory = storage_path('framework/testing/database-backups');
+        File::deleteDirectory($directory);
+        File::ensureDirectoryExists($directory);
+        $path = $directory.DIRECTORY_SEPARATOR.'quoteflow-testing-20260525-010101.sql';
+        File::put($path, $this->validMysqlDumpSql());
+
+        config([
+            'quoteflow_backup.directory' => $directory,
+        ]);
+
+        [$exitCode, $output] = $this->runBackupCommand([
+            '--verify-latest' => true,
+        ]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('Database backup verified.', $output);
+        $this->assertStringContainsString('Tables: 14 required table(s) found.', $output);
+    }
+
+    public function test_verify_backup_fails_when_no_backup_file_exists(): void
+    {
+        $directory = storage_path('framework/testing/database-backups');
+        File::deleteDirectory($directory);
+
+        config([
+            'quoteflow_backup.directory' => $directory,
+        ]);
+
+        [$exitCode, $output] = $this->runBackupCommand([
+            '--verify-latest' => true,
+        ]);
+
+        $this->assertSame(1, $exitCode);
+        $this->assertStringContainsString('No QuoteFlow SQL backups were found', $output);
+    }
+
+    public function test_verify_backup_fails_when_required_table_is_missing(): void
+    {
+        $directory = storage_path('framework/testing/database-backups');
+        File::deleteDirectory($directory);
+        File::ensureDirectoryExists($directory);
+        $path = $directory.DIRECTORY_SEPARATOR.'quoteflow-testing-20260525-010101.sql';
+        File::put($path, str_replace("CREATE TABLE `payments` (\n", '', $this->validMysqlDumpSql()));
+
+        config([
+            'quoteflow_backup.directory' => $directory,
+        ]);
+
+        [$exitCode, $output] = $this->runBackupCommand([
+            '--verify' => $path,
+        ]);
+
+        $this->assertSame(1, $exitCode);
+        $this->assertStringContainsString('Backup file is missing required table(s): payments.', $output);
+    }
+
     private function runBackupCommand(array $parameters = []): array
     {
         $this->withoutMockingConsoleOutput();
@@ -80,5 +138,42 @@ class DatabaseBackupCommandTest extends TestCase
         ]);
 
         return [$exitCode, $tester->getDisplay()];
+    }
+
+    private function validMysqlDumpSql(): string
+    {
+        $tables = [
+            'users',
+            'company_profiles',
+            'customers',
+            'suppliers',
+            'products',
+            'documents',
+            'document_items',
+            'document_sequences',
+            'payments',
+            'approvals',
+            'attachments',
+            'attachment_extractions',
+            'audit_trails',
+            'document_billing_stages',
+        ];
+
+        $sql = "-- MySQL dump 10.13  Distrib 8.0.30, for Win64 (x86_64)\n";
+        $sql .= "--\n";
+        $sql .= "-- Host: 127.0.0.1    Database: quoteflow_testing\n";
+
+        foreach ($tables as $table) {
+            $sql .= "--\n";
+            $sql .= "-- Table structure for table `".$table."`\n";
+            $sql .= "--\n";
+            $sql .= "CREATE TABLE `".$table."` (\n";
+            $sql .= "  `id` bigint unsigned NOT NULL AUTO_INCREMENT\n";
+            $sql .= ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;\n";
+        }
+
+        $sql .= "-- Dump completed on 2026-05-25 01:01:01\n";
+
+        return $sql;
     }
 }
