@@ -1228,7 +1228,7 @@
     }
 
     .document-workbench-body {
-        @apply grid min-h-0 flex-1 gap-0 xl:grid-cols-[minmax(28rem,0.48fr)_minmax(34rem,0.52fr)];
+        @apply grid min-h-0 flex-1 gap-0 xl:grid-cols-[minmax(31rem,0.52fr)_minmax(28rem,0.48fr)];
     }
 
     .document-preview-disclosure {
@@ -1345,7 +1345,7 @@
     }
 
     .document-row-details {
-        @apply grid min-w-0 gap-0.5 text-xs font-semibold text-slate-500 sm:grid-cols-2;
+        @apply flex min-w-0 flex-wrap gap-x-3 gap-y-0.5 text-xs font-semibold text-slate-500;
     }
 
     .document-row-details span {

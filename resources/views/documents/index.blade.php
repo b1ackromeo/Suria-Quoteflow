@@ -102,6 +102,10 @@
     if ($meta['type'] === 'customer_po') {
         $filterStatuses['issued'] = 'Accepted';
     }
+    $documentCount = $documents->total();
+    $documentCountLabel = $documentCount === 1
+        ? '1 record'
+        : $companyProfile->formatNumber($documentCount, 0).' records';
 @endphp
 
 @section('content')
@@ -117,7 +121,7 @@
             <p class="document-browser-subtitle">{{ $moduleSubtitle }}</p>
         </div>
         <div class="document-browser-actions">
-            <span class="status-chip status-count">{{ $documents->total() }} records</span>
+            <span class="status-chip status-count">{{ $documentCountLabel }}</span>
             <a class="btn btn-secondary" href="{{ route('documents.export', $meta['slug']) }}">Export CSV</a>
             @if($canWrite)
                 <a class="btn btn-primary" href="{{ route('documents.create', $meta['slug']) }}">{{ $createActionLabel }}</a>
@@ -127,16 +131,16 @@
 
     <div class="document-workbench-body">
         <section class="document-list-pane">
-            <form class="document-filterbar" method="get">
-                <input class="form-input mt-0" type="search" name="q" value="{{ request('q') }}" placeholder="Search document no., reference, party, or item">
-                <select class="form-input mt-0" name="status">
+            <form class="document-filterbar" method="get" aria-label="Filter {{ strtolower($meta['label']) }}">
+                <input class="form-input mt-0" type="search" name="q" value="{{ request('q') }}" placeholder="Search document no., reference, party, or item" aria-label="Search {{ strtolower($meta['label']) }}">
+                <select class="form-input mt-0" name="status" aria-label="Filter by status">
                     <option value="">All statuses</option>
                     @foreach($filterStatuses as $value => $label)
                         <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
                     @endforeach
                 </select>
-                <input class="form-input mt-0" type="date" name="from" value="{{ request('from') }}">
-                <input class="form-input mt-0" type="date" name="to" value="{{ request('to') }}">
+                <input class="form-input mt-0" type="date" name="from" value="{{ request('from') }}" aria-label="From date">
+                <input class="form-input mt-0" type="date" name="to" value="{{ request('to') }}" aria-label="To date">
                 <button class="btn btn-primary shrink-0" type="submit">Apply</button>
             </form>
 
@@ -187,10 +191,10 @@
                                         data-preview-target="document-preview-{{ $document->id }}"
                                         aria-controls="document-preview-{{ $document->id }}"
                                         aria-pressed="{{ $loop->first ? 'true' : 'false' }}"
-                                        aria-label="{{ $loop->first ? 'Preview selected for '.$document->document_number : 'Preview '.$document->document_number.' in the preview pane' }}"
+                                        aria-label="{{ $loop->first ? 'Preview shown for '.$document->document_number : 'Preview '.$document->document_number.' in the preview pane' }}"
                                         data-preview-label="Preview {{ $document->document_number }} in the preview pane"
-                                        data-preview-selected-label="Preview selected for {{ $document->document_number }}"
-                                    >{{ $loop->first ? 'Preview selected' : 'Preview' }}</button>
+                                        data-preview-selected-label="Preview shown for {{ $document->document_number }}"
+                                    >{{ $loop->first ? 'Preview shown' : 'Preview' }}</button>
                                     <a class="btn btn-primary document-row-open-link" href="{{ route('documents.show', $document) }}" aria-label="Open {{ $document->document_number }} details">Open</a>
                                 </div>
                             </div>
@@ -299,7 +303,7 @@
             const active = trigger.dataset.previewTarget === targetId;
             trigger.setAttribute('aria-pressed', active ? 'true' : 'false');
             trigger.setAttribute('aria-label', active ? trigger.dataset.previewSelectedLabel : trigger.dataset.previewLabel);
-            trigger.textContent = active ? 'Preview selected' : 'Preview';
+            trigger.textContent = active ? 'Preview shown' : 'Preview';
         });
 
         loadOutputPreview(document.getElementById(targetId));
