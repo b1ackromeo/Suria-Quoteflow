@@ -18,6 +18,17 @@ use Symfony\Component\Process\ExecutableFinder;
 
 class SingleCompanyReadinessCommand extends Command
 {
+    private const REQUIRED_PHP_EXTENSIONS = [
+        'pdo_mysql' => 'MySQL/MariaDB database access',
+        'mbstring' => 'Laravel string handling',
+        'fileinfo' => 'uploaded file type detection',
+        'dom' => 'PDF and document rendering',
+        'gd' => 'image validation and OCR smoke-test images',
+        'intl' => 'locale-aware formatting',
+        'openssl' => 'secure framework operations',
+        'zip' => 'uploaded-file backup archives',
+    ];
+
     protected $signature = 'quoteflow:single-company-readiness
         {--strict : Return failure when warnings are found}
         {--sync-document-sequences : Raise document sequence rows to match existing document numbers before checking}';
@@ -36,6 +47,7 @@ class SingleCompanyReadinessCommand extends Command
 
         $databaseReady = $this->checkDatabase();
         $this->checkApplicationSettings();
+        $this->checkPhpRuntime();
         $this->checkWritablePaths();
         $this->checkStaticAssets();
         $this->checkPdfRenderer();
@@ -118,6 +130,71 @@ class SingleCompanyReadinessCommand extends Command
         } else {
             $this->warnCheck('Production settings', 'Run this command on the production environment after deployment as the final check.');
         }
+    }
+
+    private function checkPhpRuntime(): void
+    {
+        $this->check(
+            'PHP version',
+            version_compare(PHP_VERSION, '8.1.0', '>='),
+            'PHP '.PHP_VERSION.' is compatible with Laravel 10.',
+            'QuoteFlow requires PHP 8.1 or newer.'
+        );
+
+        foreach (self::REQUIRED_PHP_EXTENSIONS as $extension => $purpose) {
+            $this->check(
+                'PHP extension: '.$extension,
+                extension_loaded($extension),
+                $extension.' is loaded for '.$purpose.'.',
+                $extension.' is missing; '.$purpose.' may fail.'
+            );
+        }
+
+        $this->check(
+            'PHP process execution',
+            function_exists('proc_open'),
+            'proc_open is available for backup and OCR helper commands.',
+            'proc_open is disabled; database backup, file backup verification, and OCR helper commands may fail.',
+            'warn'
+        );
+
+        $uploadLimit = $this->iniBytes('upload_max_filesize');
+        $postLimit = $this->iniBytes('post_max_size');
+        $requiredUploadBytes = 8 * 1024 * 1024;
+
+        $this->check(
+            'PHP upload limit',
+            $this->limitAllows($uploadLimit, $requiredUploadBytes),
+            'upload_max_filesize is '.$this->iniValue('upload_max_filesize').'.',
+            'upload_max_filesize should be at least 8M for QuoteFlow document evidence uploads.',
+            'warn'
+        );
+
+        $this->check(
+            'PHP POST limit',
+            $this->limitAllows($postLimit, $requiredUploadBytes),
+            'post_max_size is '.$this->iniValue('post_max_size').'.',
+            'post_max_size should be at least 8M for QuoteFlow document evidence uploads.',
+            'warn'
+        );
+
+        $memoryLimit = $this->iniBytes('memory_limit');
+        $this->check(
+            'PHP memory limit',
+            $this->limitAllows($memoryLimit, 128 * 1024 * 1024),
+            'memory_limit is '.$this->iniValue('memory_limit').'.',
+            'memory_limit should be at least 128M for PDF generation and OCR-assisted review.',
+            'warn'
+        );
+
+        $maxExecutionTime = (int) ini_get('max_execution_time');
+        $this->check(
+            'PHP execution time',
+            $maxExecutionTime === 0 || $maxExecutionTime >= 60,
+            'max_execution_time is '.$this->iniValue('max_execution_time').'.',
+            'max_execution_time should be at least 60 seconds for backup and OCR smoke-test commands.',
+            'warn'
+        );
     }
 
     private function checkWritablePaths(): void
@@ -495,5 +572,40 @@ class SingleCompanyReadinessCommand extends Command
     private function relativePath(string $path): string
     {
         return str_replace(base_path().DIRECTORY_SEPARATOR, '', $path);
+    }
+
+    private function iniValue(string $key): string
+    {
+        $value = ini_get($key);
+
+        return is_string($value) && $value !== '' ? $value : 'not set';
+    }
+
+    private function iniBytes(string $key): int
+    {
+        $value = trim($this->iniValue($key));
+
+        if ($value === 'not set') {
+            return 0;
+        }
+
+        if (is_numeric($value)) {
+            return (int) $value;
+        }
+
+        $unit = strtolower(substr($value, -1));
+        $number = (float) $value;
+
+        return match ($unit) {
+            'g' => (int) ($number * 1024 * 1024 * 1024),
+            'm' => (int) ($number * 1024 * 1024),
+            'k' => (int) ($number * 1024),
+            default => (int) $number,
+        };
+    }
+
+    private function limitAllows(int $configuredBytes, int $requiredBytes): bool
+    {
+        return $configuredBytes <= 0 || $configuredBytes >= $requiredBytes;
     }
 }

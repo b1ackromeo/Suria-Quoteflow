@@ -29,6 +29,11 @@ class SingleCompanyReadinessCommandTest extends TestCase
         $this->assertSame(0, $exitCode);
         $this->assertStringContainsString('All readiness checks passed.', $output);
         $this->assertStringContainsString('OK   Active company profile', $output);
+        $this->assertStringContainsString('OK   PHP version', $output);
+        $this->assertStringContainsString('OK   PHP extension: pdo_mysql', $output);
+        $this->assertStringContainsString('OK   PHP upload limit', $output);
+        $this->assertStringContainsString('OK   PHP POST limit', $output);
+        $this->assertStringContainsString('OK   PHP memory limit', $output);
         $this->assertStringNotContainsString('FAIL', $output);
     }
 

@@ -61,6 +61,7 @@ http://suria-quoteflow.test
 ## What The Command Checks
 
 - Laravel app key and app URL are configured.
+- PHP version, required extensions, process execution, upload limits, memory limit, and execution time are suitable.
 - Production shared-hosting settings use file cache, file sessions, and sync queue.
 - Storage and bootstrap cache directories are writable.
 - Prebuilt CSS exists at `public/css/app.css`.

@@ -9,6 +9,7 @@ Use this checklist before accepting Codex-generated changes.
 - `php artisan route:list` works.
 - `php artisan config:cache` works.
 - `php artisan route:cache` works, unless closures were intentionally added and documented.
+- PHP version, required extensions, upload limits, memory limit, and execution time pass readiness.
 - `php artisan quoteflow:single-company-readiness` works.
 - `php artisan quoteflow:ocr-smoke-test` works when OCR is enabled.
 - `php artisan quoteflow:backup-database --dry-run` works.
@@ -177,6 +178,7 @@ Before deployment:
 
 - Run `php artisan quoteflow:single-company-readiness --strict` and resolve every failure/warning or document an accepted limitation.
 - Keep `.env` using file cache/session and sync queue unless intentionally changed.
+- Confirm PHP version, required extensions, upload/post limits, memory limit, execution time, and `proc_open` pass readiness.
 - Confirm storage and bootstrap cache paths are writable.
 - Confirm `mysqldump` is available through `MYSQLDUMP_PATH` and `php artisan quoteflow:backup-database --dry-run`.
 - Create and verify one real database backup before production use.
