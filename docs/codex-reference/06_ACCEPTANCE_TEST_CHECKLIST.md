@@ -10,6 +10,7 @@ Use this checklist before accepting Codex-generated changes.
 - `php artisan config:cache` works.
 - `php artisan route:cache` works, unless closures were intentionally added and documented.
 - `php artisan quoteflow:single-company-readiness` works.
+- `php artisan quoteflow:ocr-smoke-test` works when OCR is enabled.
 - No production Node/Vite dependency is introduced.
 - No Redis, Horizon, WebSocket, queue worker, Docker, or VPS-only dependency is introduced.
 - CSS remains prebuilt/static for production.
@@ -179,4 +180,5 @@ Before deployment:
 - Confirm OCR command availability if OCR is enabled:
   - `tesseract --version`
   - `gs --version`
+- Confirm `php artisan quoteflow:ocr-smoke-test` passes if OCR is enabled.
 - Remove diagnostic routes after testing.

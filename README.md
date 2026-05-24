@@ -28,6 +28,7 @@ Run the single-company readiness check after setup:
 
 ```powershell
 php artisan quoteflow:single-company-readiness
+php artisan quoteflow:ocr-smoke-test
 ```
 
 If local demo/imported documents already exist, sync numbering counters upward before UAT:
