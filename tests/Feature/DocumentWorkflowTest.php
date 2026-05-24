@@ -147,6 +147,30 @@ class DocumentWorkflowTest extends TestCase
         $form->assertDontSee('class="form-input min-h-28" name="address"', false);
     }
 
+    public function test_document_numbers_resume_from_existing_documents_when_sequence_is_missing(): void
+    {
+        $year = now()->format('Y');
+
+        Document::create([
+            'type' => 'customer_quotation',
+            'direction' => 'outgoing',
+            'document_number' => 'CQ-'.$year.'-00012',
+            'external_reference' => 'SEQ-CHECK',
+            'customer_id' => $this->customer->id,
+            'status' => 'draft',
+            'issue_date' => now()->toDateString(),
+            'currency' => 'MYR',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $this->assertSame('CQ-'.$year.'-00013', Document::nextNumber('customer_quotation'));
+        $this->assertDatabaseHas('document_sequences', [
+            'type' => 'customer_quotation',
+            'year' => (int) $year,
+            'last_number' => 13,
+        ]);
+    }
+
     public function test_outgoing_customer_workflow_runs_from_quotation_to_closed_invoice(): void
     {
         $quotation = $this->createDocument('customer-quotations', [
@@ -217,6 +241,72 @@ class DocumentWorkflowTest extends TestCase
             'auditable_type' => Document::class,
             'auditable_id' => $invoice->id,
         ]);
+    }
+
+    public function test_customer_documents_can_create_next_linked_drafts_from_command_center(): void
+    {
+        $quotation = $this->createDocument('customer-quotations', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'CONVERT-Q-001',
+            'description' => 'Converted customer quotation line',
+            'quantity' => 2,
+            'unit_price' => 1200,
+        ]);
+
+        $this->submitAndApprove($quotation);
+
+        $quotationShow = $this->get(route('documents.show', $quotation));
+        $quotationShow->assertOk();
+        $quotationShow->assertSee('Create customer PO received');
+
+        $this->post(route('documents.convert', [$quotation, 'customer-pos']))
+            ->assertRedirect();
+
+        $customerPo = Document::query()
+            ->where('type', 'customer_po')
+            ->where('related_document_id', $quotation->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame('draft', $customerPo->status);
+        $this->assertSame('quotation', $customerPo->source_type);
+        $this->assertNull($customerPo->external_reference);
+        $this->assertSame($this->customer->id, $customerPo->customer_id);
+        $this->assertSame('2592.00', $customerPo->total);
+        $this->assertSame('Converted customer quotation line', $customerPo->items()->firstOrFail()->description);
+        $this->assertDatabaseHas('audit_trails', [
+            'action' => 'document_converted',
+            'auditable_type' => Document::class,
+            'auditable_id' => $customerPo->id,
+        ]);
+
+        $this->post(route('documents.convert', [$customerPo, 'customer-invoices']))
+            ->assertStatus(422);
+
+        $this->submitAndApprove($customerPo);
+        $this->transition($customerPo, 'issue', 'issued');
+        $this->transition($customerPo, 'fulfill', 'fulfilled');
+
+        $poShow = $this->get(route('documents.show', $customerPo));
+        $poShow->assertOk();
+        $poShow->assertSee('Create customer invoice');
+
+        $this->post(route('documents.convert', [$customerPo, 'customer-invoices']))
+            ->assertRedirect();
+
+        $invoice = Document::query()
+            ->where('type', 'customer_invoice')
+            ->where('related_document_id', $customerPo->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame('draft', $invoice->status);
+        $this->assertSame('customer_po', $invoice->source_type);
+        $this->assertSame($customerPo->document_number, $invoice->external_reference);
+        $this->assertSame($this->customer->id, $invoice->customer_id);
+        $this->assertSame('2592.00', $invoice->total);
+        $this->assertNull($invoice->due_date);
+        $this->assertSame('Converted customer quotation line', $invoice->items()->firstOrFail()->description);
     }
 
     public function test_incoming_supplier_workflow_runs_from_purchase_request_to_closed_supplier_invoice(): void

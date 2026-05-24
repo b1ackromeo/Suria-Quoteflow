@@ -281,7 +281,10 @@ Purpose:
 - render workflow action buttons
 - upload attachments
 - verify OCR/manual invoice details
+- create eligible next linked document drafts
 - show payments and approvals
+
+Next-document creation is handled by `App\Services\Documents\DocumentConversionService`. It creates a draft from an eligible source document, copies bounded structured data, records audit history, and redirects the user to complete business details that cannot be inferred from the source.
 
 ## Role/access architecture
 

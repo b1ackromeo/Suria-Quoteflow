@@ -164,6 +164,7 @@ Current implemented command-center rules:
 - show blockers before actions for submit, approve, match, pay, close, and cancel
 - keep cancellation visible only when backend rules allow it, and require a cancellation reason
 - show linked document progress using actual related records when available
+- show eligible next-document draft creation in the Next action panel, not buried below history
 - keep OCR/manual verification panels focused on the current document task
 
 ## OCR-assisted capture pages

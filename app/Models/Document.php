@@ -416,20 +416,41 @@ class Document extends Model
                 ->where('year', $year)
                 ->lockForUpdate()
                 ->first();
+            $prefix = $meta['prefix'] ?? 'DOC';
+            $existingLastNumber = self::existingLastSequenceNumber($type, $prefix, $year);
 
             if (! $sequence) {
                 $sequence = DocumentSequence::create([
                     'type' => $type,
                     'year' => $year,
-                    'last_number' => 0,
+                    'last_number' => $existingLastNumber,
                 ]);
+            } elseif ((int) $sequence->last_number < $existingLastNumber) {
+                $sequence->last_number = $existingLastNumber;
             }
 
             $sequence->last_number++;
             $sequence->save();
             $number = str_pad((string) $sequence->last_number, 5, '0', STR_PAD_LEFT);
 
-            return ($meta['prefix'] ?? 'DOC').'-'.$year.'-'.$number;
+            return $prefix.'-'.$year.'-'.$number;
         });
+    }
+
+    private static function existingLastSequenceNumber(string $type, string $prefix, int $year): int
+    {
+        $latestNumber = self::query()
+            ->where('type', $type)
+            ->where('document_number', 'like', $prefix.'-'.$year.'-%')
+            ->orderByDesc('document_number')
+            ->value('document_number');
+
+        if (! is_string($latestNumber)) {
+            return 0;
+        }
+
+        $sequence = substr($latestNumber, strrpos($latestNumber, '-') + 1);
+
+        return ctype_digit($sequence) ? (int) $sequence : 0;
     }
 }

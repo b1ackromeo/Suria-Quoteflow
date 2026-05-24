@@ -87,22 +87,14 @@
         default => false,
     };
     $usesReceivedFilePreview = in_array($document->type, ['customer_po', 'supplier_quotation', 'purchase_request', 'goods_receipt'], true);
-    $nextDocumentLinks = match (true) {
-        $document->type === 'purchase_request' && $document->status === 'approved' => [
-            ['label' => 'Add supplier quotation', 'route' => route('documents.create', ['module' => 'supplier-quotations', 'source_document_id' => $document->id])],
-            ['label' => 'Create purchase order', 'route' => route('documents.create', ['module' => 'supplier-pos', 'source_document_id' => $document->id])],
-        ],
-        $document->type === 'supplier_quotation' && $document->status === 'approved' => [
-            ['label' => 'Create purchase order', 'route' => route('documents.create', ['module' => 'supplier-pos', 'source_document_id' => $document->id])],
-        ],
-        $document->type === 'supplier_po' && $document->status === 'issued' => [
-            ['label' => 'Record goods receipt', 'route' => route('documents.create', ['module' => 'goods-receipts', 'source_document_id' => $document->id])],
-        ],
-        $document->type === 'goods_receipt' && $document->status === 'received' => [
-            ['label' => 'Record supplier invoice', 'route' => route('documents.create', ['module' => 'supplier-invoices', 'source_document_id' => $document->id])],
-        ],
-        default => [],
-    };
+    $nextDocumentLinks = $canWrite
+        ? collect($documentConversionOptions ?? [])
+            ->map(fn ($option) => [
+                'label' => $option['label'],
+                'route' => route('documents.convert', [$document, $option['target_module']]),
+            ])
+            ->all()
+        : [];
 @endphp
 
 @section('header_actions')
@@ -313,7 +305,10 @@
                 @if($nextDocumentLinks !== [])
                     <div class="mt-4 grid gap-2">
                         @foreach($nextDocumentLinks as $link)
-                            <a class="btn btn-primary w-full" href="{{ $link['route'] }}">{{ $link['label'] }}</a>
+                            <form method="post" action="{{ $link['route'] }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-primary w-full">{{ $link['label'] }}</button>
+                            </form>
                         @endforeach
                     </div>
                 @endif

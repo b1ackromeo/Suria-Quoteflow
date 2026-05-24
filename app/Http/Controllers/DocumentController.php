@@ -13,6 +13,7 @@ use App\Models\Product;
 use App\Models\Supplier;
 use App\Services\Documents\BusinessDocumentCaptureService;
 use App\Services\Documents\DocumentChainService;
+use App\Services\Documents\DocumentConversionService;
 use App\Services\Documents\ExternalDocumentExtractionService;
 use App\Services\Documents\PaymentEligibilityService;
 use App\Services\Invoices\SupplierInvoiceMatchingService;
@@ -161,7 +162,7 @@ class DocumentController extends Controller
         return redirect()->route('documents.show', $document)->with('status', $meta['singular'].' created.');
     }
 
-    public function show(Document $document, PaymentEligibilityService $paymentEligibility, DocumentChainService $documentChain): View
+    public function show(Document $document, PaymentEligibilityService $paymentEligibility, DocumentChainService $documentChain, DocumentConversionService $documentConversion): View
     {
         $document->load(['customer', 'supplier', 'relatedDocument', 'items.product', 'billingStages', 'payments.creator', 'approvals.requester', 'approvals.decider', 'attachments.uploader', 'attachments.extraction.verifier', 'creator', 'approver']);
         $supplierInvoiceVerification = $document->type === 'supplier_invoice'
@@ -180,7 +181,21 @@ class DocumentController extends Controller
             'supplierInvoiceVerification' => $supplierInvoiceVerification,
             'supplierInvoiceMatching' => $supplierInvoiceMatching,
             'documentChain' => $documentChain->chainFor($document),
+            'documentConversionOptions' => $documentConversion->optionsFor($document),
         ]);
+    }
+
+    public function convert(Document $document, string $module, DocumentConversionService $documentConversion): RedirectResponse
+    {
+        $targetMeta = Document::metaForSlug($module);
+        $this->ensureWriteAccess($targetMeta);
+
+        $createdDocument = $documentConversion->convert($document, $module, (int) auth()->id());
+        $sourceMeta = Document::metaForSlug(Document::slugForType($document->type));
+
+        return redirect()
+            ->route('documents.edit', $createdDocument)
+            ->with('status', $targetMeta['singular'].' draft created from '.$sourceMeta['singular'].'. Complete the remaining details before submitting.');
     }
 
     public function edit(Document $document): View
@@ -1081,9 +1096,7 @@ class DocumentController extends Controller
             'terms' => $sourceDocument->terms,
         ]);
 
-        if (! in_array($meta['type'], ['supplier_invoice', 'customer_invoice'], true)) {
-            $document->external_reference = $sourceDocument->document_number;
-        }
+        $document->external_reference = $this->prefillExternalReferenceForSource($meta['type'], $sourceDocument);
 
         if ($meta['type'] === 'goods_receipt') {
             $document->external_reference = null;
@@ -1146,6 +1159,17 @@ class DocumentController extends Controller
                 ]);
             }));
         }
+    }
+
+    private function prefillExternalReferenceForSource(string $targetType, Document $sourceDocument): ?string
+    {
+        return match ($targetType) {
+            'customer_quotation',
+            'customer_invoice',
+            'supplier_quotation',
+            'supplier_po' => $sourceDocument->external_reference ?: $sourceDocument->document_number,
+            default => null,
+        };
     }
 
     private function sourceTypeForRelatedDocument(string $targetType, string $sourceType): ?string

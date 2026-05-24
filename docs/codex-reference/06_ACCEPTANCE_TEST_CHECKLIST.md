@@ -22,6 +22,19 @@ For every changed workflow action:
 - Error messages are user-friendly.
 - Success messages are clear.
 - Audit trail records important business events.
+- Document numbering resumes from existing records if sequence rows are missing or behind imported/demo data.
+
+## Next document draft creation
+
+Test cases:
+
+- Approved customer quotation shows Create customer PO received for write-authorized users.
+- Create customer PO received creates a draft linked to the quotation, copies customer, project, currency, payment terms, and line items, and leaves the customer's PO reference ready for user entry.
+- Fulfilled Customer PO received shows Create customer invoice.
+- Create customer invoice creates a draft linked to the Customer PO received, copies customer and line items, and carries the PO/document reference into the invoice reference.
+- Direct POST attempts for unavailable status paths are rejected server-side.
+- Viewer/read-only users do not see next-document creation actions.
+- Audit trail records `document_converted` for the created draft.
 
 ## Document index and preview workbench
 

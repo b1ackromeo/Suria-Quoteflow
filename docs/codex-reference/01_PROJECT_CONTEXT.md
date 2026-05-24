@@ -46,6 +46,7 @@ Important actions:
 - submit for approval
 - approve/reject
 - transition actions: `issue`, `fulfill`, `receive`, `match`, `close`, `cancel`
+- next-document draft creation from eligible source documents
 - purchase request supplier quotation evidence verification or quote exception
 - supplier invoice verification and matching checks
 - attachment upload/preview/download
@@ -94,6 +95,8 @@ Payment pages:
 ```text
 Customer inquiry -> customer quotation -> approval -> issue quotation -> PO received -> accept PO -> delivery/service completion -> customer invoice -> issue invoice -> payment -> close
 ```
+
+Eligible source documents can create the next linked draft from the command center. The created draft copies the party, source link, project/site, currency, payment terms, and line items, while leaving unknown external references such as customer PO number or supplier invoice number for user entry.
 
 ### Supplier / incoming flow
 

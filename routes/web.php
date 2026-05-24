@@ -44,6 +44,7 @@ Route::middleware(['auth', 'role:admin,manager,sales,procurement,accounts,viewer
     Route::get('/document/{document}', [DocumentController::class, 'show'])->name('documents.show');
     Route::get('/document/{document}/edit', [DocumentController::class, 'edit'])->name('documents.edit');
     Route::put('/document/{document}', [DocumentController::class, 'update'])->name('documents.update');
+    Route::post('/document/{document}/convert/{module}', [DocumentController::class, 'convert'])->name('documents.convert');
     Route::post('/document/{document}/submit', [DocumentController::class, 'submit'])->name('documents.submit');
     Route::post('/document/{document}/approve', [DocumentController::class, 'approve'])->middleware('role:admin,manager')->name('documents.approve');
     Route::post('/document/{document}/reject', [DocumentController::class, 'reject'])->middleware('role:admin,manager')->name('documents.reject');

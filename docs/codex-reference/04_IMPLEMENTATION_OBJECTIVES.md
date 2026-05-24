@@ -14,6 +14,7 @@ As of 2026-05-23, the objectives below have been implemented in the Laravel Blad
 - direct exception source note controls
 - goods receipt source validation against issued purchase orders
 - linked document progress chain with bounded traversal
+- next-document draft creation from eligible command-center records
 - purchase request quote-first capture with supplier quotation verification or quote exception
 - action-first dashboard, command center, form studio, semantic statuses, and mobile task mode
 - document index workbench with separate Preview/Open actions and full-height selected preview

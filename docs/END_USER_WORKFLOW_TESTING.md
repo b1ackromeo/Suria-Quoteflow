@@ -76,11 +76,13 @@ Customer inquiry -> quotation -> approval -> PO received -> delivery/service com
 | 2 | Sales/Admin | Submit for approval | Status is Pending Approval |
 | 3 | Manager/Admin | Approve quotation | Status is Approved |
 | 4 | Sales/Admin | Record PO Received and select the quotation as Related document | Status is Draft, Related shows the quotation |
+| 4a | Sales/Admin | Alternative: from an approved quotation, use Create customer PO received | A linked Customer PO received draft opens for completion |
 | 5 | Sales/Admin | Submit PO Received for approval | Status is Pending Approval |
 | 6 | Manager/Admin | Approve PO Received | Status is Approved |
 | 7 | Sales/Admin | Mark issued | Status is Issued |
 | 8 | Sales/Admin | Delivery / service complete | Status is Delivered / Completed |
 | 9 | Sales/Admin | Create Customer Invoice and select the PO Received as Related document | Status is Draft, Related shows the PO received record |
+| 9a | Sales/Admin | Alternative: from a fulfilled Customer PO received, use Create customer invoice | A linked Customer invoice draft opens for completion |
 | 10 | Sales/Admin | Submit invoice for approval | Status is Pending Approval |
 | 11 | Manager/Admin | Approve invoice | Status is Approved |
 | 12 | Sales/Admin | Mark issued | Status is Issued |
@@ -105,7 +107,7 @@ Purchase request with supplier quotation evidence -> approval -> purchase order 
 | 2 | Procurement/Admin | Review extracted supplier quotation details or enter them manually | Supplier quotation evidence becomes verified |
 | 3 | Procurement/Admin | Submit for approval | Status is Pending Approval |
 | 4 | Manager/Admin | Approve Purchase Request | Status is Approved |
-| 5 | Procurement/Admin | Create Purchase Order and select the Purchase Request or verified Supplier Quotation as Related document | Status is Draft, Related shows the selected source |
+| 5 | Procurement/Admin | Create Purchase Order from the approved Purchase Request or verified Supplier Quotation | Status is Draft, Related shows the selected source |
 | 6 | Procurement/Admin | Submit Purchase Order for approval | Status is Pending Approval |
 | 7 | Manager/Admin | Approve Purchase Order | Status is Approved |
 | 8 | Procurement/Admin | Mark issued | Status is Issued |
@@ -182,8 +184,7 @@ Expected payment directions:
 
 These are expected in the current MVP and should be recorded as product improvements, not treated as test failures:
 
-- There is no one-click Convert Quotation to PO or Convert PO to Invoice action yet.
-- The tester must manually create the next document and choose the Related document.
+- One-click draft creation is available from the document command center. The tester must still complete business details that QuoteFlow cannot know, such as the customer's PO number or the supplier invoice number.
 - Supplier invoice matching is checklist-driven and blocks obvious mismatches, but it is not a full inventory/accounting 3-way reconciliation engine.
 - Approval is single-step: submit, approve, reject.
 - Reports are simple CSV/table reports, not advanced analytics.

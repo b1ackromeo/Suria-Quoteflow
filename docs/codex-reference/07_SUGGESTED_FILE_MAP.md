@@ -42,6 +42,7 @@ Current paths:
 ```text
 app/Services/Documents/PaymentEligibilityService.php
 app/Services/Documents/DocumentChainService.php
+app/Services/Documents/DocumentConversionService.php
 app/Services/Documents/BusinessDocumentCaptureService.php
 app/Services/Documents/ExternalDocumentExtractionService.php
 app/Services/Documents/PaddleOcrDocumentAnalyzer.php
