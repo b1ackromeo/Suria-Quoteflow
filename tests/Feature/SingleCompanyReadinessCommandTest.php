@@ -174,6 +174,8 @@ class SingleCompanyReadinessCommandTest extends TestCase
             'app.key' => 'base64:'.base64_encode(str_repeat('a', 32)),
             'app.url' => 'http://suria-quoteflow.test',
             'ocr.enabled' => false,
+            'quoteflow_backup.mysqldump_path' => PHP_BINARY,
+            'quoteflow_backup.directory' => storage_path('framework/testing-readiness-backups'),
         ]);
     }
 

@@ -20,6 +20,15 @@ php artisan quoteflow:ocr-smoke-test
 
 The smoke test creates a small temporary supplier invoice image, runs QuoteFlow's document capture through the configured OCR tools, checks that key invoice fields are extracted, and deletes the temporary file.
 
+Before UAT data changes or production handover, verify and create a database backup:
+
+```powershell
+php artisan quoteflow:backup-database --dry-run
+php artisan quoteflow:backup-database
+```
+
+The backup command uses the configured MySQL/MariaDB connection and writes a private SQL dump under `storage/app/backups` by default.
+
 If imported or demo documents already exist and `document_sequences` is behind them, sync the counters upward:
 
 ```powershell
@@ -34,6 +43,7 @@ For the local Laragon OCR setup, point `.env` at the Laragon-owned binaries:
 PDFTOTEXT_PATH=C:/laragon/bin/ocr/poppler/poppler-25.07.0/Library/bin/pdftotext.exe
 TESSERACT_PATH=C:/laragon/bin/ocr/tesseract/tesseract.exe
 GHOSTSCRIPT_PATH=C:/laragon/bin/ocr/ghostscript/bin/gswin64c.exe
+MYSQLDUMP_PATH=C:/laragon/bin/mysql/mysql-8.0.30-winx64/bin/mysqldump.exe
 ```
 
 On this Laragon machine, the project URL should be:
@@ -49,6 +59,7 @@ http://suria-quoteflow.test
 - Storage and bootstrap cache directories are writable.
 - Prebuilt CSS exists at `public/css/app.css`.
 - DomPDF is installed for generated business documents.
+- `mysqldump` is available and the database backup directory can be written.
 - Core workflow database tables exist.
 - Exactly one active company profile is configured.
 - Company profile fields needed for PDFs and payments are filled.
@@ -77,7 +88,7 @@ The command does not replace business UAT. Before saying the single-company setu
 - Upload and preview at least one PDF and one image attachment.
 - Run `php artisan quoteflow:ocr-smoke-test` on Laragon and again on production if OCR is enabled there.
 - Confirm OCR availability on the target hosting only if OCR is enabled.
-- Confirm a database backup/export process before production use.
+- Run `php artisan quoteflow:backup-database --dry-run` and create one real backup before production use.
 
 ## Current MVP Boundaries
 

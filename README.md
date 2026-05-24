@@ -29,6 +29,13 @@ Run the single-company readiness check after setup:
 ```powershell
 php artisan quoteflow:single-company-readiness
 php artisan quoteflow:ocr-smoke-test
+php artisan quoteflow:backup-database --dry-run
+```
+
+Create a local database backup before UAT data changes or deployment handover:
+
+```powershell
+php artisan quoteflow:backup-database
 ```
 
 If local demo/imported documents already exist, sync numbering counters upward before UAT:
@@ -53,6 +60,7 @@ php artisan migrate --force
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
+php artisan quoteflow:backup-database --dry-run
 php artisan quoteflow:single-company-readiness --strict
 ```
 
@@ -67,6 +75,7 @@ CACHE_DRIVER=file
 SESSION_DRIVER=file
 QUEUE_CONNECTION=sync
 FILESYSTEM_DISK=local
+MYSQLDUMP_PATH=mysqldump
 ```
 
 Do not run `npm install` or `npm run build` on Exabytes. Build CSS locally, then upload the generated `public/css/app.css`.

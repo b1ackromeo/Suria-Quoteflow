@@ -37,6 +37,7 @@ class SingleCompanyReadinessCommand extends Command
         $this->checkWritablePaths();
         $this->checkStaticAssets();
         $this->checkPdfRenderer();
+        $this->checkDatabaseBackupTool();
 
         if ($databaseReady && $this->checkCoreTables()) {
             $this->checkCompanyProfile();
@@ -144,6 +145,37 @@ class SingleCompanyReadinessCommand extends Command
             class_exists(\Barryvdh\DomPDF\Facade\Pdf::class),
             'DomPDF is installed.',
             'DomPDF is missing; document PDF preview/download will fail.'
+        );
+    }
+
+    private function checkDatabaseBackupTool(): void
+    {
+        $connection = config('database.connections.'.config('database.default'), []);
+        $driver = is_array($connection) ? (string) ($connection['driver'] ?? '') : '';
+
+        if (! in_array($driver, ['mysql', 'mariadb'], true)) {
+            $this->warnCheck('Database backup tool', 'Database backups require MySQL/MariaDB; current driver is '.$driver.'.');
+
+            return;
+        }
+
+        $this->check(
+            'Database backup tool',
+            $this->databaseDumpBinaryAvailable(),
+            'mysqldump is available for database backups.',
+            'mysqldump was not found. Set MYSQLDUMP_PATH before production use.',
+            'warn'
+        );
+
+        $directory = (string) config('quoteflow_backup.directory', storage_path('app/backups'));
+        $parent = dirname($directory);
+
+        $this->check(
+            'Database backup directory',
+            (is_dir($directory) && is_writable($directory)) || (is_dir($parent) && is_writable($parent)),
+            'Backup directory can be written under '.$this->relativePath($directory).'.',
+            'Backup directory or its parent is not writable: '.$directory,
+            'warn'
         );
     }
 
@@ -289,6 +321,27 @@ class SingleCompanyReadinessCommand extends Command
         }
 
         return (bool) (new ExecutableFinder())->find($binary);
+    }
+
+    private function databaseDumpBinaryAvailable(): bool
+    {
+        $binary = trim((string) config('quoteflow_backup.mysqldump_path', 'mysqldump'));
+
+        if ($this->binaryAvailable($binary)) {
+            return true;
+        }
+
+        if ($binary !== 'mysqldump') {
+            return false;
+        }
+
+        foreach (glob('C:\laragon\bin\mysql\*\bin\mysqldump.exe') ?: [] as $candidate) {
+            if (is_file($candidate)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function latestExistingNumber(string $type, string $prefix, int $year): int

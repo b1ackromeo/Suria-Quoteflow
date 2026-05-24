@@ -56,6 +56,7 @@ Compatible:
 
 Likely compatible but still needs command-level confirmation from the same web/runtime user:
 
+- Database backups using `mysqldump`
 - OCR using Tesseract
 - Ghostscript command availability
 - Tesseract command availability
@@ -88,6 +89,8 @@ which tesseract
 tesseract --version
 which pdftotext
 pdftotext -v
+which mysqldump
+mysqldump --version
 which gs
 gs --version
 which python3
@@ -106,6 +109,8 @@ shell_exec('which tesseract 2>&1');
 shell_exec('tesseract --version 2>&1');
 shell_exec('which pdftotext 2>&1');
 shell_exec('pdftotext -v 2>&1');
+shell_exec('which mysqldump 2>&1');
+shell_exec('mysqldump --version 2>&1');
 shell_exec('which gs 2>&1');
 shell_exec('gs --version 2>&1');
 shell_exec('which python3 2>&1');
