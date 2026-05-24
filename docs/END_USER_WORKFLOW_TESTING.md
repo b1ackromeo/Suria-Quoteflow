@@ -7,6 +7,7 @@ Use this checklist to test QuoteFlow like a business user. It covers the MVP wor
 - Local Laragon URL: `http://suria-quoteflow.test`
 - Login page: `http://suria-quoteflow.test/login`
 - Local project folder: `C:\laragon\www\Suria_Quoteflow`
+- Technical readiness command: `php artisan quoteflow:single-company-readiness`
 - Demo seed command:
 
 ```powershell

@@ -15,15 +15,26 @@ The build is intentionally server-rendered and shared-hosting friendly:
 This project was built against Laragon PHP:
 
 ```powershell
-$env:Path='D:\laragon\bin\php\php-8.1.10-Win32-vs16-x64;D:\laragon\bin\composer;' + $env:Path
+$env:Path='C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64;C:\laragon\bin\composer;' + $env:Path
 composer install
 npm install
 npm run build
 php artisan migrate:fresh
-php artisan serve --host=127.0.0.1 --port=8000
 ```
 
-Open `http://127.0.0.1:8000/setup` and create the first administrator. After that, use `/login`.
+Laragon should serve the project from `C:\laragon\www\Suria_Quoteflow` with the public directory as the web root. Open `http://suria-quoteflow.test/setup` and create the first administrator. After that, use `/login`.
+
+Run the single-company readiness check after setup:
+
+```powershell
+php artisan quoteflow:single-company-readiness
+```
+
+If local demo/imported documents already exist, sync numbering counters upward before UAT:
+
+```powershell
+php artisan quoteflow:single-company-readiness --sync-document-sequences
+```
 
 ## Exabytes / Plesk Deployment
 
@@ -41,6 +52,7 @@ php artisan migrate --force
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
+php artisan quoteflow:single-company-readiness --strict
 ```
 
 Use these production `.env` defaults as a baseline:
@@ -101,6 +113,8 @@ Validated locally with:
 ## End-User Workflow Testing
 
 The end-user UAT checklist is maintained in `docs/END_USER_WORKFLOW_TESTING.md`.
+
+The single-company technical readiness checklist is maintained in `docs/SINGLE_COMPANY_READINESS.md`.
 
 Seed local demo/UAT data with:
 

@@ -9,6 +9,7 @@ Use this checklist before accepting Codex-generated changes.
 - `php artisan route:list` works.
 - `php artisan config:cache` works.
 - `php artisan route:cache` works, unless closures were intentionally added and documented.
+- `php artisan quoteflow:single-company-readiness` works.
 - No production Node/Vite dependency is introduced.
 - No Redis, Horizon, WebSocket, queue worker, Docker, or VPS-only dependency is introduced.
 - CSS remains prebuilt/static for production.
@@ -23,6 +24,7 @@ For every changed workflow action:
 - Success messages are clear.
 - Audit trail records important business events.
 - Document numbering resumes from existing records if sequence rows are missing or behind imported/demo data.
+- If imported/demo data exists before UAT, `php artisan quoteflow:single-company-readiness --sync-document-sequences` raises numbering counters without renaming records.
 
 ## Next document draft creation
 
@@ -168,6 +170,7 @@ Test cases:
 
 Before deployment:
 
+- Run `php artisan quoteflow:single-company-readiness --strict` and resolve every failure/warning or document an accepted limitation.
 - Keep `.env` using file cache/session and sync queue unless intentionally changed.
 - Confirm storage and bootstrap cache paths are writable.
 - Confirm attachment upload limit is within 50M PHP limits.
