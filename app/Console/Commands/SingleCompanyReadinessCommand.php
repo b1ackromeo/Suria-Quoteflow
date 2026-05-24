@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Attachment;
 use App\Models\CompanyProfile;
 use App\Models\Customer;
 use App\Models\Document;
@@ -12,6 +13,7 @@ use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\ExecutableFinder;
 
 class SingleCompanyReadinessCommand extends Command
@@ -45,6 +47,7 @@ class SingleCompanyReadinessCommand extends Command
             $this->checkUsers();
             $this->checkMasterData();
             $this->checkDocumentNumbering();
+            $this->checkStoredFiles();
         }
 
         $this->checkOcrTools();
@@ -297,6 +300,77 @@ class SingleCompanyReadinessCommand extends Command
                 'Sequence is behind existing documents. Create the next document once after deployment or sync document_sequences before go-live.'
             );
         }
+    }
+
+    private function checkStoredFiles(): void
+    {
+        $missingAttachments = [];
+        $missingAttachmentCount = 0;
+        $attachmentCount = 0;
+
+        Attachment::query()
+            ->select(['id', 'path', 'original_name'])
+            ->orderBy('id')
+            ->chunkById(500, function ($attachments) use (&$attachmentCount, &$missingAttachments, &$missingAttachmentCount): void {
+                foreach ($attachments as $attachment) {
+                    $attachmentCount++;
+
+                    if (filled($attachment->path) && Storage::disk('local')->exists($attachment->path)) {
+                        continue;
+                    }
+
+                    $missingAttachmentCount++;
+
+                    if (count($missingAttachments) < 5) {
+                        $missingAttachments[] = '#'.$attachment->id.' '.$attachment->original_name.' ('.$attachment->path.')';
+                    }
+                }
+            });
+
+        $this->check(
+            'Uploaded evidence files',
+            $missingAttachments === [],
+            $attachmentCount === 0
+                ? 'No uploaded evidence files are recorded yet.'
+                : $attachmentCount.' uploaded file record(s) point to files in storage.',
+            $missingAttachmentCount.' uploaded file record(s) are missing from storage: '.implode('; ', $missingAttachments),
+            'warn'
+        );
+
+        $missingLogos = [];
+        $missingLogoCount = 0;
+        $logoCount = 0;
+
+        CompanyProfile::query()
+            ->select(['id', 'name', 'logo_path'])
+            ->whereNotNull('logo_path')
+            ->where('logo_path', '<>', '')
+            ->orderBy('id')
+            ->chunkById(100, function ($companies) use (&$logoCount, &$missingLogos, &$missingLogoCount): void {
+                foreach ($companies as $company) {
+                    $logoCount++;
+
+                    if (Storage::disk('public')->exists($company->logo_path)) {
+                        continue;
+                    }
+
+                    $missingLogoCount++;
+
+                    if (count($missingLogos) < 5) {
+                        $missingLogos[] = '#'.$company->id.' '.$company->name.' ('.$company->logo_path.')';
+                    }
+                }
+            });
+
+        $this->check(
+            'Company logo files',
+            $missingLogos === [],
+            $logoCount === 0
+                ? 'No uploaded company logo files are configured.'
+                : $logoCount.' company logo file(s) exist in storage.',
+            $missingLogoCount.' company logo file(s) are missing from storage: '.implode('; ', $missingLogos),
+            'warn'
+        );
     }
 
     private function checkOcrTools(): void

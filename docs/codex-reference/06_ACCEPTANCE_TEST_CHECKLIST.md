@@ -181,6 +181,7 @@ Before deployment:
 - Confirm `mysqldump` is available through `MYSQLDUMP_PATH` and `php artisan quoteflow:backup-database --dry-run`.
 - Create and verify one real database backup before production use.
 - Confirm PHP ZipArchive is available and create/verify one real uploaded-file backup before production use.
+- Confirm readiness reports no missing uploaded evidence or company logo files.
 - Confirm attachment upload limit is within 50M PHP limits.
 - Confirm DomPDF renders a real quotation/invoice.
 - Confirm short demo/UAT PDFs do not create blank extra pages.

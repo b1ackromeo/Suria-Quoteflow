@@ -73,6 +73,7 @@ http://suria-quoteflow.test
 - Active admin account exists, with warnings for missing UAT roles.
 - Active customer, supplier, and product/service records exist.
 - Document numbering sequences are not behind imported or demo records.
+- Uploaded evidence and company logo records still point to files that exist in storage.
 - OCR binaries are available when OCR is enabled, with manual verification still available as fallback.
 - OCR smoke test can read a generated supplier invoice image through the Laravel runtime.
 
@@ -93,6 +94,7 @@ The command does not replace business UAT. Before saying the single-company setu
 - Run the workflow checklist in `docs/END_USER_WORKFLOW_TESTING.md`.
 - Preview and download one real customer quotation, customer invoice, purchase request, purchase order, goods receipt, and supplier invoice.
 - Upload and preview at least one PDF and one image attachment.
+- Resolve any missing uploaded evidence or company logo file warnings before relying on backups.
 - Run `php artisan quoteflow:ocr-smoke-test` on Laragon and again on production if OCR is enabled there.
 - Confirm OCR availability on the target hosting only if OCR is enabled.
 - Run `php artisan quoteflow:backup-database --dry-run`, create one real database backup, and verify it with `php artisan quoteflow:backup-database --verify-latest`.

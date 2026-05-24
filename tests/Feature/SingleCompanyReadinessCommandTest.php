@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Attachment;
 use App\Models\CompanyProfile;
 use App\Models\Customer;
 use App\Models\Document;
@@ -11,6 +12,7 @@ use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Console\Tester\CommandTester;
 use Tests\TestCase;
 
@@ -104,6 +106,74 @@ class SingleCompanyReadinessCommandTest extends TestCase
         $this->assertStringContainsString('OK   OCR binary: pdftotext', $output);
         $this->assertStringContainsString('OK   OCR binary: tesseract', $output);
         $this->assertStringContainsString('OK   OCR binary: ghostscript', $output);
+    }
+
+    public function test_readiness_checks_uploaded_attachment_files_exist(): void
+    {
+        Storage::fake('local');
+        $this->prepareReadySingleCompany();
+        $document = $this->createAttachmentDocument();
+        $path = 'attachments/'.$document->id.'/invoice.pdf';
+        Storage::disk('local')->put($path, 'supplier invoice');
+
+        Attachment::create([
+            'document_id' => $document->id,
+            'category' => 'invoice_copy',
+            'original_name' => 'invoice.pdf',
+            'path' => $path,
+            'mime_type' => 'application/pdf',
+            'size' => 16,
+            'uploaded_by' => User::query()->where('role', 'admin')->firstOrFail()->id,
+        ]);
+
+        [$exitCode, $output] = $this->runReadinessCommand();
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('OK   Uploaded evidence files - 1 uploaded file record(s) point to files in storage.', $output);
+    }
+
+    public function test_strict_readiness_fails_when_attachment_file_is_missing(): void
+    {
+        Storage::fake('local');
+        $this->prepareReadySingleCompany();
+        $document = $this->createAttachmentDocument();
+
+        Attachment::create([
+            'document_id' => $document->id,
+            'category' => 'invoice_copy',
+            'original_name' => 'missing-invoice.pdf',
+            'path' => 'attachments/'.$document->id.'/missing-invoice.pdf',
+            'mime_type' => 'application/pdf',
+            'size' => 16,
+            'uploaded_by' => User::query()->where('role', 'admin')->firstOrFail()->id,
+        ]);
+
+        [$exitCode, $output] = $this->runReadinessCommand([
+            '--strict' => true,
+        ]);
+
+        $this->assertSame(1, $exitCode);
+        $this->assertStringContainsString('WARN Uploaded evidence files', $output);
+        $this->assertStringContainsString('missing-invoice.pdf', $output);
+        $this->assertStringContainsString('Strict mode treats warnings as failures.', $output);
+    }
+
+    public function test_strict_readiness_fails_when_company_logo_file_is_missing(): void
+    {
+        Storage::fake('public');
+        $this->prepareReadySingleCompany();
+        CompanyProfile::query()->firstOrFail()->update([
+            'logo_path' => 'company-logos/missing-logo.png',
+        ]);
+
+        [$exitCode, $output] = $this->runReadinessCommand([
+            '--strict' => true,
+        ]);
+
+        $this->assertSame(1, $exitCode);
+        $this->assertStringContainsString('WARN Company logo files', $output);
+        $this->assertStringContainsString('missing-logo.png', $output);
+        $this->assertStringContainsString('Strict mode treats warnings as failures.', $output);
     }
 
     private function prepareReadySingleCompany(array $options = []): void
@@ -203,6 +273,20 @@ class SingleCompanyReadinessCommandTest extends TestCase
         ]);
 
         return $year;
+    }
+
+    private function createAttachmentDocument(): Document
+    {
+        return Document::create([
+            'type' => 'supplier_invoice',
+            'direction' => 'incoming',
+            'document_number' => 'ATTACHMENT-CHECK-001',
+            'supplier_id' => Supplier::query()->firstOrFail()->id,
+            'status' => 'draft',
+            'issue_date' => now()->toDateString(),
+            'currency' => 'MYR',
+            'created_by' => User::query()->where('role', 'admin')->firstOrFail()->id,
+        ]);
     }
 
     private function runReadinessCommand(array $parameters = []): array

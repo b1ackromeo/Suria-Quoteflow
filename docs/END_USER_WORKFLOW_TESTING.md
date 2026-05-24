@@ -44,6 +44,7 @@ Password123!
 - Use the Related document field when creating the next document in a workflow.
 - Preview and download at least one PDF, confirm there is no blank extra page for a compact generated document, then export one CSV.
 - Upload one small attachment to a customer invoice and one to a supplier invoice.
+- Confirm readiness does not warn about missing uploaded evidence files after the attachment checks.
 - Check Audit Trail after completing the workflows.
 - Create and verify database and uploaded-file backups before resetting or replacing UAT data.
 
