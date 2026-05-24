@@ -23,6 +23,10 @@ class DemoOperationsSeeder extends Seeder
                 ['name' => 'RC Technology Resources'],
                 array_merge(CompanyProfile::defaults(), [
                     'name' => 'RC Technology Resources',
+                    'registration_number' => '202603107223 (003844744-P)',
+                    'email' => 'rctech@gmail.com',
+                    'phone' => '+60 16-445 2786',
+                    'address' => '1-3 Level 1, Jalan Perdana Blok 4801, CBD Perdana, Cyberjaya',
                     'tagline' => 'Reliable Infrastructure. Connected Future.',
                     'country' => 'Malaysia',
                     'timezone' => 'Asia/Kuala_Lumpur',
@@ -33,6 +37,8 @@ class DemoOperationsSeeder extends Seeder
                     'tax_label' => 'Tax',
                     'tax_registration_label' => 'Tax Registration No.',
                     'default_tax_rate' => 0,
+                    'payment_instructions' => "Bank transfer only.\nUse the document number as payment reference.\nSend payment advice to rctech@gmail.com.",
+                    'pdf_footer' => 'RC Technology Resources | Reg. No. 202603107223 (003844744-P) | rctech@gmail.com',
                 ])
             );
 
