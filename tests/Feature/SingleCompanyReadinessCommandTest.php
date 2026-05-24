@@ -87,6 +87,25 @@ class SingleCompanyReadinessCommandTest extends TestCase
         $this->assertStringContainsString('Strict mode treats warnings as failures.', $output);
     }
 
+    public function test_ocr_binary_checks_accept_configured_absolute_paths(): void
+    {
+        $this->prepareReadySingleCompany();
+
+        config([
+            'ocr.enabled' => true,
+            'ocr.pdftotext_path' => PHP_BINARY,
+            'ocr.tesseract_path' => PHP_BINARY,
+            'ocr.ghostscript_path' => PHP_BINARY,
+        ]);
+
+        [$exitCode, $output] = $this->runReadinessCommand();
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('OK   OCR binary: pdftotext', $output);
+        $this->assertStringContainsString('OK   OCR binary: tesseract', $output);
+        $this->assertStringContainsString('OK   OCR binary: ghostscript', $output);
+    }
+
     private function prepareReadySingleCompany(array $options = []): void
     {
         $this->configureReadinessEnvironment();

@@ -5,6 +5,7 @@ return [
     'use_pdf_text_layer' => env('OCR_USE_PDF_TEXT_LAYER', true),
     'pdftotext_path' => env('PDFTOTEXT_PATH', 'pdftotext'),
     'tesseract_path' => env('TESSERACT_PATH', 'tesseract'),
+    'ghostscript_path' => env('GHOSTSCRIPT_PATH', 'gswin64c'),
     'language' => env('TESSERACT_LANGUAGE', 'eng'),
     'timeout' => (int) env('TESSERACT_TIMEOUT', 30),
     'pdf_max_pages' => (int) env('OCR_PDF_MAX_PAGES', 2),

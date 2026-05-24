@@ -20,6 +20,14 @@ php artisan quoteflow:single-company-readiness --sync-document-sequences
 
 This only raises sequence counters to the latest existing document number for the current year. It does not rename documents or lower counters.
 
+For the local Laragon OCR setup, point `.env` at the Laragon-owned binaries:
+
+```env
+PDFTOTEXT_PATH=C:/laragon/bin/ocr/poppler/poppler-25.07.0/Library/bin/pdftotext.exe
+TESSERACT_PATH=C:/laragon/bin/ocr/tesseract/tesseract.exe
+GHOSTSCRIPT_PATH=C:/laragon/bin/ocr/ghostscript/bin/gswin64c.exe
+```
+
 On this Laragon machine, the project URL should be:
 
 ```text

@@ -111,40 +111,44 @@ class TesseractInvoiceExtractor
             throw new RuntimeException('Cannot create OCR temporary directory.');
         }
 
-        $imagePaths = [];
+        $imagePaths = $this->withGhostscriptPath(function () use ($path, $maxPages, $tmpDir, &$temporaryImages) {
+            $imagePaths = [];
 
-        for ($page = 0; $page < $maxPages; $page++) {
-            $image = new \Imagick();
-            $image->setResolution(200, 200);
+            for ($page = 0; $page < $maxPages; $page++) {
+                $image = new \Imagick();
+                $image->setResolution(200, 200);
 
-            try {
-                $image->readImage($path.'['.$page.']');
-            } catch (\Throwable $exception) {
+                try {
+                    $image->readImage($path.'['.$page.']');
+                } catch (\Throwable $exception) {
+                    $image->clear();
+                    $image->destroy();
+
+                    if ($page === 0) {
+                        throw new RuntimeException('Cannot convert the PDF for OCR. Check Imagick and Ghostscript setup.');
+                    }
+
+                    break;
+                }
+
+                $image->setImageBackgroundColor('white');
+                $image->setImageFormat('png');
+
+                if (defined(\Imagick::class.'::ALPHACHANNEL_REMOVE')) {
+                    $image->setImageAlphaChannel(\Imagick::ALPHACHANNEL_REMOVE);
+                }
+
+                $imagePath = $tmpDir.DIRECTORY_SEPARATOR.Str::uuid().'-page-'.$page.'.png';
+                $image->writeImage($imagePath);
                 $image->clear();
                 $image->destroy();
 
-                if ($page === 0) {
-                    throw new RuntimeException('Cannot convert the PDF for OCR. Check Imagick and Ghostscript setup.');
-                }
-
-                break;
+                $temporaryImages[] = $imagePath;
+                $imagePaths[] = $imagePath;
             }
 
-            $image->setImageBackgroundColor('white');
-            $image->setImageFormat('png');
-
-            if (defined(\Imagick::class.'::ALPHACHANNEL_REMOVE')) {
-                $image->setImageAlphaChannel(\Imagick::ALPHACHANNEL_REMOVE);
-            }
-
-            $imagePath = $tmpDir.DIRECTORY_SEPARATOR.Str::uuid().'-page-'.$page.'.png';
-            $image->writeImage($imagePath);
-            $image->clear();
-            $image->destroy();
-
-            $temporaryImages[] = $imagePath;
-            $imagePaths[] = $imagePath;
-        }
+            return $imagePaths;
+        });
 
         if ($imagePaths === []) {
             throw new RuntimeException('The PDF did not produce any pages for OCR.');
@@ -369,6 +373,38 @@ class TesseractInvoiceExtractor
     private function tesseractBinary(): string
     {
         return $this->configuredBinary('tesseract_path', 'tesseract');
+    }
+
+    private function withGhostscriptPath(callable $callback): mixed
+    {
+        $configured = $this->configuredBinary('ghostscript_path', 'gswin64c');
+
+        if ($configured === '' || (! str_contains($configured, '/') && ! str_contains($configured, '\\'))) {
+            return $callback();
+        }
+
+        $directory = is_dir($configured) ? $configured : dirname($configured);
+
+        if (! is_dir($directory)) {
+            return $callback();
+        }
+
+        $previousPath = getenv('PATH');
+        $pathParts = explode(PATH_SEPARATOR, (string) $previousPath);
+
+        if (! in_array($directory, $pathParts, true)) {
+            putenv('PATH='.$directory.PATH_SEPARATOR.(string) $previousPath);
+        }
+
+        try {
+            return $callback();
+        } finally {
+            if ($previousPath === false) {
+                putenv('PATH');
+            } else {
+                putenv('PATH='.$previousPath);
+            }
+        }
     }
 
     private function configuredBinary(string $key, string $default): string

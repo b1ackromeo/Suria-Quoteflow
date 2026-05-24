@@ -252,28 +252,43 @@ class SingleCompanyReadinessCommand extends Command
             return;
         }
 
-        $finder = new ExecutableFinder();
-
         foreach ([
             'pdftotext' => (string) config('ocr.pdftotext_path', 'pdftotext'),
             'tesseract' => (string) config('ocr.tesseract_path', 'tesseract'),
         ] as $label => $binary) {
             $this->check(
                 'OCR binary: '.$label,
-                (bool) $finder->find($binary),
+                $this->binaryAvailable($binary),
                 $binary.' is available.',
                 $binary.' was not found. OCR may fail, but manual verification can still be used.',
                 'warn'
             );
         }
 
+        $ghostscript = (string) config('ocr.ghostscript_path', 'gswin64c');
+
         $this->check(
             'OCR binary: ghostscript',
-            (bool) ($finder->find('gs') ?: $finder->find('gswin64c') ?: $finder->find('gswin32c')),
-            'Ghostscript is available.',
-            'Ghostscript was not found. PDF OCR conversion may fail, but uploaded PDFs can still be reviewed manually.',
+            $this->binaryAvailable($ghostscript) || $this->binaryAvailable('gs') || $this->binaryAvailable('gswin64c') || $this->binaryAvailable('gswin32c'),
+            $ghostscript.' is available.',
+            $ghostscript.' was not found. PDF OCR conversion may fail, but uploaded PDFs can still be reviewed manually.',
             'warn'
         );
+    }
+
+    private function binaryAvailable(string $binary): bool
+    {
+        $binary = trim($binary);
+
+        if ($binary === '') {
+            return false;
+        }
+
+        if (is_file($binary)) {
+            return true;
+        }
+
+        return (bool) (new ExecutableFinder())->find($binary);
     }
 
     private function latestExistingNumber(string $type, string $prefix, int $year): int
