@@ -39,8 +39,17 @@ class SingleCompanyReadinessCommand extends Command
 
     private int $warnings = 0;
 
+    private int $passes = 0;
+
+    private int $checks = 0;
+
     public function handle(): int
     {
+        $this->failures = 0;
+        $this->warnings = 0;
+        $this->passes = 0;
+        $this->checks = 0;
+
         $this->line('QuoteFlow single-company readiness');
         $this->line('Environment: '.app()->environment());
         $this->newLine();
@@ -63,6 +72,9 @@ class SingleCompanyReadinessCommand extends Command
         }
 
         $this->checkOcrTools();
+        $this->newLine();
+
+        $this->line($this->readinessProgressLine());
         $this->newLine();
 
         if ($this->failures > 0) {
@@ -554,19 +566,41 @@ class SingleCompanyReadinessCommand extends Command
 
     private function ok(string $label, string $message): void
     {
+        $this->checks++;
+        $this->passes++;
+
         $this->line('<info>OK</info>   '.$label.' - '.$message);
     }
 
     private function warnCheck(string $label, string $message): void
     {
+        $this->checks++;
         $this->warnings++;
+
         $this->line('<comment>WARN</comment> '.$label.' - '.$message);
     }
 
     private function fail(string $label, string $message): void
     {
+        $this->checks++;
         $this->failures++;
+
         $this->line('<error>FAIL</error> '.$label.' - '.$message);
+    }
+
+    private function readinessProgressLine(): string
+    {
+        if ($this->checks === 0) {
+            return 'Readiness progress: 0% (0 OK, 0 warning(s), 0 failure(s)).';
+        }
+
+        $score = $this->passes + ($this->warnings * 0.5);
+        $percentage = (int) round(($score / $this->checks) * 100);
+
+        return 'Readiness progress: '.$percentage.'% ('
+            .$this->passes.' OK, '
+            .$this->warnings.' warning(s), '
+            .$this->failures.' failure(s)).';
     }
 
     private function relativePath(string $path): string

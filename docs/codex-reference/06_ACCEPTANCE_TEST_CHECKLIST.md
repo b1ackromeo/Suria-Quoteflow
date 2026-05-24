@@ -11,6 +11,7 @@ Use this checklist before accepting Codex-generated changes.
 - `php artisan route:cache` works, unless closures were intentionally added and documented.
 - PHP version, required extensions, upload limits, memory limit, and execution time pass readiness.
 - `php artisan quoteflow:single-company-readiness` works.
+- Readiness progress percentage is recorded before UAT sign-off and production handover.
 - `php artisan quoteflow:ocr-smoke-test` works when OCR is enabled.
 - `php artisan quoteflow:backup-database --dry-run` works.
 - `php artisan quoteflow:backup-database --verify-latest` works after a backup exists.

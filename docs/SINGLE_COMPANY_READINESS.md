@@ -80,6 +80,7 @@ http://suria-quoteflow.test
 
 ## Result Meaning
 
+- `Readiness progress`: percentage score from the checks that ran. `OK` counts as ready, `WARN` counts as partial readiness, and `FAIL` counts as not ready.
 - `OK`: ready for that check.
 - `WARN`: usable, but review before final UAT sign-off.
 - `FAIL`: fix before go-live.

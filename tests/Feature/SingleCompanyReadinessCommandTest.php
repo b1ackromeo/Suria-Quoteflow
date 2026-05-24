@@ -28,6 +28,7 @@ class SingleCompanyReadinessCommandTest extends TestCase
 
         $this->assertSame(0, $exitCode);
         $this->assertStringContainsString('All readiness checks passed.', $output);
+        $this->assertStringContainsString('Readiness progress: 100%', $output);
         $this->assertStringContainsString('OK   Active company profile', $output);
         $this->assertStringContainsString('OK   PHP version', $output);
         $this->assertStringContainsString('OK   PHP extension: pdo_mysql', $output);
@@ -46,6 +47,7 @@ class SingleCompanyReadinessCommandTest extends TestCase
         $this->assertSame(1, $exitCode);
         $this->assertStringContainsString('FAIL Active company profile', $output);
         $this->assertStringContainsString('FAIL Active admin user', $output);
+        $this->assertStringContainsString('Readiness progress:', $output);
         $this->assertStringContainsString('readiness check(s) failed', $output);
     }
 
@@ -91,6 +93,7 @@ class SingleCompanyReadinessCommandTest extends TestCase
 
         $this->assertSame(1, $exitCode);
         $this->assertStringContainsString('WARN Active manager user', $output);
+        $this->assertStringContainsString('Readiness progress:', $output);
         $this->assertStringContainsString('Strict mode treats warnings as failures.', $output);
     }
 
