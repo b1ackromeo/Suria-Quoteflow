@@ -16,33 +16,30 @@ use Illuminate\View\View;
 
 class ProjectController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, ProjectCommercialReportService $projectCommercialReport): View
     {
         $search = trim($request->string('q')->toString());
         $status = $request->string('status')->toString();
         $status = array_key_exists($status, Project::STATUSES) ? $status : null;
+        $projects = Project::query()
+            ->with(['customer', 'manager'])
+            ->withCount('documents')
+            ->when($search, fn ($query, $term) => SearchFilters::projects($query, $term))
+            ->when($status, fn ($query, $status) => $query->where('status', $status))
+            ->orderByRaw("case when status = 'active' then 0 when status = 'on_hold' then 1 when status = 'completed' then 2 else 3 end")
+            ->orderBy('expected_completion_date')
+            ->orderBy('project_code')
+            ->paginate(20)
+            ->withQueryString();
+        $portfolio = $projectCommercialReport->portfolio($projects->getCollection());
 
         return view('projects.index', [
-            'projects' => Project::query()
-                ->with(['customer', 'manager'])
-                ->withCount('documents')
-                ->withSum(['documents as supplier_committed_total' => fn ($query) => $query->where('type', 'supplier_po')], 'total')
-                ->when($search, fn ($query, $term) => SearchFilters::projects($query, $term))
-                ->when($status, fn ($query, $status) => $query->where('status', $status))
-                ->orderByRaw("case when status = 'active' then 0 when status = 'on_hold' then 1 when status = 'completed' then 2 else 3 end")
-                ->orderBy('expected_completion_date')
-                ->orderBy('project_code')
-                ->paginate(20)
-                ->withQueryString(),
+            'projects' => $projects,
+            'portfolioSummaries' => $portfolio['items'],
             'searchTerm' => $search,
             'statusFilter' => $status,
             'statuses' => Project::STATUSES,
-            'summary' => [
-                'total' => Project::count(),
-                'active' => Project::query()->where('status', 'active')->count(),
-                'contract_value' => (float) Project::sum('contract_value'),
-                'budget_amount' => (float) Project::sum('budget_amount'),
-            ],
+            'summary' => $projectCommercialReport->portfolioOverview(),
         ]);
     }
 

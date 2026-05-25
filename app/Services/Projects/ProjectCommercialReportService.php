@@ -11,7 +11,7 @@ use Illuminate\Support\Collection;
 
 class ProjectCommercialReportService
 {
-    private const REPORT_STATUSES = [
+    public const REPORT_STATUSES = [
         'draft',
         'pending_approval',
         'approved',
@@ -23,6 +23,134 @@ class ProjectCommercialReportService
         'paid',
         'closed',
     ];
+
+    /**
+     * @param  Collection<int, Project>  $projects
+     */
+    public function portfolio(Collection $projects): array
+    {
+        $projectIds = $projects->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+
+        if ($projectIds === []) {
+            return [
+                'items' => [],
+                'totals' => $this->emptyPortfolioTotals(),
+            ];
+        }
+
+        $documentTotals = $this->documentTotalsByProject($projectIds);
+        $unassignedLineCounts = $this->unassignedLineCountsByProject($projectIds);
+        $workItemExceptions = $this->workItemExceptionCountsByProject($projectIds);
+        $items = [];
+        $totals = $this->emptyPortfolioTotals();
+
+        foreach ($projects as $project) {
+            $projectId = (int) $project->id;
+            $documentSummary = $documentTotals[$projectId] ?? $this->emptyDocumentTotals();
+            $customerConfirmed = $documentSummary['customer_confirmed'];
+            $supplierCommitted = $documentSummary['supplier_committed'];
+            $supplierInvoiced = $documentSummary['supplier_invoiced'];
+            $expectedMargin = $customerConfirmed - $supplierCommitted;
+            $expectedMarginPercent = $customerConfirmed > 0 ? ($expectedMargin / $customerConfirmed) * 100 : null;
+            $budgetRemaining = (float) $project->budget_amount - $supplierCommitted;
+            $unassignedLineCount = (int) ($unassignedLineCounts[$projectId] ?? 0);
+            $workItemException = $workItemExceptions[$projectId] ?? [
+                'over_committed_count' => 0,
+                'over_actual_count' => 0,
+            ];
+            $reviewReasons = $this->portfolioReviewReasons(
+                $project,
+                $expectedMarginPercent,
+                $budgetRemaining,
+                $supplierCommitted,
+                $supplierInvoiced,
+                $unassignedLineCount,
+                $workItemException,
+            );
+
+            $items[$projectId] = [
+                'customer_confirmed' => $customerConfirmed,
+                'customer_invoiced' => $documentSummary['customer_invoiced'],
+                'supplier_committed' => $supplierCommitted,
+                'supplier_invoiced' => $supplierInvoiced,
+                'expected_margin' => $expectedMargin,
+                'expected_margin_percent' => $expectedMarginPercent,
+                'budget_remaining' => $budgetRemaining,
+                'unassigned_line_count' => $unassignedLineCount,
+                'review_count' => count($reviewReasons),
+                'review_reasons' => $reviewReasons,
+            ];
+
+            $totals['customer_confirmed'] += $customerConfirmed;
+            $totals['customer_invoiced'] += $documentSummary['customer_invoiced'];
+            $totals['supplier_committed'] += $supplierCommitted;
+            $totals['supplier_invoiced'] += $supplierInvoiced;
+            $totals['expected_margin'] += $expectedMargin;
+            $totals['unassigned_line_count'] += $unassignedLineCount;
+
+            if ($reviewReasons !== []) {
+                $totals['review_projects']++;
+            }
+        }
+
+        $totals['expected_margin_percent'] = $totals['customer_confirmed'] > 0
+            ? ($totals['expected_margin'] / $totals['customer_confirmed']) * 100
+            : null;
+
+        return [
+            'items' => $items,
+            'totals' => $totals,
+        ];
+    }
+
+    public function portfolioOverview(): array
+    {
+        $documentTotals = $this->documentTotalsQuery();
+        $unassignedLines = $this->unassignedLinesQuery();
+        $customerConfirmed = 'coalesce(document_totals.customer_confirmed, 0)';
+        $supplierCommitted = 'coalesce(document_totals.supplier_committed, 0)';
+        $customerInvoiced = 'coalesce(document_totals.customer_invoiced, 0)';
+        $supplierInvoiced = 'coalesce(document_totals.supplier_invoiced, 0)';
+        $unassignedLineCount = 'coalesce(unassigned_lines.line_count, 0)';
+        $belowMargin = "projects.margin_target_percent > 0 and {$customerConfirmed} > 0 and ((({$customerConfirmed}) - ({$supplierCommitted})) * 100 / nullif({$customerConfirmed}, 0)) < projects.margin_target_percent";
+        $overBudget = "projects.budget_amount > 0 and {$supplierCommitted} > projects.budget_amount";
+        $actualAboveCommitted = "{$supplierCommitted} > 0 and {$supplierInvoiced} > {$supplierCommitted}";
+        $needsReview = "({$belowMargin}) or ({$overBudget}) or ({$actualAboveCommitted}) or ({$unassignedLineCount} > 0)";
+
+        $row = Project::query()
+            ->leftJoinSub($documentTotals, 'document_totals', fn ($join) => $join->on('document_totals.project_id', '=', 'projects.id'))
+            ->leftJoinSub($unassignedLines, 'unassigned_lines', fn ($join) => $join->on('unassigned_lines.project_id', '=', 'projects.id'))
+            ->selectRaw('count(projects.id) as total')
+            ->selectRaw("sum(case when projects.status = 'active' then 1 else 0 end) as active")
+            ->selectRaw('coalesce(sum(projects.contract_value), 0) as contract_value')
+            ->selectRaw('coalesce(sum(projects.budget_amount), 0) as budget_amount')
+            ->selectRaw("coalesce(sum({$customerConfirmed}), 0) as customer_confirmed")
+            ->selectRaw("coalesce(sum({$customerInvoiced}), 0) as customer_invoiced")
+            ->selectRaw("coalesce(sum({$supplierCommitted}), 0) as supplier_committed")
+            ->selectRaw("coalesce(sum({$supplierInvoiced}), 0) as supplier_invoiced")
+            ->selectRaw("coalesce(sum({$unassignedLineCount}), 0) as unassigned_line_count")
+            ->selectRaw("sum(case when {$needsReview} then 1 else 0 end) as review_projects")
+            ->first();
+
+        $customerConfirmedTotal = (float) ($row->customer_confirmed ?? 0);
+        $supplierCommittedTotal = (float) ($row->supplier_committed ?? 0);
+        $expectedMargin = $customerConfirmedTotal - $supplierCommittedTotal;
+
+        return [
+            'total' => (int) ($row->total ?? 0),
+            'active' => (int) ($row->active ?? 0),
+            'contract_value' => (float) ($row->contract_value ?? 0),
+            'budget_amount' => (float) ($row->budget_amount ?? 0),
+            'customer_confirmed' => $customerConfirmedTotal,
+            'customer_invoiced' => (float) ($row->customer_invoiced ?? 0),
+            'supplier_committed' => $supplierCommittedTotal,
+            'supplier_invoiced' => (float) ($row->supplier_invoiced ?? 0),
+            'expected_margin' => $expectedMargin,
+            'expected_margin_percent' => $customerConfirmedTotal > 0 ? ($expectedMargin / $customerConfirmedTotal) * 100 : null,
+            'unassigned_line_count' => (int) ($row->unassigned_line_count ?? 0),
+            'review_projects' => (int) ($row->review_projects ?? 0),
+        ];
+    }
 
     /**
      * @param  Collection<int, WbsItem>  $workItems
@@ -254,5 +382,183 @@ class ProjectCommercialReportService
     private function formatPercent(float $value): string
     {
         return rtrim(rtrim(number_format($value, 2), '0'), '.').'%';
+    }
+
+    /**
+     * @param  array<int>  $projectIds
+     * @return array<int, array<string, float>>
+     */
+    private function documentTotalsByProject(array $projectIds): array
+    {
+        return $this->documentTotalsQuery()
+            ->whereIn('project_id', $projectIds)
+            ->get()
+            ->mapWithKeys(fn ($row) => [(int) $row->project_id => $this->normalizeDocumentTotals($row)])
+            ->all();
+    }
+
+    private function documentTotalsQuery()
+    {
+        return Document::query()
+            ->whereNotNull('project_id')
+            ->whereIn('status', self::REPORT_STATUSES)
+            ->select('project_id')
+            ->selectRaw("sum(case when type = 'customer_quotation' then total else 0 end) as quoted_revenue")
+            ->selectRaw("sum(case when type = 'customer_po' then total else 0 end) as customer_confirmed")
+            ->selectRaw("sum(case when type = 'customer_invoice' then total else 0 end) as customer_invoiced")
+            ->selectRaw("sum(case when type = 'supplier_po' then total else 0 end) as supplier_committed")
+            ->selectRaw("sum(case when type = 'goods_receipt' then total else 0 end) as received_cost")
+            ->selectRaw("sum(case when type = 'supplier_invoice' then total else 0 end) as supplier_invoiced")
+            ->groupBy('project_id');
+    }
+
+    /**
+     * @param  array<int>  $projectIds
+     * @return array<int, int>
+     */
+    private function unassignedLineCountsByProject(array $projectIds): array
+    {
+        return $this->unassignedLinesQuery()
+            ->whereIn('document_items.project_id', $projectIds)
+            ->get()
+            ->mapWithKeys(fn ($row) => [(int) $row->project_id => (int) $row->line_count])
+            ->all();
+    }
+
+    private function unassignedLinesQuery()
+    {
+        return DocumentItem::query()
+            ->join('documents', 'documents.id', '=', 'document_items.document_id')
+            ->whereNotNull('document_items.project_id')
+            ->whereNull('document_items.wbs_item_id')
+            ->whereIn('documents.status', self::REPORT_STATUSES)
+            ->select('document_items.project_id')
+            ->selectRaw('count(*) as line_count')
+            ->groupBy('document_items.project_id');
+    }
+
+    /**
+     * @param  array<int>  $projectIds
+     * @return array<int, array{over_committed_count: int, over_actual_count: int}>
+     */
+    private function workItemExceptionCountsByProject(array $projectIds): array
+    {
+        $rows = DocumentItem::query()
+            ->join('documents', 'documents.id', '=', 'document_items.document_id')
+            ->join('wbs_items', 'wbs_items.id', '=', 'document_items.wbs_item_id')
+            ->whereIn('document_items.project_id', $projectIds)
+            ->whereIn('documents.status', self::REPORT_STATUSES)
+            ->select('document_items.project_id', 'document_items.wbs_item_id', 'wbs_items.cost_budget')
+            ->selectRaw("sum(case when documents.type = 'supplier_po' then document_items.line_total else 0 end) as supplier_committed")
+            ->selectRaw("sum(case when documents.type = 'supplier_invoice' then document_items.line_total else 0 end) as supplier_actual")
+            ->groupBy('document_items.project_id', 'document_items.wbs_item_id', 'wbs_items.cost_budget')
+            ->get();
+
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $projectId = (int) $row->project_id;
+            $counts[$projectId] ??= [
+                'over_committed_count' => 0,
+                'over_actual_count' => 0,
+            ];
+
+            $costBudget = (float) $row->cost_budget;
+
+            if ($costBudget <= 0) {
+                continue;
+            }
+
+            if ((float) $row->supplier_committed > $costBudget) {
+                $counts[$projectId]['over_committed_count']++;
+            }
+
+            if ((float) $row->supplier_actual > $costBudget) {
+                $counts[$projectId]['over_actual_count']++;
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
+     * @param  array{over_committed_count: int, over_actual_count: int}  $workItemException
+     * @return array<int, string>
+     */
+    private function portfolioReviewReasons(
+        Project $project,
+        ?float $expectedMarginPercent,
+        float $budgetRemaining,
+        float $supplierCommitted,
+        float $supplierInvoiced,
+        int $unassignedLineCount,
+        array $workItemException,
+    ): array {
+        $reasons = [];
+        $targetMargin = (float) $project->margin_target_percent;
+
+        if ($targetMargin > 0 && $expectedMarginPercent !== null && $expectedMarginPercent < $targetMargin) {
+            $reasons[] = 'Margin below target';
+        }
+
+        if ((float) $project->budget_amount > 0 && $budgetRemaining < 0) {
+            $reasons[] = 'Budget overrun';
+        }
+
+        if ($unassignedLineCount > 0) {
+            $reasons[] = 'Work item missing';
+        }
+
+        if (($workItemException['over_committed_count'] ?? 0) > 0) {
+            $reasons[] = 'Work item budget overrun';
+        }
+
+        if (($workItemException['over_actual_count'] ?? 0) > 0) {
+            $reasons[] = 'Actual cost over budget';
+        }
+
+        if ($supplierCommitted > 0 && $supplierInvoiced > $supplierCommitted) {
+            $reasons[] = 'Supplier actual above committed';
+        }
+
+        return $reasons;
+    }
+
+    private function emptyPortfolioTotals(): array
+    {
+        return [
+            'customer_confirmed' => 0.0,
+            'customer_invoiced' => 0.0,
+            'supplier_committed' => 0.0,
+            'supplier_invoiced' => 0.0,
+            'expected_margin' => 0.0,
+            'expected_margin_percent' => null,
+            'unassigned_line_count' => 0,
+            'review_projects' => 0,
+        ];
+    }
+
+    private function emptyDocumentTotals(): array
+    {
+        return [
+            'quoted_revenue' => 0.0,
+            'customer_confirmed' => 0.0,
+            'customer_invoiced' => 0.0,
+            'supplier_committed' => 0.0,
+            'received_cost' => 0.0,
+            'supplier_invoiced' => 0.0,
+        ];
+    }
+
+    private function normalizeDocumentTotals(object $row): array
+    {
+        return [
+            'quoted_revenue' => (float) ($row->quoted_revenue ?? 0),
+            'customer_confirmed' => (float) ($row->customer_confirmed ?? 0),
+            'customer_invoiced' => (float) ($row->customer_invoiced ?? 0),
+            'supplier_committed' => (float) ($row->supplier_committed ?? 0),
+            'received_cost' => (float) ($row->received_cost ?? 0),
+            'supplier_invoiced' => (float) ($row->supplier_invoiced ?? 0),
+        ];
     }
 }

@@ -146,6 +146,52 @@ class ProjectControlTest extends TestCase
         $show->assertSee('Actual variance');
     }
 
+    public function test_projects_index_shows_portfolio_commercial_review(): void
+    {
+        $riskProject = $this->createProject([
+            'project_code' => 'PRJ-2026-021',
+            'name' => 'Margin review project',
+            'budget_amount' => 1000,
+            'margin_target_percent' => 25,
+        ]);
+        $riskWorkItem = $this->createWorkItem($riskProject, [
+            'cost_budget' => 1000,
+        ]);
+        $riskCustomerPo = $this->createLinkedDocument($riskProject, 'customer_po', 'CPO-2026-93001', 1000);
+        $riskSupplierPo = $this->createLinkedDocument($riskProject, 'supplier_po', 'SPO-2026-93001', 1200);
+        $riskSupplierInvoice = $this->createLinkedDocument($riskProject, 'supplier_invoice', 'SIN-2026-93001', 1300);
+        $riskQuotation = $this->createLinkedDocument($riskProject, 'customer_quotation', 'CQ-2026-93001', 1200);
+
+        $this->addProjectLine($riskCustomerPo, $riskWorkItem, 1000);
+        $this->addProjectLine($riskSupplierPo, $riskWorkItem, 1200);
+        $this->addProjectLine($riskSupplierInvoice, $riskWorkItem, 1300);
+        $this->addProjectLine($riskQuotation, null, 1200);
+
+        $healthyProject = $this->createProject([
+            'project_code' => 'PRJ-2026-022',
+            'name' => 'Healthy project',
+            'budget_amount' => 5000,
+            'margin_target_percent' => 10,
+        ]);
+        $this->createLinkedDocument($healthyProject, 'customer_po', 'CPO-2026-93002', 5000);
+        $this->createLinkedDocument($healthyProject, 'supplier_po', 'SPO-2026-93002', 2000);
+
+        $index = $this->get(route('projects.index'));
+
+        $index->assertOk();
+        $index->assertSee('Projects needing review');
+        $index->assertSee('Customer confirmed');
+        $index->assertSee('Supplier committed');
+        $index->assertSee('Expected margin');
+        $index->assertSee('Budget remaining');
+        $index->assertSee('Review needed');
+        $index->assertSee('No visible exceptions');
+        $index->assertSee('Margin below target');
+        $index->assertSee('Budget overrun');
+        $index->assertSee('Work item missing');
+        $index->assertSee('Open project');
+    }
+
     public function test_admin_can_create_and_update_project_records(): void
     {
         $this->post(route('projects.store'), [

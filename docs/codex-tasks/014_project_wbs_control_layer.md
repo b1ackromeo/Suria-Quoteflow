@@ -487,6 +487,8 @@ Project pages show expected margin percentage, actual margin percentage, unbille
 Work breakdown reporting includes received / accepted cost, supplier actual cost, remaining budget, and actual variance by work item.
 Project exception reporting highlights margin below target, unassigned project lines, work-item budget overruns, actual cost over budget, and supplier actuals above committed purchase order cost.
 Project commercial calculations now live in a dedicated report service instead of controller-only calculations.
+The Projects list includes portfolio-level customer confirmed value, supplier committed cost, expected margin, unassigned line count, and projects needing review.
+Each listed project shows customer confirmed value, supplier committed cost, expected margin, budget remaining, and visible review reasons before opening the full project report.
 ```
 
 This answers:
