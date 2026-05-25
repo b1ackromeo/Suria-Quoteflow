@@ -42,6 +42,7 @@ Recommended order:
 6. `006_supplier_invoice_matching.md`
 7. `007_cancel_workflow.md`
 8. `008_linked_workflow_timeline.md`
+9. `014_project_wbs_control_layer.md` - next strategic product layer for project/job, WBS/cost code, budget, margin, and project commercial control.
 
 ## Reference files in this folder
 
@@ -75,3 +76,4 @@ Do not convert it into an API-first SPA, microservice architecture, Redis/Horizo
 5. Keep OCR, but add a manual supplier invoice verification fallback.
 6. Make supplier invoice matching a real checklist, not just a status button.
 7. Keep user-facing wording aligned with global business document systems, not route/model/workflow-engine language.
+8. Add project/job and WBS/cost-code commercial control without breaking the simple document flow.
