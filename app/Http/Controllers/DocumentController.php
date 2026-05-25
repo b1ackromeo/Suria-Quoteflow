@@ -12,6 +12,7 @@ use App\Models\DocumentItem;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\Supplier;
+use App\Models\WbsItem;
 use App\Services\Documents\BusinessDocumentCaptureService;
 use App\Services\Documents\DocumentChainService;
 use App\Services\Documents\DocumentConversionService;
@@ -166,7 +167,7 @@ class DocumentController extends Controller
 
     public function show(Document $document, PaymentEligibilityService $paymentEligibility, DocumentChainService $documentChain, DocumentConversionService $documentConversion): View
     {
-        $document->load(['customer', 'supplier', 'project', 'relatedDocument', 'items.product', 'billingStages', 'payments.creator', 'approvals.requester', 'approvals.decider', 'attachments.uploader', 'attachments.extraction.verifier', 'creator', 'approver']);
+        $document->load(['customer', 'supplier', 'project', 'relatedDocument', 'items.product', 'items.wbsItem', 'billingStages', 'payments.creator', 'approvals.requester', 'approvals.decider', 'attachments.uploader', 'attachments.extraction.verifier', 'creator', 'approver']);
         $supplierInvoiceVerification = $document->type === 'supplier_invoice'
             ? $this->supplierInvoiceVerification->summary($document)
             : null;
@@ -1066,6 +1067,37 @@ class DocumentController extends Controller
             }
         }
 
+        $projectIds = $projects->pluck('id')->all();
+        $selectedWorkItemIds = $document->relationLoaded('items')
+            ? $document->items->pluck('wbs_item_id')->filter()->unique()->values()
+            : collect();
+
+        $workItems = WbsItem::query()
+            ->with('project')
+            ->where(function ($query) use ($projectIds, $selectedWorkItemIds) {
+                if ($projectIds !== []) {
+                    $query->whereIn('project_id', $projectIds);
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+
+                if ($selectedWorkItemIds->isNotEmpty()) {
+                    $query->orWhereIn('id', $selectedWorkItemIds);
+                }
+            })
+            ->where(function ($query) use ($selectedWorkItemIds) {
+                $query->where('status', 'active');
+
+                if ($selectedWorkItemIds->isNotEmpty()) {
+                    $query->orWhereIn('id', $selectedWorkItemIds);
+                }
+            })
+            ->orderBy('project_id')
+            ->orderBy('sort_order')
+            ->orderBy('code')
+            ->limit(500)
+            ->get();
+
         return [
             'meta' => $meta,
             'document' => $document,
@@ -1085,6 +1117,7 @@ class DocumentController extends Controller
                 ->get(),
             'products' => Product::where('is_active', true)->orderBy('name')->get(),
             'projects' => $projects,
+            'workItems' => $workItems,
             'relatedDocuments' => $relatedDocuments,
         ];
     }
@@ -1161,7 +1194,7 @@ class DocumentController extends Controller
         $items = $this->externalDocumentExtraction->normalizeItems($fields['items'] ?? []);
 
         if ($items !== []) {
-            $document->setRelation('items', collect($items)->map(function (array $item) {
+            $document->setRelation('items', collect($items)->map(function (array $item) use ($sourceDocument) {
                 $quantity = (float) ($item['quantity'] ?? 1);
                 $unitPrice = (float) ($item['unit_price'] ?? 0);
                 $taxRate = (float) ($item['tax_rate'] ?? 0);
@@ -1170,6 +1203,7 @@ class DocumentController extends Controller
 
                 return new DocumentItem([
                     'product_id' => $item['product_id'] ?? null,
+                    'project_id' => $sourceDocument->project_id,
                     'description' => $item['description'],
                     'quantity' => $quantity,
                     'unit' => $item['unit'] ?? 'unit',
@@ -1260,6 +1294,7 @@ class DocumentController extends Controller
             'source_attachment' => $sourceAttachmentRules,
             'items' => $itemsRule,
             'items.*.product_id' => ['nullable', 'exists:products,id'],
+            'items.*.wbs_item_id' => ['nullable', 'exists:wbs_items,id'],
             'items.*.description' => ['nullable', 'string', 'max:255'],
             'items.*.quantity' => ['nullable', 'numeric', $quantityMinRule, 'max:999999999'],
             'items.*.unit' => ['nullable', 'string', 'max:40'],
@@ -1366,7 +1401,43 @@ class DocumentController extends Controller
             throw ValidationException::withMessages(['items' => 'Add at least one line item.']);
         }
 
+        $this->validateLineWorkItems($data);
+
         return $this->finishValidatedPayload($data, $meta);
+    }
+
+    private function validateLineWorkItems(array $data): void
+    {
+        $workItemIds = collect($data['items'] ?? [])
+            ->pluck('wbs_item_id')
+            ->filter(fn ($id) => filled($id))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($workItemIds->isEmpty()) {
+            return;
+        }
+
+        if (empty($data['project_id'])) {
+            throw ValidationException::withMessages([
+                'items' => 'Select a project before assigning work items.',
+            ]);
+        }
+
+        $workItemProjects = WbsItem::query()
+            ->whereIn('id', $workItemIds)
+            ->pluck('project_id', 'id');
+
+        $hasDifferentProject = $workItemIds->contains(function (int $workItemId) use ($workItemProjects, $data) {
+            return (int) ($workItemProjects[$workItemId] ?? 0) !== (int) $data['project_id'];
+        });
+
+        if ($hasDifferentProject) {
+            throw ValidationException::withMessages([
+                'items' => 'Select work items from the same project as this document.',
+            ]);
+        }
     }
 
     private function finishValidatedPayload(array $data, array $meta): array
@@ -1434,6 +1505,7 @@ class DocumentController extends Controller
         $document->items()->delete();
         $subtotal = 0;
         $taxTotal = 0;
+        $lineProjectId = $document->project_id ? (int) $document->project_id : null;
 
         foreach ($items as $item) {
             $quantity = (float) ($item['quantity'] ?? 1);
@@ -1444,6 +1516,8 @@ class DocumentController extends Controller
 
             $document->items()->create([
                 'product_id' => $item['product_id'] ?? null,
+                'project_id' => $lineProjectId,
+                'wbs_item_id' => $lineProjectId && filled($item['wbs_item_id'] ?? null) ? (int) $item['wbs_item_id'] : null,
                 'description' => $item['description'],
                 'quantity' => $quantity,
                 'unit' => $item['unit'] ?? 'unit',

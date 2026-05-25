@@ -133,6 +133,226 @@
                 <section class="table-wrap directory-table-wrap">
                     <div class="directory-table-header rounded-t-lg border-t-0">
                         <div>
+                            <h2 class="panel-title">Work breakdown</h2>
+                            <p class="panel-subtitle">Use work items and cost codes when project lines need budget tracking.</p>
+                        </div>
+                        <span class="issuer-mini">{{ $workItems->count() }} work item{{ $workItems->count() === 1 ? '' : 's' }}</span>
+                    </div>
+
+                    <div class="space-y-4 p-4">
+                        @if($errors->any())
+                            <div class="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-800">
+                                {{ $errors->first() }}
+                            </div>
+                        @endif
+
+                        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                            <div class="directory-stat-card">
+                                <span>Revenue budget</span>
+                                <strong>{{ $money($workItemTotals['revenue_budget']) }}</strong>
+                            </div>
+                            <div class="directory-stat-card">
+                                <span>Cost budget</span>
+                                <strong>{{ $money($workItemTotals['cost_budget']) }}</strong>
+                            </div>
+                            <div class="directory-stat-card">
+                                <span>Supplier committed</span>
+                                <strong>{{ $money($workItemTotals['supplier_committed']) }}</strong>
+                            </div>
+                            <div class="directory-stat-card">
+                                <span>Supplier actual</span>
+                                <strong>{{ $money($workItemTotals['supplier_actual']) }}</strong>
+                            </div>
+                            <div class="directory-stat-card">
+                                <span>Unassigned project lines</span>
+                                <strong>{{ $unassignedWorkItemSummary['line_count'] }}</strong>
+                            </div>
+                        </div>
+
+                        @if($unassignedWorkItemSummary['line_count'] > 0)
+                            <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+                                {{ $unassignedWorkItemSummary['line_count'] }} project line{{ $unassignedWorkItemSummary['line_count'] === 1 ? '' : 's' }} still need a work item or cost code.
+                            </div>
+                        @endif
+
+                        @if($canManageProject)
+                            <form method="post" action="{{ route('projects.work-items.store', $project) }}" class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                                @csrf
+                                <input type="hidden" name="status" value="active">
+                                <input type="hidden" name="sort_order" value="0">
+                                <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                                    <label class="form-label">Cost code
+                                        <input class="form-input" name="code" value="{{ old('code') }}" placeholder="1.01" required>
+                                    </label>
+                                    <label class="form-label xl:col-span-2">Work item
+                                        <input class="form-input" name="name" value="{{ old('name') }}" placeholder="Installation and commissioning" required>
+                                    </label>
+                                    <label class="form-label">Cost type
+                                        <select class="form-input" name="cost_type" required>
+                                            @foreach($workItemCostTypes as $value => $label)
+                                                <option value="{{ $value }}" @selected(old('cost_type', 'service') === $value)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </label>
+                                    <label class="form-label">Parent work item
+                                        <select class="form-input" name="parent_id">
+                                            <option value="">No parent work item</option>
+                                            @foreach($workItems as $parentOption)
+                                                <option value="{{ $parentOption->id }}" @selected((string) old('parent_id') === (string) $parentOption->id)>{{ $parentOption->displayLabel() }}</option>
+                                            @endforeach
+                                        </select>
+                                    </label>
+                                    <label class="form-label">Revenue budget
+                                        <input class="form-input" type="number" step="0.01" min="0" name="revenue_budget" value="{{ old('revenue_budget', 0) }}">
+                                    </label>
+                                    <label class="form-label">Cost budget
+                                        <input class="form-input" type="number" step="0.01" min="0" name="cost_budget" value="{{ old('cost_budget', 0) }}">
+                                    </label>
+                                    <label class="form-label md:col-span-2 xl:col-span-4">Description
+                                        <textarea class="form-input min-h-20" name="description" placeholder="Scope, deliverable, or cost-code note">{{ old('description') }}</textarea>
+                                    </label>
+                                </div>
+                                <div class="mt-3 flex justify-end">
+                                    <button class="btn btn-secondary" type="submit">Add work item</button>
+                                </div>
+                            </form>
+                        @endif
+
+                        <div class="space-y-3">
+                            @forelse($workItems as $workItem)
+                                @php
+                                    $itemSummary = $workItemSummaries[$workItem->id] ?? [
+                                        'line_count' => 0,
+                                        'quoted_revenue' => 0,
+                                        'customer_confirmed' => 0,
+                                        'supplier_committed' => 0,
+                                        'supplier_actual' => 0,
+                                        'remaining_budget' => (float) $workItem->cost_budget,
+                                    ];
+                                @endphp
+                                <article class="rounded-lg border border-slate-200 bg-white p-4">
+                                    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                        <div class="min-w-0">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <strong class="text-sm text-slate-950">{{ $workItem->code }}</strong>
+                                                <span class="status-chip {{ $workItem->statusChipClass() }}">{{ $workItem->statusDisplay() }}</span>
+                                                <span class="status-chip status-draft">{{ $workItem->costTypeDisplay() }}</span>
+                                            </div>
+                                            <h3 class="mt-2 text-base font-bold text-slate-950">{{ $workItem->name }}</h3>
+                                            @if($workItem->parent)
+                                                <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Under {{ $workItem->parent->displayLabel() }}</p>
+                                            @endif
+                                            @if($workItem->description)
+                                                <p class="mt-2 text-sm font-medium leading-6 text-slate-600">{{ $workItem->description }}</p>
+                                            @endif
+                                        </div>
+                                        <span class="issuer-mini">{{ $itemSummary['line_count'] }} line{{ $itemSummary['line_count'] === 1 ? '' : 's' }}</span>
+                                    </div>
+
+                                    <div class="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+                                        <div class="directory-stat-card">
+                                            <span>Revenue budget</span>
+                                            <strong>{{ $money($workItem->revenue_budget) }}</strong>
+                                        </div>
+                                        <div class="directory-stat-card">
+                                            <span>Cost budget</span>
+                                            <strong>{{ $money($workItem->cost_budget) }}</strong>
+                                        </div>
+                                        <div class="directory-stat-card">
+                                            <span>Quoted revenue</span>
+                                            <strong>{{ $money($itemSummary['quoted_revenue']) }}</strong>
+                                        </div>
+                                        <div class="directory-stat-card">
+                                            <span>Customer confirmed</span>
+                                            <strong>{{ $money($itemSummary['customer_confirmed']) }}</strong>
+                                        </div>
+                                        <div class="directory-stat-card">
+                                            <span>Supplier committed</span>
+                                            <strong>{{ $money($itemSummary['supplier_committed']) }}</strong>
+                                        </div>
+                                        <div class="directory-stat-card">
+                                            <span>Remaining budget</span>
+                                            <strong>{{ $money($itemSummary['remaining_budget']) }}</strong>
+                                        </div>
+                                    </div>
+
+                                    @if($canManageProject)
+                                        <details class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                            <summary class="cursor-pointer text-sm font-bold text-slate-700">Edit work item</summary>
+                                            <div class="mt-3 space-y-3">
+                                                <form method="post" action="{{ route('projects.work-items.update', [$project, $workItem]) }}">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                                                        <label class="form-label">Cost code
+                                                            <input class="form-input" name="code" value="{{ old('code', $workItem->code) }}" required>
+                                                        </label>
+                                                        <label class="form-label xl:col-span-2">Work item
+                                                            <input class="form-input" name="name" value="{{ old('name', $workItem->name) }}" required>
+                                                        </label>
+                                                        <label class="form-label">Status
+                                                            <select class="form-input" name="status" required>
+                                                                @foreach($workItemStatuses as $value => $label)
+                                                                    <option value="{{ $value }}" @selected(old('status', $workItem->status) === $value)>{{ $label }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </label>
+                                                        <label class="form-label">Cost type
+                                                            <select class="form-input" name="cost_type" required>
+                                                                @foreach($workItemCostTypes as $value => $label)
+                                                                    <option value="{{ $value }}" @selected(old('cost_type', $workItem->cost_type) === $value)>{{ $label }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </label>
+                                                        <label class="form-label">Parent work item
+                                                            <select class="form-input" name="parent_id">
+                                                                <option value="">No parent work item</option>
+                                                                @foreach($workItems as $parentOption)
+                                                                    @continue($parentOption->id === $workItem->id)
+                                                                    <option value="{{ $parentOption->id }}" @selected((string) old('parent_id', $workItem->parent_id) === (string) $parentOption->id)>{{ $parentOption->displayLabel() }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </label>
+                                                        <label class="form-label">Revenue budget
+                                                            <input class="form-input" type="number" step="0.01" min="0" name="revenue_budget" value="{{ old('revenue_budget', $workItem->revenue_budget) }}">
+                                                        </label>
+                                                        <label class="form-label">Cost budget
+                                                            <input class="form-input" type="number" step="0.01" min="0" name="cost_budget" value="{{ old('cost_budget', $workItem->cost_budget) }}">
+                                                        </label>
+                                                        <label class="form-label">Sort order
+                                                            <input class="form-input" type="number" min="0" name="sort_order" value="{{ old('sort_order', $workItem->sort_order) }}">
+                                                        </label>
+                                                        <label class="form-label md:col-span-2 xl:col-span-4">Description
+                                                            <textarea class="form-input min-h-20" name="description">{{ old('description', $workItem->description) }}</textarea>
+                                                        </label>
+                                                    </div>
+                                                    <div class="mt-3 flex justify-end">
+                                                        <button class="btn btn-secondary" type="submit">Save work item</button>
+                                                    </div>
+                                                </form>
+                                                @if($itemSummary['line_count'] === 0)
+                                                    <form method="post" action="{{ route('projects.work-items.destroy', [$project, $workItem]) }}" onsubmit="return confirm('Delete this work item?');">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button class="btn btn-danger" type="submit">Delete</button>
+                                                    </form>
+                                                @else
+                                                    <p class="text-xs font-semibold text-slate-500">Used on document lines. Set the work item to inactive if it should no longer be used.</p>
+                                                @endif
+                                            </div>
+                                        </details>
+                                    @endif
+                                </article>
+                            @empty
+                                <div class="empty-cell rounded-lg border border-slate-200 bg-slate-50">No work items yet. Add work items when this project needs line-level budget or cost-code tracking.</div>
+                            @endforelse
+                        </div>
+                    </div>
+                </section>
+
+                <section class="table-wrap directory-table-wrap">
+                    <div class="directory-table-header rounded-t-lg border-t-0">
+                        <div>
                             <h2 class="panel-title">Project documents</h2>
                             <p class="panel-subtitle">Documents linked through the Project / job field.</p>
                         </div>

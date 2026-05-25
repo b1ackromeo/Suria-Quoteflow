@@ -4,10 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Document;
+use App\Models\DocumentItem;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\Supplier;
 use App\Models\User;
+use App\Models\WbsItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -184,6 +186,151 @@ class ProjectControlTest extends TestCase
         $show->assertSee(route('projects.show', $project), false);
     }
 
+    public function test_project_work_items_can_be_managed_and_used_on_document_lines(): void
+    {
+        $project = $this->createProject();
+
+        $this->post(route('projects.work-items.store', $project), [
+            'code' => '1.01',
+            'name' => 'Installation and commissioning',
+            'description' => 'Site installation, testing, and handover.',
+            'cost_type' => 'service',
+            'revenue_budget' => 15000,
+            'cost_budget' => 9000,
+            'sort_order' => 10,
+            'status' => 'active',
+        ])->assertRedirect(route('projects.show', $project));
+
+        $workItem = WbsItem::query()->where('project_id', $project->id)->where('code', '1.01')->firstOrFail();
+
+        $this->assertDatabaseHas('audit_trails', [
+            'action' => 'work_item_created',
+            'auditable_type' => WbsItem::class,
+            'auditable_id' => $workItem->id,
+        ]);
+
+        $show = $this->get(route('projects.show', $project));
+        $show->assertOk();
+        $show->assertSee('Work breakdown');
+        $show->assertSee('Installation and commissioning');
+        $show->assertSee('Cost code');
+
+        $this->post(route('documents.store', 'customer-quotations'), $this->documentPayload([
+            'external_reference' => 'WBS-CQ',
+            'project_id' => $project->id,
+            'items' => [
+                [
+                    'product_id' => $this->service->id,
+                    'wbs_item_id' => $workItem->id,
+                    'description' => 'Installation and commissioning services',
+                    'quantity' => 2,
+                    'unit' => 'job',
+                    'unit_price' => 1200,
+                    'tax_rate' => 8,
+                ],
+            ],
+        ]))->assertRedirect();
+
+        $quotation = Document::query()->where('external_reference', 'WBS-CQ')->firstOrFail();
+        $quotationLine = $quotation->items()->firstOrFail();
+
+        $this->assertSame($project->id, $quotationLine->project_id);
+        $this->assertSame($workItem->id, $quotationLine->wbs_item_id);
+
+        $quotation->update(['status' => 'approved']);
+
+        $this->post(route('documents.convert', [$quotation, 'customer-pos']))
+            ->assertRedirect();
+
+        $customerPo = Document::query()
+            ->where('type', 'customer_po')
+            ->where('related_document_id', $quotation->id)
+            ->firstOrFail();
+        $customerPoLine = $customerPo->items()->firstOrFail();
+
+        $this->assertSame($project->id, $customerPoLine->project_id);
+        $this->assertSame($workItem->id, $customerPoLine->wbs_item_id);
+    }
+
+    public function test_document_rejects_work_item_from_another_project(): void
+    {
+        $project = $this->createProject();
+        $otherProject = $this->createProject([
+            'project_code' => 'PRJ-2026-002',
+            'name' => 'Other project',
+        ]);
+        $otherWorkItem = $otherProject->wbsItems()->create([
+            'code' => '2.01',
+            'name' => 'Other scope',
+            'cost_type' => 'service',
+            'revenue_budget' => 1000,
+            'cost_budget' => 800,
+            'sort_order' => 1,
+            'status' => 'active',
+        ]);
+
+        $this->from(route('documents.create', 'customer-quotations'))
+            ->post(route('documents.store', 'customer-quotations'), $this->documentPayload([
+                'external_reference' => 'WRONG-WORK-ITEM',
+                'project_id' => $project->id,
+                'items' => [
+                    [
+                        'product_id' => $this->service->id,
+                        'wbs_item_id' => $otherWorkItem->id,
+                        'description' => 'Wrong project work item',
+                        'quantity' => 1,
+                        'unit' => 'job',
+                        'unit_price' => 1200,
+                        'tax_rate' => 8,
+                    ],
+                ],
+            ]))
+            ->assertRedirect(route('documents.create', 'customer-quotations'))
+            ->assertSessionHasErrors('items');
+
+        $this->assertDatabaseMissing('documents', [
+            'external_reference' => 'WRONG-WORK-ITEM',
+        ]);
+    }
+
+    public function test_used_work_items_cannot_be_deleted(): void
+    {
+        $project = $this->createProject();
+        $workItem = $project->wbsItems()->create([
+            'code' => '1.02',
+            'name' => 'Procurement and delivery',
+            'cost_type' => 'material',
+            'revenue_budget' => 5000,
+            'cost_budget' => 3000,
+            'sort_order' => 20,
+            'status' => 'active',
+        ]);
+        $document = $this->createLinkedDocument($project, 'supplier_po', 'SPO-2026-91001', 3000);
+
+        DocumentItem::create([
+            'document_id' => $document->id,
+            'product_id' => $this->service->id,
+            'project_id' => $project->id,
+            'wbs_item_id' => $workItem->id,
+            'description' => 'Procurement service',
+            'quantity' => 1,
+            'unit' => 'job',
+            'unit_price' => 3000,
+            'tax_rate' => 0,
+            'tax_amount' => 0,
+            'line_total' => 3000,
+        ]);
+
+        $this->delete(route('projects.work-items.destroy', [$project, $workItem]))
+            ->assertRedirect(route('projects.show', $project))
+            ->assertSessionHasErrors('work_item');
+
+        $this->assertDatabaseHas('wbs_items', [
+            'id' => $workItem->id,
+            'code' => '1.02',
+        ]);
+    }
+
     public function test_next_document_conversion_preserves_project_link(): void
     {
         $project = $this->createProject();
@@ -259,6 +406,7 @@ class ProjectControlTest extends TestCase
                 [
                     'product_id' => $this->service->id,
                     'description' => 'Project linked quotation line',
+                    'wbs_item_id' => null,
                     'quantity' => 2,
                     'unit' => 'job',
                     'unit_price' => 1200,

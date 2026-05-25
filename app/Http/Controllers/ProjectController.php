@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Customer;
 use App\Models\Document;
+use App\Models\DocumentItem;
 use App\Models\Payment;
 use App\Models\Project;
 use App\Models\User;
+use App\Models\WbsItem;
 use App\Support\Audit;
 use App\Support\SearchFilters;
 use Illuminate\Http\RedirectResponse;
@@ -70,10 +72,18 @@ class ProjectController extends Controller
     public function show(Project $project): View
     {
         $project->load(['customer', 'manager']);
+        $workItems = $project->wbsItems()->with('parent')->get();
+        $workItemSummaries = $this->workItemSummaries($project, $workItems);
 
         return view('projects.show', [
             'project' => $project,
             'summary' => $this->commercialSummary($project),
+            'workItems' => $workItems,
+            'workItemSummaries' => $workItemSummaries['items'],
+            'workItemTotals' => $workItemSummaries['totals'],
+            'unassignedWorkItemSummary' => $workItemSummaries['unassigned'],
+            'workItemStatuses' => WbsItem::STATUSES,
+            'workItemCostTypes' => WbsItem::COST_TYPES,
             'documents' => $project->documents()
                 ->with(['customer', 'supplier'])
                 ->latest('issue_date')
@@ -167,6 +177,79 @@ class ProjectController extends Controller
             'actual_margin' => (float) $customerInvoiced - (float) $supplierInvoiced,
             'budget_remaining' => (float) $project->budget_amount - (float) $supplierCommitted,
             'document_count' => (clone $documents)->count(),
+        ];
+    }
+
+    private function workItemSummaries(Project $project, $workItems): array
+    {
+        $lineTotals = DocumentItem::query()
+            ->join('documents', 'documents.id', '=', 'document_items.document_id')
+            ->where('document_items.project_id', $project->id)
+            ->select('document_items.wbs_item_id')
+            ->selectRaw('count(*) as line_count')
+            ->selectRaw("sum(case when documents.type = 'customer_quotation' then document_items.line_total else 0 end) as quoted_revenue")
+            ->selectRaw("sum(case when documents.type = 'customer_po' then document_items.line_total else 0 end) as customer_confirmed")
+            ->selectRaw("sum(case when documents.type = 'customer_invoice' then document_items.line_total else 0 end) as customer_invoiced")
+            ->selectRaw("sum(case when documents.type = 'supplier_po' then document_items.line_total else 0 end) as supplier_committed")
+            ->selectRaw("sum(case when documents.type = 'goods_receipt' then document_items.line_total else 0 end) as received_cost")
+            ->selectRaw("sum(case when documents.type = 'supplier_invoice' then document_items.line_total else 0 end) as supplier_actual")
+            ->groupBy('document_items.wbs_item_id')
+            ->get()
+            ->keyBy(fn ($row) => $row->wbs_item_id === null ? 'unassigned' : (string) $row->wbs_item_id);
+
+        $items = [];
+        $totals = [
+            'revenue_budget' => 0.0,
+            'cost_budget' => 0.0,
+            'quoted_revenue' => 0.0,
+            'customer_confirmed' => 0.0,
+            'customer_invoiced' => 0.0,
+            'supplier_committed' => 0.0,
+            'received_cost' => 0.0,
+            'supplier_actual' => 0.0,
+            'remaining_budget' => 0.0,
+            'line_count' => 0,
+        ];
+
+        foreach ($workItems as $workItem) {
+            $line = $lineTotals->get((string) $workItem->id);
+            $summary = [
+                'line_count' => (int) ($line->line_count ?? 0),
+                'quoted_revenue' => (float) ($line->quoted_revenue ?? 0),
+                'customer_confirmed' => (float) ($line->customer_confirmed ?? 0),
+                'customer_invoiced' => (float) ($line->customer_invoiced ?? 0),
+                'supplier_committed' => (float) ($line->supplier_committed ?? 0),
+                'received_cost' => (float) ($line->received_cost ?? 0),
+                'supplier_actual' => (float) ($line->supplier_actual ?? 0),
+                'remaining_budget' => (float) $workItem->cost_budget - (float) ($line->supplier_committed ?? 0),
+            ];
+
+            $items[$workItem->id] = $summary;
+
+            $totals['revenue_budget'] += (float) $workItem->revenue_budget;
+            $totals['cost_budget'] += (float) $workItem->cost_budget;
+            $totals['line_count'] += $summary['line_count'];
+
+            foreach (['quoted_revenue', 'customer_confirmed', 'customer_invoiced', 'supplier_committed', 'received_cost', 'supplier_actual'] as $key) {
+                $totals[$key] += $summary[$key];
+            }
+        }
+
+        $totals['remaining_budget'] = $totals['cost_budget'] - $totals['supplier_committed'];
+        $unassigned = $lineTotals->get('unassigned');
+
+        return [
+            'items' => $items,
+            'totals' => $totals,
+            'unassigned' => [
+                'line_count' => (int) ($unassigned->line_count ?? 0),
+                'quoted_revenue' => (float) ($unassigned->quoted_revenue ?? 0),
+                'customer_confirmed' => (float) ($unassigned->customer_confirmed ?? 0),
+                'customer_invoiced' => (float) ($unassigned->customer_invoiced ?? 0),
+                'supplier_committed' => (float) ($unassigned->supplier_committed ?? 0),
+                'received_cost' => (float) ($unassigned->received_cost ?? 0),
+                'supplier_actual' => (float) ($unassigned->supplier_actual ?? 0),
+            ],
         ];
     }
 

@@ -52,6 +52,11 @@ class Project extends Model
         return $this->hasMany(Document::class);
     }
 
+    public function wbsItems(): HasMany
+    {
+        return $this->hasMany(WbsItem::class)->orderBy('sort_order')->orderBy('code');
+    }
+
     public function statusDisplay(): string
     {
         return self::STATUSES[$this->status] ?? ucwords(str_replace('_', ' ', (string) $this->status));

@@ -39,7 +39,8 @@ class SearchFilters
                 ->orWhereHas('items', function (Builder $item) use ($like) {
                     $item->where('description', 'like', $like)
                         ->orWhere('unit', 'like', $like)
-                        ->orWhereHas('product', fn (Builder $product) => self::products($product, $like, true));
+                        ->orWhereHas('product', fn (Builder $product) => self::products($product, $like, true))
+                        ->orWhereHas('wbsItem', fn (Builder $workItem) => self::workItems($workItem, $like, true));
                 })
                 ->orWhereHas('billingStages', function (Builder $stage) use ($like, $number) {
                     $stage->where('stage_name', 'like', $like)
@@ -176,6 +177,7 @@ class SearchFilters
                 ->orWhere('name', 'like', $like)
                 ->orWhere('status', 'like', $like)
                 ->orWhere('description', 'like', $like)
+                ->orWhereHas('wbsItems', fn (Builder $workItem) => self::workItems($workItem, $like, true))
                 ->orWhereHas('customer', fn (Builder $customer) => self::customers($customer, $like, true))
                 ->orWhereHas('manager', function (Builder $manager) use ($like) {
                     $manager->where('name', 'like', $like)
@@ -186,6 +188,25 @@ class SearchFilters
                 $nested->orWhere('contract_value', $number)
                     ->orWhere('budget_amount', $number)
                     ->orWhere('margin_target_percent', $number);
+            }
+        });
+    }
+
+    public static function workItems(Builder $query, string $term, bool $termIsLike = false): Builder
+    {
+        $like = $termIsLike ? $term : self::like($term);
+        $number = $termIsLike ? null : self::number($term);
+
+        return $query->where(function (Builder $nested) use ($like, $number) {
+            $nested->where('code', 'like', $like)
+                ->orWhere('name', 'like', $like)
+                ->orWhere('description', 'like', $like)
+                ->orWhere('cost_type', 'like', $like)
+                ->orWhere('status', 'like', $like);
+
+            if ($number !== null) {
+                $nested->orWhere('revenue_budget', $number)
+                    ->orWhere('cost_budget', $number);
             }
         });
     }

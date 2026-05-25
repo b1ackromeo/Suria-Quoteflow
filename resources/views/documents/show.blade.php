@@ -428,7 +428,12 @@
                             <tbody>
                             @foreach($document->items as $item)
                                 <tr>
-                                    <td data-label="Description"><strong>{{ $item->description }}</strong></td>
+                                    <td data-label="Description">
+                                        <strong>{{ $item->description }}</strong>
+                                        @if($item->wbsItem)
+                                            <span>{{ $item->wbsItem->displayLabel() }}</span>
+                                        @endif
+                                    </td>
                                     <td data-label="Qty" class="text-right">{{ \App\Models\Document::formatQuantity($item->quantity) }}</td>
                                     <td data-label="Unit">{{ $item->unit }}</td>
                                     <td data-label="Amount" class="text-right">{{ $money((float) $item->quantity * (float) $item->unit_price) }}</td>
@@ -607,6 +612,9 @@
                             <td data-label="Description">
                                 <strong>{{ $item->description }}</strong>
                                 <span>{{ \App\Models\Document::formatQuantity($item->quantity) }} {{ $item->unit }} x {{ $money($item->unit_price) }}</span>
+                                @if($item->wbsItem)
+                                    <span>{{ $item->wbsItem->displayLabel() }}</span>
+                                @endif
                             </td>
                             <td data-label="Total" class="text-right">{{ $money((float) $item->quantity * (float) $item->unit_price) }}</td>
                         </tr>

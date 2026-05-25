@@ -181,6 +181,8 @@ class DocumentConversionService
 
             $target->items()->create([
                 'product_id' => $item->product_id,
+                'project_id' => $item->project_id ?: $source->project_id,
+                'wbs_item_id' => $item->wbs_item_id,
                 'description' => $item->description,
                 'quantity' => $quantity,
                 'unit' => $item->unit,

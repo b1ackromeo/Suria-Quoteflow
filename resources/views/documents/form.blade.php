@@ -9,6 +9,7 @@
         $rows = ($document->exists || ($document->relationLoaded('items') && $document->items->isNotEmpty()))
             ? $document->items->map(fn ($item) => [
                 'product_id' => $item->product_id,
+                'wbs_item_id' => $item->wbs_item_id,
                 'description' => $item->description,
                 'quantity' => $item->quantity,
                 'unit' => $item->unit,
@@ -17,6 +18,7 @@
             ])->toArray()
             : [[
                 'product_id' => '',
+                'wbs_item_id' => '',
                 'description' => '',
                 'quantity' => $meta['type'] === 'goods_receipt' ? 0 : 1,
                 'unit' => 'unit',
@@ -550,6 +552,7 @@
                     @endforeach
                 </select>
                 <span class="mt-1 block text-xs font-semibold text-slate-500">Optional for jobs that need budget, margin, or document grouping.</span>
+                <span class="mt-1 block text-xs font-semibold text-slate-500">Work item choices appear after a project is selected.</span>
             </label>
             @if($isGoodsReceipt)
                 <label class="form-label">Record type
@@ -742,6 +745,18 @@
                             <label class="form-label mt-0"><span data-receipt-label="lineDescriptionHeader">Received material description</span>
                                 <input class="form-input" name="items[{{ $index }}][description]" value="{{ $row['description'] ?? '' }}" required>
                             </label>
+                            <label class="form-label mt-0">Work item / cost code
+                                <select class="form-input" name="items[{{ $index }}][wbs_item_id]" data-work-item-select>
+                                    <option value="">Select project first</option>
+                                    @foreach($workItems as $workItem)
+                                        <option
+                                            value="{{ $workItem->id }}"
+                                            data-project-id="{{ $workItem->project_id }}"
+                                            @selected((string) ($row['wbs_item_id'] ?? '') === (string) $workItem->id)
+                                        >{{ $workItem->project?->project_code }} - {{ $workItem->code }} {{ $workItem->name }}</option>
+                                    @endforeach
+                                </select>
+                            </label>
                         </div>
                         <div class="receiving-line-qty-grid">
                             <div class="receiving-line-readonly">
@@ -767,7 +782,7 @@
             <div class="table-wrap">
                 <table class="data-table" id="line-items">
                     <thead>
-                    <tr><th class="min-w-56">Product / Service</th><th class="min-w-72">Description</th><th>Qty</th><th>Unit</th><th>Price</th></tr>
+                    <tr><th class="min-w-56">Product / Service</th><th class="min-w-72">Description</th><th class="min-w-56">Work item / cost code</th><th>Qty</th><th>Unit</th><th>Price</th></tr>
                     </thead>
                     <tbody>
                     @foreach($rows as $index => $row)
@@ -789,6 +804,18 @@
                             </select>
                         </td>
                         <td><input class="form-input" name="items[{{ $index }}][description]" value="{{ $row['description'] ?? '' }}" @required(! $isPrQuoteUploadCreate) @disabled($isPrQuoteUploadCreate)></td>
+                        <td>
+                            <select class="form-input min-w-56" name="items[{{ $index }}][wbs_item_id]" data-work-item-select @disabled($isPrQuoteUploadCreate) @if($isPrQuoteUploadCreate) data-work-item-force-disabled @endif>
+                                <option value="">Select project first</option>
+                                @foreach($workItems as $workItem)
+                                    <option
+                                        value="{{ $workItem->id }}"
+                                        data-project-id="{{ $workItem->project_id }}"
+                                        @selected((string) ($row['wbs_item_id'] ?? '') === (string) $workItem->id)
+                                    >{{ $workItem->project?->project_code }} - {{ $workItem->code }} {{ $workItem->name }}</option>
+                                @endforeach
+                            </select>
+                        </td>
                         <td><input class="form-input w-28" type="number" step="0.001" min="{{ $isPrQuoteUploadCreate ? '0' : '0.001' }}" name="items[{{ $index }}][quantity]" value="{{ $row['quantity'] ?? 1 }}" @disabled($isPrQuoteUploadCreate)></td>
                         <td><input class="form-input w-24" name="items[{{ $index }}][unit]" value="{{ $row['unit'] ?? 'unit' }}" @disabled($isPrQuoteUploadCreate)></td>
                         <td><input class="form-input w-32" type="number" step="0.01" min="0" name="items[{{ $index }}][unit_price]" value="{{ $row['unit_price'] ?? 0 }}" @disabled($isPrQuoteUploadCreate)></td>
@@ -938,6 +965,17 @@
             <label class="form-label mt-0"><span data-receipt-label="lineDescriptionHeader">Received material description</span>
                 <input class="form-input" data-name="description" required>
             </label>
+            <label class="form-label mt-0">Work item / cost code
+                <select class="form-input" data-name="wbs_item_id" data-work-item-select>
+                    <option value="">Select project first</option>
+                    @foreach($workItems as $workItem)
+                        <option
+                            value="{{ $workItem->id }}"
+                            data-project-id="{{ $workItem->project_id }}"
+                        >{{ $workItem->project?->project_code }} - {{ $workItem->code }} {{ $workItem->name }}</option>
+                    @endforeach
+                </select>
+            </label>
         </div>
         <div class="receiving-line-qty-grid">
             <div class="receiving-line-readonly">
@@ -975,6 +1013,17 @@
             </select>
         </td>
         <td><input class="form-input" data-name="description" required></td>
+        <td>
+            <select class="form-input min-w-56" data-name="wbs_item_id" data-work-item-select @if($isPrQuoteUploadCreate) data-work-item-force-disabled @endif>
+                <option value="">Select project first</option>
+                @foreach($workItems as $workItem)
+                    <option
+                        value="{{ $workItem->id }}"
+                        data-project-id="{{ $workItem->project_id }}"
+                    >{{ $workItem->project?->project_code }} - {{ $workItem->code }} {{ $workItem->name }}</option>
+                @endforeach
+            </select>
+        </td>
         <td><input class="form-input w-28" data-name="quantity" type="number" step="0.001" min="0.001" value="1"></td>
         <td><input class="form-input w-24" data-name="unit" value="unit"></td>
         <td><input class="form-input w-32" data-name="unit_price" type="number" step="0.01" min="0" value="0"></td>
@@ -1155,6 +1204,48 @@ function syncProjectFromRelatedDocument() {
     if (projectId && hasProjectOption) {
         projectSelect.value = projectId;
     }
+
+    filterWorkItemOptions();
+}
+
+function filterWorkItemOptions() {
+    const projectSelect = document.querySelector('[data-project-select]');
+    const projectId = projectSelect?.value || '';
+
+    document.querySelectorAll('[data-work-item-select]').forEach((select) => {
+        const emptyOption = select.querySelector('option[value=""]');
+        let availableCount = 0;
+
+        select.querySelectorAll('option').forEach((option) => {
+            if (!option.value) {
+                option.hidden = false;
+                option.disabled = false;
+                return;
+            }
+
+            const matchesProject = projectId !== '' && option.dataset.projectId === projectId;
+            option.hidden = !matchesProject;
+            option.disabled = !matchesProject;
+
+            if (matchesProject) {
+                availableCount += 1;
+            }
+        });
+
+        const selectedOption = select.selectedOptions[0];
+        if (!projectId || selectedOption?.disabled || selectedOption?.hidden) {
+            select.value = '';
+        }
+
+        if (emptyOption) {
+            emptyOption.textContent = projectId === ''
+                ? 'Select project first'
+                : (availableCount > 0 ? 'No work item' : 'No work items for this project');
+        }
+
+        const hiddenManualLinePanel = select.closest('[data-pr-manual-lines]')?.classList.contains('hidden') || false;
+        select.disabled = projectId === '' || select.hasAttribute('data-work-item-force-disabled') || hiddenManualLinePanel;
+    });
 }
 
 function escapeHtml(value) {
@@ -1543,6 +1634,7 @@ document.querySelector('[data-add-line]')?.addEventListener('click', function ()
     const template = document.querySelector('#line-template').content.cloneNode(true);
     wireNamedTemplate(template, tbody.children.length, 'items');
     tbody.appendChild(template);
+    filterWorkItemOptions();
     refreshDocumentPreview();
 });
 
@@ -1563,6 +1655,10 @@ document.querySelector('[data-party-select]')?.addEventListener('change', functi
 });
 document.querySelector('[data-related-document-select]')?.addEventListener('change', function () {
     syncProjectFromRelatedDocument();
+    refreshDocumentPreview();
+});
+document.querySelector('[data-project-select]')?.addEventListener('change', function () {
+    filterWorkItemOptions();
     refreshDocumentPreview();
 });
 document.querySelector('[data-receipt-mode]')?.addEventListener('change', refreshDocumentPreview);
@@ -1700,6 +1796,8 @@ function syncPurchaseRequestSourceMode() {
             ? (hasFile ? 'Draft will open for quotation review.' : 'Choose a supplier quotation file to enable OCR.')
             : 'Enter lines and add the exception reason.';
     }
+
+    filterWorkItemOptions();
 }
 
 document.querySelector('[data-pr-create-form]')?.addEventListener('change', function (event) {
@@ -1711,6 +1809,7 @@ document.querySelector('[data-pr-create-form]')?.addEventListener('change', func
 toggleBillingStages();
 filterRelatedDocuments();
 syncProjectFromRelatedDocument();
+filterWorkItemOptions();
 syncPurchaseRequestSourceMode();
 refreshDocumentPreview();
 </script>

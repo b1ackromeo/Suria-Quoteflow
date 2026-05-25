@@ -398,6 +398,8 @@ Which documents belong to this job?
 
 Goal: assign document lines to work items.
 
+Implementation status: foundation completed in the Laravel Blade app.
+
 Build:
 
 ```text
@@ -407,6 +409,17 @@ document_items.wbs_item_id
 Line-level work item selector
 Copy project/WBS links during document conversion
 Basic WBS budget summary
+```
+
+Implemented behavior:
+
+```text
+Project pages include Work breakdown management for work items and cost codes.
+Document line forms can assign optional work items after a project is selected.
+Document validation prevents assigning a work item from a different project.
+New and converted document lines preserve project and work item links.
+Project Work breakdown summarizes line-level budget, revenue, committed cost, actual cost, and unassigned project lines.
+Search, readiness checks, and database backup verification include the WBS/work-item table.
 ```
 
 This answers:

@@ -13,6 +13,8 @@ class DocumentItem extends Model
     protected $fillable = [
         'document_id',
         'product_id',
+        'project_id',
+        'wbs_item_id',
         'description',
         'quantity',
         'unit',
@@ -38,5 +40,15 @@ class DocumentItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function wbsItem(): BelongsTo
+    {
+        return $this->belongsTo(WbsItem::class);
     }
 }

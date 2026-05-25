@@ -11,6 +11,7 @@ use App\Http\Controllers\DocumentPdfController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectWorkItemController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SupplierController;
@@ -43,6 +44,9 @@ Route::middleware(['auth', 'role:admin,manager,sales,procurement,accounts,viewer
     Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
     Route::get('/projects/{project}/edit', [ProjectController::class, 'edit'])->middleware('role:admin,manager')->name('projects.edit');
     Route::put('/projects/{project}', [ProjectController::class, 'update'])->middleware('role:admin,manager')->name('projects.update');
+    Route::post('/projects/{project}/work-items', [ProjectWorkItemController::class, 'store'])->middleware('role:admin,manager')->name('projects.work-items.store');
+    Route::put('/projects/{project}/work-items/{wbsItem}', [ProjectWorkItemController::class, 'update'])->middleware('role:admin,manager')->name('projects.work-items.update');
+    Route::delete('/projects/{project}/work-items/{wbsItem}', [ProjectWorkItemController::class, 'destroy'])->middleware('role:admin,manager')->name('projects.work-items.destroy');
 
     Route::get('/documents/{module}', [DocumentController::class, 'index'])->name('documents.index');
     Route::get('/documents/{module}/export', [DocumentController::class, 'exportCsv'])->name('documents.export');
