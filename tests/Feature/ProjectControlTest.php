@@ -104,6 +104,48 @@ class ProjectControlTest extends TestCase
         $show->assertSee('SPO-2026-90001');
     }
 
+    public function test_project_page_shows_budget_margin_and_exception_reports(): void
+    {
+        $project = $this->createProject([
+            'budget_amount' => 1000,
+            'margin_target_percent' => 25,
+        ]);
+        $workItem = $this->createWorkItem($project, [
+            'revenue_budget' => 1500,
+            'cost_budget' => 1000,
+        ]);
+        $customerPo = $this->createLinkedDocument($project, 'customer_po', 'CPO-2026-92001', 1000);
+        $customerInvoice = $this->createLinkedDocument($project, 'customer_invoice', 'INV-2026-92001', 600);
+        $supplierPo = $this->createLinkedDocument($project, 'supplier_po', 'SPO-2026-92001', 1200);
+        $goodsReceipt = $this->createLinkedDocument($project, 'goods_receipt', 'GR-2026-92001', 900);
+        $supplierInvoice = $this->createLinkedDocument($project, 'supplier_invoice', 'SIN-2026-92001', 1300);
+        $quotation = $this->createLinkedDocument($project, 'customer_quotation', 'CQ-2026-92001', 1200);
+
+        $this->addProjectLine($customerPo, $workItem, 1000);
+        $this->addProjectLine($customerInvoice, $workItem, 600);
+        $this->addProjectLine($supplierPo, $workItem, 1200);
+        $this->addProjectLine($goodsReceipt, $workItem, 900);
+        $this->addProjectLine($supplierInvoice, $workItem, 1300);
+        $this->addProjectLine($quotation, null, 1200);
+
+        $show = $this->get(route('projects.show', $project));
+
+        $show->assertOk();
+        $show->assertSee('Budget and margin');
+        $show->assertSee('Expected margin');
+        $show->assertSee('Actual margin');
+        $show->assertSee('Unbilled revenue');
+        $show->assertSee('Unpaid supplier cost');
+        $show->assertSee('Project exceptions');
+        $show->assertSee('Margin below target');
+        $show->assertSee('Work item missing');
+        $show->assertSee('Budget overrun');
+        $show->assertSee('Actual cost over budget');
+        $show->assertSee('Supplier actual above committed');
+        $show->assertSee('Received / accepted');
+        $show->assertSee('Actual variance');
+    }
+
     public function test_admin_can_create_and_update_project_records(): void
     {
         $this->post(route('projects.store'), [
@@ -555,6 +597,23 @@ class ProjectControlTest extends TestCase
             'tax_total' => 0,
             'total' => $total,
             'created_by' => $this->admin->id,
+        ]);
+    }
+
+    private function addProjectLine(Document $document, ?WbsItem $workItem, float $total): DocumentItem
+    {
+        return DocumentItem::create([
+            'document_id' => $document->id,
+            'product_id' => $this->service->id,
+            'project_id' => $document->project_id,
+            'wbs_item_id' => $workItem?->id,
+            'description' => 'Project report test line',
+            'quantity' => 1,
+            'unit' => 'job',
+            'unit_price' => $total,
+            'tax_rate' => 0,
+            'tax_amount' => 0,
+            'line_total' => $total,
         ]);
     }
 

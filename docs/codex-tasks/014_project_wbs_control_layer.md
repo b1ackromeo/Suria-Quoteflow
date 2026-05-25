@@ -467,6 +467,8 @@ Should this document be approved based on budget and margin impact?
 
 Goal: give management visibility.
 
+Implementation status: project detail visibility completed in the Laravel Blade app.
+
 Build:
 
 ```text
@@ -475,6 +477,16 @@ WBS budget report
 Committed vs actual cost report
 Unassigned lines report
 Project exceptions report
+```
+
+Implemented behavior:
+
+```text
+Project pages show budget and margin reporting from persisted documents, line items, work items, and payments.
+Project pages show expected margin percentage, actual margin percentage, unbilled revenue, unpaid supplier cost, and budget remaining.
+Work breakdown reporting includes received / accepted cost, supplier actual cost, remaining budget, and actual variance by work item.
+Project exception reporting highlights margin below target, unassigned project lines, work-item budget overruns, actual cost over budget, and supplier actuals above committed purchase order cost.
+Project commercial calculations now live in a dedicated report service instead of controller-only calculations.
 ```
 
 This answers:

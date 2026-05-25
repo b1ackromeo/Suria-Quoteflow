@@ -7,7 +7,9 @@
     $companyProfile = \App\Models\CompanyProfile::active();
     $money = fn ($value) => $companyProfile->formatMoney($value);
     $date = fn ($value) => $value ? $companyProfile->formatDate($value) : 'Not set';
+    $percent = fn ($value) => $value === null ? 'Not available' : rtrim(rtrim(number_format((float) $value, 2), '0'), '.').'%';
     $marginTarget = rtrim(rtrim(number_format((float) $project->margin_target_percent, 2), '0'), '.');
+    $projectExceptions = $projectExceptions ?? [];
 @endphp
 
 @section('content')
@@ -109,8 +111,16 @@
                         <strong>{{ $money($summary['customer_paid']) }}</strong>
                     </div>
                     <div class="directory-stat-card">
+                        <span>Estimated cost</span>
+                        <strong>{{ $money($summary['estimated_cost']) }}</strong>
+                    </div>
+                    <div class="directory-stat-card">
                         <span>Supplier committed</span>
                         <strong>{{ $money($summary['supplier_committed']) }}</strong>
+                    </div>
+                    <div class="directory-stat-card">
+                        <span>Received / accepted</span>
+                        <strong>{{ $money($summary['received_cost']) }}</strong>
                     </div>
                     <div class="directory-stat-card">
                         <span>Supplier invoiced</span>
@@ -127,6 +137,65 @@
                     <div class="directory-stat-card">
                         <span>Actual margin</span>
                         <strong>{{ $money($summary['actual_margin']) }}</strong>
+                    </div>
+                </section>
+
+                <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="directory-table-header border-0 p-0">
+                        <div>
+                            <h2 class="panel-title">Budget and margin</h2>
+                            <p class="panel-subtitle">Commercial position based on customer confirmations, supplier commitments, invoices, and payments.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                        <div class="directory-stat-card">
+                            <span>Expected margin</span>
+                            <strong>{{ $percent($summary['expected_margin_percent']) }}</strong>
+                        </div>
+                        <div class="directory-stat-card">
+                            <span>Actual margin</span>
+                            <strong>{{ $percent($summary['actual_margin_percent']) }}</strong>
+                        </div>
+                        <div class="directory-stat-card">
+                            <span>Unbilled revenue</span>
+                            <strong>{{ $money($summary['unbilled_revenue']) }}</strong>
+                        </div>
+                        <div class="directory-stat-card">
+                            <span>Unpaid supplier cost</span>
+                            <strong>{{ $money($summary['unpaid_supplier_cost']) }}</strong>
+                        </div>
+                        <div class="directory-stat-card">
+                            <span>Budget remaining</span>
+                            <strong>{{ $money($summary['budget_remaining']) }}</strong>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="directory-table-header border-0 p-0">
+                        <div>
+                            <h2 class="panel-title">Project exceptions</h2>
+                            <p class="panel-subtitle">Items that need management review before relying on the project position.</p>
+                        </div>
+                        <span class="issuer-mini">{{ count($projectExceptions) }} open</span>
+                    </div>
+
+                    <div class="document-readiness-list">
+                        @forelse($projectExceptions as $exception)
+                            <article class="document-readiness-item readiness-state-{{ $exception['state'] }}">
+                                <strong>{{ $exception['title'] }}</strong>
+                                <p>{{ $exception['message'] }}</p>
+                                @if(isset($exception['amount']))
+                                    <p class="mt-1 text-xs font-bold uppercase tracking-wide text-slate-500">Amount: {{ $money($exception['amount']) }}</p>
+                                @endif
+                            </article>
+                        @empty
+                            <article class="document-readiness-item readiness-state-ready">
+                                <strong>No project exceptions visible</strong>
+                                <p>Budget, margin, actual cost, and work-item assignment checks have no visible blockers.</p>
+                            </article>
+                        @endforelse
                     </div>
                 </section>
 
@@ -160,8 +229,16 @@
                                 <strong>{{ $money($workItemTotals['supplier_committed']) }}</strong>
                             </div>
                             <div class="directory-stat-card">
+                                <span>Received / accepted</span>
+                                <strong>{{ $money($workItemTotals['received_cost']) }}</strong>
+                            </div>
+                            <div class="directory-stat-card">
                                 <span>Supplier actual</span>
                                 <strong>{{ $money($workItemTotals['supplier_actual']) }}</strong>
+                            </div>
+                            <div class="directory-stat-card">
+                                <span>Actual variance</span>
+                                <strong>{{ $money($workItemTotals['actual_variance']) }}</strong>
                             </div>
                             <div class="directory-stat-card">
                                 <span>Unassigned project lines</span>
@@ -226,8 +303,10 @@
                                         'quoted_revenue' => 0,
                                         'customer_confirmed' => 0,
                                         'supplier_committed' => 0,
+                                        'received_cost' => 0,
                                         'supplier_actual' => 0,
                                         'remaining_budget' => (float) $workItem->cost_budget,
+                                        'actual_variance' => (float) $workItem->cost_budget,
                                     ];
                                 @endphp
                                 <article class="rounded-lg border border-slate-200 bg-white p-4">
@@ -249,7 +328,7 @@
                                         <span class="issuer-mini">{{ $itemSummary['line_count'] }} line{{ $itemSummary['line_count'] === 1 ? '' : 's' }}</span>
                                     </div>
 
-                                    <div class="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+                                    <div class="mt-4 grid gap-3 md:grid-cols-4 xl:grid-cols-8">
                                         <div class="directory-stat-card">
                                             <span>Revenue budget</span>
                                             <strong>{{ $money($workItem->revenue_budget) }}</strong>
@@ -271,8 +350,20 @@
                                             <strong>{{ $money($itemSummary['supplier_committed']) }}</strong>
                                         </div>
                                         <div class="directory-stat-card">
+                                            <span>Received / accepted</span>
+                                            <strong>{{ $money($itemSummary['received_cost']) }}</strong>
+                                        </div>
+                                        <div class="directory-stat-card">
+                                            <span>Supplier actual</span>
+                                            <strong>{{ $money($itemSummary['supplier_actual']) }}</strong>
+                                        </div>
+                                        <div class="directory-stat-card">
                                             <span>Remaining budget</span>
                                             <strong>{{ $money($itemSummary['remaining_budget']) }}</strong>
+                                        </div>
+                                        <div class="directory-stat-card">
+                                            <span>Actual variance</span>
+                                            <strong>{{ $money($itemSummary['actual_variance']) }}</strong>
                                         </div>
                                     </div>
 
@@ -357,49 +448,51 @@
                             <p class="panel-subtitle">Documents linked through the Project / job field.</p>
                         </div>
                     </div>
-                    <table class="data-table">
-                        <thead>
-                        <tr>
-                            <th>Document</th>
-                            <th>Party</th>
-                            <th>Issue date</th>
-                            <th class="text-right">Total</th>
-                            <th>Status</th>
-                            <th></th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @forelse($documents as $document)
-                            @php
-                                $slug = \App\Models\Document::slugForType($document->type);
-                                $meta = \App\Models\Document::metaForSlug($slug);
-                            @endphp
+                    <div class="document-compact-table">
+                        <table>
+                            <thead>
                             <tr>
-                                <td>
-                                    <p class="font-bold text-slate-950">{{ $document->document_number }}</p>
-                                    <p class="mt-1 text-xs font-bold uppercase tracking-wide text-slate-400">{{ $meta['singular'] }}</p>
-                                </td>
-                                <td>{{ $document->partyName() }}</td>
-                                <td>{{ $date($document->issue_date) }}</td>
-                                <td class="text-right font-bold text-slate-950">{{ $money($document->total) }}</td>
-                                <td>
-                                    <span
-                                        class="status-chip status-{{ $document->status }}"
-                                        aria-label="{{ $document->statusAriaLabel() }}"
-                                        data-status-group="{{ $document->statusSemanticGroupDisplay() }}"
-                                    >{{ $document->statusDisplay() }}</span>
-                                </td>
-                                <td class="text-right">
-                                    <a class="btn btn-secondary" href="{{ route('documents.show', $document) }}">Open</a>
-                                </td>
+                                <th>Document</th>
+                                <th>Party</th>
+                                <th>Issue date</th>
+                                <th class="text-right">Total</th>
+                                <th>Status</th>
+                                <th></th>
                             </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="empty-cell">No documents are linked to this project yet.</td>
-                            </tr>
-                        @endforelse
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                            @forelse($documents as $document)
+                                @php
+                                    $slug = \App\Models\Document::slugForType($document->type);
+                                    $meta = \App\Models\Document::metaForSlug($slug);
+                                @endphp
+                                <tr>
+                                    <td data-label="Document">
+                                        <strong>{{ $document->document_number }}</strong>
+                                        <span>{{ $meta['singular'] }}</span>
+                                    </td>
+                                    <td data-label="Party">{{ $document->partyName() }}</td>
+                                    <td data-label="Issue date">{{ $date($document->issue_date) }}</td>
+                                    <td data-label="Total" class="text-right font-bold text-slate-950">{{ $money($document->total) }}</td>
+                                    <td data-label="Status">
+                                        <span
+                                            class="status-chip status-{{ $document->status }}"
+                                            aria-label="{{ $document->statusAriaLabel() }}"
+                                            data-status-group="{{ $document->statusSemanticGroupDisplay() }}"
+                                        >{{ $document->statusDisplay() }}</span>
+                                    </td>
+                                    <td data-label="Action" class="text-right">
+                                        <a class="btn btn-secondary" href="{{ route('documents.show', $document) }}">Open</a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="empty-cell">No documents are linked to this project yet.</td>
+                                </tr>
+                            @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </section>
             </div>
 
