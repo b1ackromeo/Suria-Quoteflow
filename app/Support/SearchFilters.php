@@ -31,6 +31,7 @@ class SearchFilters
                 ->orWhere('terms', 'like', $like)
                 ->orWhereHas('customer', fn (Builder $customer) => self::customers($customer, $like, true))
                 ->orWhereHas('supplier', fn (Builder $supplier) => self::suppliers($supplier, $like, true))
+                ->orWhereHas('project', fn (Builder $project) => self::projects($project, $like, true))
                 ->orWhereHas('relatedDocument', function (Builder $related) use ($like) {
                     $related->where('document_number', 'like', $like)
                         ->orWhere('external_reference', 'like', $like);
@@ -161,6 +162,30 @@ class SearchFilters
                 $nested->orWhere('selling_price', $number)
                     ->orWhere('cost_price', $number)
                     ->orWhere('tax_rate', $number);
+            }
+        });
+    }
+
+    public static function projects(Builder $query, string $term, bool $termIsLike = false): Builder
+    {
+        $like = $termIsLike ? $term : self::like($term);
+        $number = $termIsLike ? null : self::number($term);
+
+        return $query->where(function (Builder $nested) use ($like, $number) {
+            $nested->where('project_code', 'like', $like)
+                ->orWhere('name', 'like', $like)
+                ->orWhere('status', 'like', $like)
+                ->orWhere('description', 'like', $like)
+                ->orWhereHas('customer', fn (Builder $customer) => self::customers($customer, $like, true))
+                ->orWhereHas('manager', function (Builder $manager) use ($like) {
+                    $manager->where('name', 'like', $like)
+                        ->orWhere('email', 'like', $like);
+                });
+
+            if ($number !== null) {
+                $nested->orWhere('contract_value', $number)
+                    ->orWhere('budget_amount', $number)
+                    ->orWhere('margin_target_percent', $number);
             }
         });
     }

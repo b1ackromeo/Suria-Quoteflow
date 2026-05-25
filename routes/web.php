@@ -10,6 +10,7 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DocumentPdfController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SupplierController;
@@ -35,6 +36,13 @@ Route::middleware(['auth', 'role:admin,manager,sales,procurement,accounts,viewer
     Route::resource('customers', CustomerController::class)->middleware('role:admin,manager,sales')->except(['show', 'destroy']);
     Route::resource('suppliers', SupplierController::class)->middleware('role:admin,manager,procurement')->except(['show', 'destroy']);
     Route::resource('products', ProductController::class)->middleware('role:admin,manager,sales,procurement')->except(['show', 'destroy']);
+
+    Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
+    Route::get('/projects/create', [ProjectController::class, 'create'])->middleware('role:admin,manager')->name('projects.create');
+    Route::post('/projects', [ProjectController::class, 'store'])->middleware('role:admin,manager')->name('projects.store');
+    Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
+    Route::get('/projects/{project}/edit', [ProjectController::class, 'edit'])->middleware('role:admin,manager')->name('projects.edit');
+    Route::put('/projects/{project}', [ProjectController::class, 'update'])->middleware('role:admin,manager')->name('projects.update');
 
     Route::get('/documents/{module}', [DocumentController::class, 'index'])->name('documents.index');
     Route::get('/documents/{module}/export', [DocumentController::class, 'exportCsv'])->name('documents.export');

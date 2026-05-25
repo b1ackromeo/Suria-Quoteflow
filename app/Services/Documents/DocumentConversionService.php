@@ -128,6 +128,7 @@ class DocumentConversionService
             'customer_id' => $source->customer_id,
             'supplier_id' => $source->supplier_id,
             'related_document_id' => $source->id,
+            'project_id' => $source->project_id,
             'source_type' => $this->sourceTypeForRelatedDocument($targetType, $source->type),
             'source_note' => null,
             'project_name' => $source->project_name,

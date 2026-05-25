@@ -110,6 +110,7 @@ class Document extends Model
         'customer_id',
         'supplier_id',
         'related_document_id',
+        'project_id',
         'source_type',
         'source_note',
         'project_name',
@@ -197,6 +198,11 @@ class Document extends Model
     public function relatedDocument(): BelongsTo
     {
         return $this->belongsTo(self::class, 'related_document_id');
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 
     public function items(): HasMany

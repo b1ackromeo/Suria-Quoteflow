@@ -23,6 +23,7 @@ class DatabaseBackupCommand extends Command
         'customers',
         'suppliers',
         'products',
+        'projects',
         'documents',
         'document_items',
         'document_sequences',

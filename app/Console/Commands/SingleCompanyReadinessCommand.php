@@ -298,7 +298,7 @@ class SingleCompanyReadinessCommand extends Command
     {
         $allPresent = true;
 
-        foreach (['users', 'company_profiles', 'customers', 'suppliers', 'products', 'documents', 'document_items', 'document_sequences', 'payments', 'approvals', 'attachments', 'attachment_extractions', 'audit_trails', 'document_billing_stages'] as $table) {
+        foreach (['users', 'company_profiles', 'customers', 'suppliers', 'products', 'projects', 'documents', 'document_items', 'document_sequences', 'payments', 'approvals', 'attachments', 'attachment_extractions', 'audit_trails', 'document_billing_stages'] as $table) {
             $exists = Schema::hasTable($table);
             $allPresent = $allPresent && $exists;
 

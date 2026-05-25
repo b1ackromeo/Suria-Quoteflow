@@ -3611,6 +3611,7 @@ class DocumentWorkflowTest extends TestCase
             'customer_id' => $overrides['customer_id'] ?? null,
             'supplier_id' => $overrides['supplier_id'] ?? null,
             'related_document_id' => $overrides['related_document_id'] ?? null,
+            'project_id' => $overrides['project_id'] ?? null,
             'source_type' => $overrides['source_type'] ?? ($module === 'goods-receipts' && empty($overrides['related_document_id']) ? 'direct_receipt' : null),
             'source_note' => $overrides['source_note'] ?? null,
             'external_reference' => $overrides['external_reference'],

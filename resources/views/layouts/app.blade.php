@@ -20,6 +20,7 @@
         $isModule = fn ($module) => request()->routeIs('documents.*') && $moduleRoute === $module;
         $primaryNav = [
             ['label' => 'Dashboard', 'icon' => 'dashboard', 'route' => route('dashboard'), 'active' => request()->routeIs('dashboard')],
+            ['label' => 'Projects', 'icon' => 'projects', 'route' => route('projects.index'), 'active' => request()->routeIs('projects.*')],
             ['label' => 'Finance reports', 'icon' => 'reports', 'route' => route('reports.index'), 'active' => request()->routeIs('reports.*')],
         ];
         if (auth()->user()->hasRole('admin', 'manager', 'accounts')) {

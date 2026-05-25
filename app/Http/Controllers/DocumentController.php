@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Models\Document;
 use App\Models\DocumentItem;
 use App\Models\Product;
+use App\Models\Project;
 use App\Models\Supplier;
 use App\Services\Documents\BusinessDocumentCaptureService;
 use App\Services\Documents\DocumentChainService;
@@ -116,6 +117,7 @@ class DocumentController extends Controller
                 'customer_id' => $data['customer_id'] ?? null,
                 'supplier_id' => $data['supplier_id'] ?? null,
                 'related_document_id' => $data['related_document_id'] ?? null,
+                'project_id' => $data['project_id'] ?? null,
                 'source_type' => $data['source_type'] ?? null,
                 'source_note' => $data['source_note'] ?? null,
                 'project_name' => $data['project_name'] ?? null,
@@ -164,7 +166,7 @@ class DocumentController extends Controller
 
     public function show(Document $document, PaymentEligibilityService $paymentEligibility, DocumentChainService $documentChain, DocumentConversionService $documentConversion): View
     {
-        $document->load(['customer', 'supplier', 'relatedDocument', 'items.product', 'billingStages', 'payments.creator', 'approvals.requester', 'approvals.decider', 'attachments.uploader', 'attachments.extraction.verifier', 'creator', 'approver']);
+        $document->load(['customer', 'supplier', 'project', 'relatedDocument', 'items.product', 'billingStages', 'payments.creator', 'approvals.requester', 'approvals.decider', 'attachments.uploader', 'attachments.extraction.verifier', 'creator', 'approver']);
         $supplierInvoiceVerification = $document->type === 'supplier_invoice'
             ? $this->supplierInvoiceVerification->summary($document)
             : null;
@@ -223,6 +225,7 @@ class DocumentController extends Controller
                 'customer_id' => $data['customer_id'] ?? null,
                 'supplier_id' => $data['supplier_id'] ?? null,
                 'related_document_id' => $data['related_document_id'] ?? null,
+                'project_id' => $data['project_id'] ?? null,
                 'source_type' => $data['source_type'] ?? null,
                 'source_note' => $data['source_note'] ?? null,
                 'project_name' => $data['project_name'] ?? null,
@@ -1023,7 +1026,7 @@ class DocumentController extends Controller
 
     private function baseQuery(array $meta)
     {
-        return Document::with(['customer', 'supplier'])
+        return Document::with(['customer', 'supplier', 'project'])
             ->where('type', $meta['type']);
     }
 
@@ -1032,6 +1035,7 @@ class DocumentController extends Controller
         $allowedRelatedTypes = $this->allowedRelatedTypes($meta['type']);
 
         $relatedDocuments = Document::where('id', '!=', $document->id ?? 0)
+            ->with(['customer', 'supplier'])
             ->where('direction', $meta['direction'])
             ->when($allowedRelatedTypes !== [], fn ($query) => $query->whereIn('type', $allowedRelatedTypes))
             ->when($allowedRelatedTypes === [], fn ($query) => $query->whereRaw('1 = 0'));
@@ -1046,6 +1050,21 @@ class DocumentController extends Controller
             ->latest('issue_date')
             ->limit(100)
             ->get();
+
+        $projects = Project::query()
+            ->where('status', 'active')
+            ->orderBy('project_code')
+            ->orderBy('name')
+            ->limit(200)
+            ->get();
+
+        if ($document->project_id && ! $projects->contains('id', $document->project_id)) {
+            $currentProject = Project::find($document->project_id);
+
+            if ($currentProject) {
+                $projects->push($currentProject);
+            }
+        }
 
         return [
             'meta' => $meta,
@@ -1065,6 +1084,7 @@ class DocumentController extends Controller
                 ->orderBy('name')
                 ->get(),
             'products' => Product::where('is_active', true)->orderBy('name')->get(),
+            'projects' => $projects,
             'relatedDocuments' => $relatedDocuments,
         ];
     }
@@ -1085,6 +1105,7 @@ class DocumentController extends Controller
             'related_document_id' => $sourceDocument->id,
             'customer_id' => $sourceDocument->customer_id,
             'supplier_id' => $sourceDocument->supplier_id,
+            'project_id' => $sourceDocument->project_id,
             'source_type' => $this->sourceTypeForRelatedDocument($meta['type'], $sourceDocument->type),
             'project_name' => $sourceDocument->project_name,
             'delivery_to' => $sourceDocument->delivery_to,
@@ -1219,6 +1240,7 @@ class DocumentController extends Controller
             'customer_id' => ['nullable', 'exists:customers,id'],
             'supplier_id' => ['nullable', 'exists:suppliers,id'],
             'related_document_id' => ['nullable', 'exists:documents,id'],
+            'project_id' => ['nullable', 'exists:projects,id'],
             'source_type' => ['nullable', 'string', 'max:80'],
             'source_note' => ['nullable', 'string'],
             'project_name' => ['nullable', 'string', 'max:255'],
@@ -1316,6 +1338,14 @@ class DocumentController extends Controller
 
             if ($meta['party'] === 'supplier' && (int) $relatedDocument->supplier_id !== (int) ($data['supplier_id'] ?? 0)) {
                 throw ValidationException::withMessages(['related_document_id' => 'Select a related document for the selected supplier.']);
+            }
+
+            if (! empty($relatedDocument->project_id) && empty($data['project_id'])) {
+                $data['project_id'] = $relatedDocument->project_id;
+            }
+
+            if (! empty($relatedDocument->project_id) && ! empty($data['project_id']) && (int) $relatedDocument->project_id !== (int) $data['project_id']) {
+                throw ValidationException::withMessages(['project_id' => 'Select the same project as the related document, or clear the related document first.']);
             }
         }
 

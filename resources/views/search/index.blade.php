@@ -2,7 +2,7 @@
 
 @php
     $companyProfile = \App\Models\CompanyProfile::active();
-    $totalResults = $documents->count() + $customers->count() + $suppliers->count() + $products->count();
+    $totalResults = $documents->count() + $projects->count() + $customers->count() + $suppliers->count() + $products->count();
     $canManageCustomers = auth()->user()->hasRole('admin', 'manager', 'sales');
     $canManageSuppliers = auth()->user()->hasRole('admin', 'manager', 'procurement');
     $canManageProducts = auth()->user()->hasRole('admin', 'manager', 'sales', 'procurement');
@@ -14,7 +14,7 @@
         <div>
             <p class="document-pane-kicker">Global search</p>
             <h1 class="text-2xl font-bold tracking-tight text-slate-950">Search Suria QuoteFlow</h1>
-            <p class="mt-1 text-sm font-semibold text-slate-500">Find documents, customers, suppliers, products, services, payment stages, dates, and amounts.</p>
+            <p class="mt-1 text-sm font-semibold text-slate-500">Find documents, projects, customers, suppliers, products, services, payment stages, dates, and amounts.</p>
         </div>
         @if($q !== '')
             <span class="status-chip status-approved">{{ $totalResults }} results</span>
@@ -22,7 +22,7 @@
     </div>
 
     <form class="grid gap-3 md:grid-cols-[1fr_auto]" method="get" action="{{ route('search.index') }}">
-        <input class="form-input mt-0" type="search" name="q" value="{{ $q }}" placeholder="Search document no., reference, customer, supplier, item, status, or amount..." autofocus>
+        <input class="form-input mt-0" type="search" name="q" value="{{ $q }}" placeholder="Search document no., project, reference, customer, supplier, item, status, or amount..." autofocus>
         <button class="btn btn-primary" type="submit">Search</button>
     </form>
 </section>
@@ -30,7 +30,7 @@
 @if($q === '')
     <section class="panel mt-5">
         <div class="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm font-semibold text-slate-500">
-            Enter a document number, reference, customer, supplier, contact, product, service, status, payment stage, date, or amount to search.
+            Enter a document number, project, reference, customer, supplier, contact, product, service, status, payment stage, date, or amount to search.
         </div>
     </section>
 @else
@@ -80,9 +80,15 @@
                                 <dt class="document-row-meta">Total</dt>
                                 <dd class="mt-1 font-bold text-slate-950">{{ $companyProfile->formatMoney($document->total, $document->currency) }}</dd>
                             </div>
+                            @if($document->project)
+                                <div>
+                                    <dt class="document-row-meta">Project / job</dt>
+                                    <dd class="mt-1 font-semibold text-slate-700">{{ $document->project->displayLabel() }}</dd>
+                                </div>
+                            @endif
                             @if($document->project_name)
                                 <div>
-                                    <dt class="document-row-meta">Project / site</dt>
+                                    <dt class="document-row-meta">Project / site note</dt>
                                     <dd class="mt-1 font-semibold text-slate-700">{{ $document->project_name }}</dd>
                                 </div>
                             @endif
@@ -131,6 +137,32 @@
         </div>
 
         <div class="space-y-5">
+            <section class="panel">
+                <div class="panel-header">
+                    <div>
+                        <h2 class="panel-title">Projects</h2>
+                        <p class="panel-subtitle">Project code, name, customer, manager, status, or amount.</p>
+                    </div>
+                    <span class="status-chip status-draft">{{ $projects->count() }}</span>
+                </div>
+                <div class="space-y-3">
+                    @forelse($projects as $project)
+                        <div class="rounded-lg border border-slate-200 bg-white p-3">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="truncate text-sm font-bold text-slate-950">{{ $project->name }}</p>
+                                    <p class="mt-1 text-xs font-semibold text-slate-500">{{ $project->project_code }} · {{ $project->customer?->name ?? 'No customer assigned' }}</p>
+                                    <p class="mt-1 text-xs font-semibold text-slate-500">Budget: {{ $companyProfile->formatMoney($project->budget_amount) }}</p>
+                                </div>
+                                <a class="btn btn-secondary min-h-9 px-3 py-1.5" href="{{ route('projects.show', $project) }}">Open</a>
+                            </div>
+                        </div>
+                    @empty
+                        <p class="text-sm font-semibold text-slate-500">No matching projects.</p>
+                    @endforelse
+                </div>
+            </section>
+
             <section class="panel">
                 <div class="panel-header">
                     <div>

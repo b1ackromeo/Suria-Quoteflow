@@ -87,7 +87,7 @@ class DatabaseBackupCommandTest extends TestCase
 
         $this->assertSame(0, $exitCode);
         $this->assertStringContainsString('Database backup verified.', $output);
-        $this->assertStringContainsString('Tables: 14 required table(s) found.', $output);
+        $this->assertStringContainsString('Tables: 15 required table(s) found.', $output);
     }
 
     public function test_verify_backup_fails_when_no_backup_file_exists(): void
@@ -148,6 +148,7 @@ class DatabaseBackupCommandTest extends TestCase
             'customers',
             'suppliers',
             'products',
+            'projects',
             'documents',
             'document_items',
             'document_sequences',

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Product;
+use App\Models\Project;
 use App\Models\Supplier;
 use App\Support\SearchFilters;
 use Illuminate\Http\Request;
@@ -20,7 +21,7 @@ class SearchController extends Controller
             'q' => $term,
             'documents' => $term === ''
                 ? collect()
-                : SearchFilters::documents(Document::with(['customer', 'supplier', 'relatedDocument', 'items.product', 'billingStages', 'payments', 'attachments']), $term)
+                : SearchFilters::documents(Document::with(['customer', 'supplier', 'project', 'relatedDocument', 'items.product', 'billingStages', 'payments', 'attachments']), $term)
                     ->latest('issue_date')
                     ->latest('id')
                     ->limit(25)
@@ -29,6 +30,12 @@ class SearchController extends Controller
                 ? collect()
                 : SearchFilters::customers(Customer::query(), $term)
                     ->orderBy('name')
+                    ->limit(10)
+                    ->get(),
+            'projects' => $term === ''
+                ? collect()
+                : SearchFilters::projects(Project::with(['customer', 'manager']), $term)
+                    ->orderBy('project_code')
                     ->limit(10)
                     ->get(),
             'suppliers' => $term === ''

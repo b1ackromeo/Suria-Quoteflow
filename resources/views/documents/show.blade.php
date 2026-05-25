@@ -185,7 +185,8 @@
         ['label' => $secondaryDateLabel, 'value' => $date($document->due_date)],
         ['label' => 'Reference', 'value' => $document->external_reference ?: 'Not set'],
         ['label' => 'Payment terms', 'value' => $document->paymentTermsDisplay()],
-        ['label' => 'Project / site', 'value' => $document->project_name ?: 'Not set'],
+        ['label' => 'Project / job', 'value' => $document->project?->displayLabel() ?: 'Not linked'],
+        ['label' => 'Project / site note', 'value' => $document->project_name ?: 'Not set'],
     ];
     if ($document->isInvoice()) {
         $detailRows[] = ['label' => 'Progress invoice', 'value' => $document->progress_invoice_number && $document->progress_invoice_total ? 'No. '.$document->progress_invoice_number.' of '.$document->progress_invoice_total : 'Not set'];
@@ -470,8 +471,14 @@
                         </div>
                     @endforeach
                 </dl>
-                @if($document->delivery_to || $document->source_note)
+                @if($document->project || $document->delivery_to || $document->source_note)
                     <div class="document-side-notes">
+                        @if($document->project)
+                            <div>
+                                <strong>Project / job</strong>
+                                <p><a class="link" href="{{ route('projects.show', $document->project) }}">{{ $document->project->displayLabel() }}</a></p>
+                            </div>
+                        @endif
                         @if($document->delivery_to)
                             <div>
                                 <strong>Delivery / service location</strong>

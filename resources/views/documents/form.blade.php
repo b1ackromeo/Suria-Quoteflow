@@ -536,10 +536,20 @@
                         <option
                             value="{{ $related->id }}"
                             data-party-id="{{ $related->customer_id ?? $related->supplier_id }}"
+                            data-project-id="{{ $related->project_id }}"
                             @selected((int) old('related_document_id', $document->related_document_id) === $related->id)
                         >{{ $related->document_number }} · {{ $related->partyName() }}</option>
                     @endforeach
                 </select>
+            </label>
+            <label class="form-label">Project / job
+                <select class="form-input" name="project_id" data-project-select>
+                    <option value="">No project</option>
+                    @foreach($projects as $project)
+                        <option value="{{ $project->id }}" @selected((int) old('project_id', $document->project_id) === $project->id)>{{ $project->project_code }} - {{ $project->name }}</option>
+                    @endforeach
+                </select>
+                <span class="mt-1 block text-xs font-semibold text-slate-500">Optional for jobs that need budget, margin, or document grouping.</span>
             </label>
             @if($isGoodsReceipt)
                 <label class="form-label">Record type
@@ -564,7 +574,7 @@
                     <input class="form-input uppercase" name="currency" maxlength="3" value="{{ $documentCurrency }}" required>
                 </label>
             @endif
-            <label class="form-label">Project / site
+            <label class="form-label">Project / site note
                 <input class="form-input" name="project_name" value="{{ old('project_name', $document->project_name) }}" placeholder="Cyberjaya Site">
             </label>
         </div>
@@ -1135,6 +1145,18 @@ function filterRelatedDocuments() {
     }
 }
 
+function syncProjectFromRelatedDocument() {
+    const relatedSelect = document.querySelector('[data-related-document-select]');
+    const projectSelect = document.querySelector('[data-project-select]');
+    if (!relatedSelect || !projectSelect) return;
+
+    const projectId = relatedSelect.selectedOptions[0]?.dataset.projectId || '';
+    const hasProjectOption = Array.from(projectSelect.options).some((option) => option.value === projectId);
+    if (projectId && hasProjectOption) {
+        projectSelect.value = projectId;
+    }
+}
+
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (character) => ({
         '&': '&amp;',
@@ -1536,6 +1558,11 @@ document.querySelector('[name="document_tax_rate"]')?.addEventListener('input', 
 document.querySelector('[name="currency"]')?.addEventListener('input', refreshDocumentPreview);
 document.querySelector('[data-party-select]')?.addEventListener('change', function () {
     filterRelatedDocuments();
+    syncProjectFromRelatedDocument();
+    refreshDocumentPreview();
+});
+document.querySelector('[data-related-document-select]')?.addEventListener('change', function () {
+    syncProjectFromRelatedDocument();
     refreshDocumentPreview();
 });
 document.querySelector('[data-receipt-mode]')?.addEventListener('change', refreshDocumentPreview);
@@ -1683,6 +1710,7 @@ document.querySelector('[data-pr-create-form]')?.addEventListener('change', func
 
 toggleBillingStages();
 filterRelatedDocuments();
+syncProjectFromRelatedDocument();
 syncPurchaseRequestSourceMode();
 refreshDocumentPreview();
 </script>
