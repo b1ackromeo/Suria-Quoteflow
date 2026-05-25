@@ -192,6 +192,47 @@ class ProjectControlTest extends TestCase
         $index->assertSee('Open project');
     }
 
+    public function test_project_commercial_review_export_uses_project_filters(): void
+    {
+        $riskProject = $this->createProject([
+            'project_code' => 'PRJ-2026-031',
+            'name' => 'Margin review export project',
+            'budget_amount' => 1000,
+            'margin_target_percent' => 25,
+        ]);
+        $riskWorkItem = $this->createWorkItem($riskProject, [
+            'cost_budget' => 1000,
+        ]);
+        $riskCustomerPo = $this->createLinkedDocument($riskProject, 'customer_po', 'CPO-2026-94001', 1000);
+        $riskSupplierPo = $this->createLinkedDocument($riskProject, 'supplier_po', 'SPO-2026-94001', 1200);
+        $riskQuotation = $this->createLinkedDocument($riskProject, 'customer_quotation', 'CQ-2026-94001', 1200);
+
+        $this->addProjectLine($riskCustomerPo, $riskWorkItem, 1000);
+        $this->addProjectLine($riskSupplierPo, $riskWorkItem, 1200);
+        $this->addProjectLine($riskQuotation, null, 1200);
+
+        $healthyProject = $this->createProject([
+            'project_code' => 'PRJ-2026-032',
+            'name' => 'Healthy export project',
+            'budget_amount' => 5000,
+            'margin_target_percent' => 10,
+        ]);
+        $this->createLinkedDocument($healthyProject, 'customer_po', 'CPO-2026-94002', 5000);
+        $this->createLinkedDocument($healthyProject, 'supplier_po', 'SPO-2026-94002', 2000);
+
+        $response = $this->get(route('projects.export', ['q' => 'Margin review export']));
+
+        $response->assertOk();
+        $this->assertStringContainsString('text/csv', (string) $response->headers->get('content-type'));
+
+        $csv = $response->streamedContent();
+
+        $this->assertStringContainsString('"Project Code","Project Name",Status,Customer,Manager,"Target Date","Linked Documents","Customer Confirmed","Customer Invoiced","Supplier Committed","Supplier Invoiced","Expected Margin","Expected Margin %","Budget Remaining","Unassigned Project Lines","Review Status","Review Reasons"', $csv);
+        $this->assertStringContainsString('PRJ-2026-031,"Margin review export project",Active', $csv);
+        $this->assertStringContainsString('1000.00,0.00,1200.00,0.00,-200.00,-20.00,-200.00,1,"Review needed","Margin below target; Budget overrun; Work item missing; Work item budget overrun"', $csv);
+        $this->assertStringNotContainsString('Healthy export project', $csv);
+    }
+
     public function test_admin_can_create_and_update_project_records(): void
     {
         $this->post(route('projects.store'), [

@@ -489,6 +489,7 @@ Project exception reporting highlights margin below target, unassigned project l
 Project commercial calculations now live in a dedicated report service instead of controller-only calculations.
 The Projects list includes portfolio-level customer confirmed value, supplier committed cost, expected margin, unassigned line count, and projects needing review.
 Each listed project shows customer confirmed value, supplier committed cost, expected margin, budget remaining, and visible review reasons before opening the full project report.
+The project commercial review can be exported as a filtered CSV using streamed, chunked rows for shared-hosting-safe reporting.
 ```
 
 This answers:

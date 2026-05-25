@@ -25,6 +25,7 @@
             <span class="issuer-mini">{{ $projects->total() }} shown</span>
             <span class="status-chip status-approved">{{ $summary['active'] }} active</span>
             <span class="status-chip {{ $summary['review_projects'] > 0 ? 'status-pending_approval' : 'status-paid' }}">{{ $summary['review_projects'] }} need review</span>
+            <a class="btn btn-secondary" href="{{ route('projects.export', request()->query()) }}">Export CSV</a>
             @if($canManageProjects)
                 <a class="btn btn-primary" href="{{ route('projects.create') }}">New project</a>
             @endif

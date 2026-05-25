@@ -39,6 +39,7 @@ Route::middleware(['auth', 'role:admin,manager,sales,procurement,accounts,viewer
     Route::resource('products', ProductController::class)->middleware('role:admin,manager,sales,procurement')->except(['show', 'destroy']);
 
     Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
+    Route::get('/projects/export', [ProjectController::class, 'exportCsv'])->name('projects.export');
     Route::get('/projects/create', [ProjectController::class, 'create'])->middleware('role:admin,manager')->name('projects.create');
     Route::post('/projects', [ProjectController::class, 'store'])->middleware('role:admin,manager')->name('projects.store');
     Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('projects.show');

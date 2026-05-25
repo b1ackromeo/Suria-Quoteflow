@@ -18,17 +18,8 @@ class ProjectController extends Controller
 {
     public function index(Request $request, ProjectCommercialReportService $projectCommercialReport): View
     {
-        $search = trim($request->string('q')->toString());
-        $status = $request->string('status')->toString();
-        $status = array_key_exists($status, Project::STATUSES) ? $status : null;
-        $projects = Project::query()
-            ->with(['customer', 'manager'])
-            ->withCount('documents')
-            ->when($search, fn ($query, $term) => SearchFilters::projects($query, $term))
-            ->when($status, fn ($query, $status) => $query->where('status', $status))
-            ->orderByRaw("case when status = 'active' then 0 when status = 'on_hold' then 1 when status = 'completed' then 2 else 3 end")
-            ->orderBy('expected_completion_date')
-            ->orderBy('project_code')
+        [$search, $status] = $this->projectFilters($request);
+        $projects = $this->projectListQuery($search, $status)
             ->paginate(20)
             ->withQueryString();
         $portfolio = $projectCommercialReport->portfolio($projects->getCollection());
@@ -41,6 +32,78 @@ class ProjectController extends Controller
             'statuses' => Project::STATUSES,
             'summary' => $projectCommercialReport->portfolioOverview(),
         ]);
+    }
+
+    public function exportCsv(Request $request, ProjectCommercialReportService $projectCommercialReport)
+    {
+        [$search, $status] = $this->projectFilters($request);
+        $query = $this->projectListQuery($search, $status);
+        $filename = 'project-commercial-review-'.now()->format('Ymd-His').'.csv';
+
+        return response()->streamDownload(function () use ($query, $projectCommercialReport) {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, [
+                'Project Code',
+                'Project Name',
+                'Status',
+                'Customer',
+                'Manager',
+                'Target Date',
+                'Linked Documents',
+                'Customer Confirmed',
+                'Customer Invoiced',
+                'Supplier Committed',
+                'Supplier Invoiced',
+                'Expected Margin',
+                'Expected Margin %',
+                'Budget Remaining',
+                'Unassigned Project Lines',
+                'Review Status',
+                'Review Reasons',
+            ]);
+
+            $query->chunk(200, function ($projects) use ($handle, $projectCommercialReport) {
+                $portfolio = $projectCommercialReport->portfolio($projects)['items'];
+
+                foreach ($projects as $project) {
+                    $commercial = $portfolio[$project->id] ?? [
+                        'customer_confirmed' => 0,
+                        'customer_invoiced' => 0,
+                        'supplier_committed' => 0,
+                        'supplier_invoiced' => 0,
+                        'expected_margin' => 0,
+                        'expected_margin_percent' => null,
+                        'budget_remaining' => (float) $project->budget_amount,
+                        'unassigned_line_count' => 0,
+                        'review_count' => 0,
+                        'review_reasons' => [],
+                    ];
+
+                    fputcsv($handle, [
+                        $project->project_code,
+                        $project->name,
+                        $project->statusDisplay(),
+                        $project->customer?->name ?? '',
+                        $project->manager?->name ?? '',
+                        optional($project->expected_completion_date)->format('Y-m-d'),
+                        $project->documents_count,
+                        $this->csvAmount($commercial['customer_confirmed']),
+                        $this->csvAmount($commercial['customer_invoiced']),
+                        $this->csvAmount($commercial['supplier_committed']),
+                        $this->csvAmount($commercial['supplier_invoiced']),
+                        $this->csvAmount($commercial['expected_margin']),
+                        $commercial['expected_margin_percent'] === null ? '' : $this->csvAmount($commercial['expected_margin_percent']),
+                        $this->csvAmount($commercial['budget_remaining']),
+                        $commercial['unassigned_line_count'],
+                        $commercial['review_count'] > 0 ? 'Review needed' : 'No visible exceptions',
+                        implode('; ', $commercial['review_reasons']),
+                    ]);
+                }
+            });
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
     }
 
     public function create(): View
@@ -148,5 +211,33 @@ class ProjectController extends Controller
     private function ensureProjectManagementAccess(): void
     {
         abort_unless(request()->user()->hasRole('admin', 'manager'), 403);
+    }
+
+    private function projectFilters(Request $request): array
+    {
+        $search = trim($request->string('q')->toString());
+        $status = $request->string('status')->toString();
+
+        return [
+            $search,
+            array_key_exists($status, Project::STATUSES) ? $status : null,
+        ];
+    }
+
+    private function projectListQuery(?string $search, ?string $status)
+    {
+        return Project::query()
+            ->with(['customer', 'manager'])
+            ->withCount('documents')
+            ->when($search, fn ($query, $term) => SearchFilters::projects($query, $term))
+            ->when($status, fn ($query, $status) => $query->where('status', $status))
+            ->orderByRaw("case when status = 'active' then 0 when status = 'on_hold' then 1 when status = 'completed' then 2 else 3 end")
+            ->orderBy('expected_completion_date')
+            ->orderBy('project_code');
+    }
+
+    private function csvAmount(mixed $value): string
+    {
+        return number_format((float) $value, 2, '.', '');
     }
 }
