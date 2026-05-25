@@ -20,6 +20,7 @@ use App\Services\Documents\ExternalDocumentExtractionService;
 use App\Services\Documents\PaymentEligibilityService;
 use App\Services\Invoices\SupplierInvoiceMatchingService;
 use App\Services\Invoices\SupplierInvoiceVerificationService;
+use App\Services\Projects\ProjectCommercialRiskService;
 use App\Support\Audit;
 use App\Support\SearchFilters;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -48,7 +49,8 @@ class DocumentController extends Controller
     public function __construct(
         private SupplierInvoiceVerificationService $supplierInvoiceVerification,
         private SupplierInvoiceMatchingService $supplierInvoiceMatching,
-        private ExternalDocumentExtractionService $externalDocumentExtraction
+        private ExternalDocumentExtractionService $externalDocumentExtraction,
+        private ProjectCommercialRiskService $projectCommercialRisk
     ) {
     }
 
@@ -185,6 +187,7 @@ class DocumentController extends Controller
             'supplierInvoiceMatching' => $supplierInvoiceMatching,
             'documentChain' => $documentChain->chainFor($document),
             'documentConversionOptions' => $documentConversion->optionsFor($document),
+            'commercialRisk' => $this->projectCommercialRisk->summary($document),
         ]);
     }
 
@@ -296,6 +299,7 @@ class DocumentController extends Controller
 
         $comment = $request->validate(['comment' => ['nullable', 'string']])['comment'] ?? null;
         $comment = is_string($comment) ? trim($comment) : $comment;
+        $commercialRisk = $this->projectCommercialRisk->summary($document);
 
         if ($document->type === 'purchase_request') {
             if ($this->hasSupplierQuoteException($document)) {
@@ -309,6 +313,12 @@ class DocumentController extends Controller
                     'approval' => 'Verify the supplier quotation evidence before approving this purchase request.',
                 ]);
             }
+        }
+
+        if (($commercialRisk['requires_approval_note'] ?? false) && ! filled($comment)) {
+            throw ValidationException::withMessages([
+                'comment' => 'Add an approval reason for the budget or margin exception.',
+            ]);
         }
 
         $before = $document->only(['status', 'approved_by', 'approved_at']);
@@ -328,6 +338,18 @@ class DocumentController extends Controller
             ]);
         });
         Audit::record('document_approved', $document, $before, $document->only(['status', 'approved_by', 'approved_at']));
+
+        if ($commercialRisk['requires_approval_note'] ?? false) {
+            Audit::record('project_commercial_approval_override', $document, [
+                'status' => $before['status'] ?? null,
+                'warnings' => $commercialRisk['warnings'] ?? [],
+            ], [
+                'status' => $document->status,
+                'approval_reason' => $comment,
+                'warnings' => $commercialRisk['warnings'] ?? [],
+                'metrics' => $commercialRisk['metrics'] ?? [],
+            ]);
+        }
 
         return back()->with('status', 'Approved.');
     }

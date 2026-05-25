@@ -2342,6 +2342,22 @@
         @apply text-amber-800;
     }
 
+    .document-commercial-metrics {
+        @apply mt-3 grid gap-2 sm:grid-cols-2 md:grid-cols-3;
+    }
+
+    .document-commercial-metric {
+        @apply rounded-md border border-slate-100 bg-slate-50 px-3 py-2;
+    }
+
+    .document-commercial-metric dt {
+        @apply text-[11px] font-bold uppercase tracking-wide text-slate-400;
+    }
+
+    .document-commercial-metric dd {
+        @apply mt-1 min-w-0 break-words text-sm font-bold text-slate-950;
+    }
+
     .document-chain-card .workflow-timeline-card {
         @apply mt-3 grid-cols-1 border-0 bg-slate-50;
     }

@@ -432,6 +432,8 @@ Which part of the project created this revenue or cost?
 
 Goal: make approvals commercially intelligent.
 
+Implementation status: approval controls completed in the Laravel Blade app.
+
 Build:
 
 ```text
@@ -442,6 +444,17 @@ Budget overrun reason
 Margin below target warning
 Manager/admin override controls
 Audit trail entries for overrides
+```
+
+Implemented behavior:
+
+```text
+Project-linked customer quotations show quoted revenue, estimated cost, expected gross margin, expected margin percentage, and margin target during approval.
+Project-linked purchase requests, purchase orders, and supplier invoices show WBS budget impact for assigned work items.
+Approval screens show budget and margin warnings before the approval action when project data creates a commercial exception.
+Approving a document with a budget overrun or margin-below-target exception requires an approval reason.
+Commercial approval overrides are recorded in the audit trail with warning and metric context.
+Simple document flow without a project remains available and does not require a commercial approval reason.
 ```
 
 This answers:

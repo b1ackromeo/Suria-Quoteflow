@@ -354,6 +354,160 @@ class ProjectControlTest extends TestCase
         $this->assertSame($project->id, $customerPo->project_id);
     }
 
+    public function test_simple_document_approval_does_not_require_project_commercial_reason(): void
+    {
+        $this->post(route('documents.store', 'customer-quotations'), $this->documentPayload([
+            'external_reference' => 'SIMPLE-CQ-APPROVAL',
+            'project_id' => null,
+        ]))->assertRedirect();
+
+        $quotation = Document::query()->where('external_reference', 'SIMPLE-CQ-APPROVAL')->firstOrFail();
+
+        $this->post(route('documents.submit', $quotation))->assertRedirect();
+        $this->assertSame('pending_approval', $quotation->refresh()->status);
+
+        $this->post(route('documents.approve', $quotation))->assertRedirect();
+
+        $this->assertSame('approved', $quotation->refresh()->status);
+        $this->assertDatabaseMissing('audit_trails', [
+            'action' => 'project_commercial_approval_override',
+            'auditable_type' => Document::class,
+            'auditable_id' => $quotation->id,
+        ]);
+    }
+
+    public function test_project_customer_quotation_margin_exception_requires_approval_reason(): void
+    {
+        $project = $this->createProject([
+            'margin_target_percent' => 25,
+        ]);
+        $workItem = $this->createWorkItem($project);
+        $this->service->update(['cost_price' => 1100]);
+
+        $this->post(route('documents.store', 'customer-quotations'), $this->documentPayload([
+            'external_reference' => 'LOW-MARGIN-CQ',
+            'project_id' => $project->id,
+            'items' => [
+                [
+                    'product_id' => $this->service->id,
+                    'wbs_item_id' => $workItem->id,
+                    'description' => 'Low margin project quotation line',
+                    'quantity' => 1,
+                    'unit' => 'job',
+                    'unit_price' => 1200,
+                    'tax_rate' => 0,
+                ],
+            ],
+        ]))->assertRedirect();
+
+        $quotation = Document::query()->where('external_reference', 'LOW-MARGIN-CQ')->firstOrFail();
+        $this->post(route('documents.submit', $quotation))->assertRedirect();
+
+        $show = $this->get(route('documents.show', $quotation));
+        $show->assertOk();
+        $show->assertSee('Budget and margin impact');
+        $show->assertSee('Margin below target');
+        $show->assertSee('Expected gross margin');
+        $show->assertSee('Approval reason');
+
+        $this->from(route('documents.show', $quotation))
+            ->post(route('documents.approve', $quotation))
+            ->assertRedirect(route('documents.show', $quotation))
+            ->assertSessionHasErrors('comment');
+
+        $this->assertSame('pending_approval', $quotation->refresh()->status);
+
+        $this->post(route('documents.approve', $quotation), [
+            'comment' => 'Approved because the customer relationship justifies this lower first-stage margin.',
+        ])->assertRedirect();
+
+        $this->assertSame('approved', $quotation->refresh()->status);
+        $this->assertDatabaseHas('audit_trails', [
+            'action' => 'project_commercial_approval_override',
+            'auditable_type' => Document::class,
+            'auditable_id' => $quotation->id,
+        ]);
+    }
+
+    public function test_project_supplier_po_budget_overrun_requires_approval_reason(): void
+    {
+        $project = $this->createProject();
+        $workItem = $this->createWorkItem($project, [
+            'cost_budget' => 1000,
+        ]);
+        $existingPurchaseOrder = $this->createLinkedDocument($project, 'supplier_po', 'SPO-2026-91010', 800);
+
+        DocumentItem::create([
+            'document_id' => $existingPurchaseOrder->id,
+            'product_id' => $this->service->id,
+            'project_id' => $project->id,
+            'wbs_item_id' => $workItem->id,
+            'description' => 'Previously committed installation materials',
+            'quantity' => 1,
+            'unit' => 'job',
+            'unit_price' => 800,
+            'tax_rate' => 0,
+            'tax_amount' => 0,
+            'line_total' => 800,
+        ]);
+
+        $currentPurchaseOrder = Document::create([
+            'type' => 'supplier_po',
+            'direction' => 'incoming',
+            'document_number' => 'SPO-2026-91011',
+            'external_reference' => 'SPO-OVER-BUDGET',
+            'supplier_id' => $this->supplier->id,
+            'project_id' => $project->id,
+            'status' => 'draft',
+            'issue_date' => '2026-05-14',
+            'currency' => 'MYR',
+            'subtotal' => 500,
+            'tax_total' => 0,
+            'total' => 500,
+            'created_by' => $this->admin->id,
+        ]);
+
+        DocumentItem::create([
+            'document_id' => $currentPurchaseOrder->id,
+            'product_id' => $this->service->id,
+            'project_id' => $project->id,
+            'wbs_item_id' => $workItem->id,
+            'description' => 'Additional installation materials',
+            'quantity' => 1,
+            'unit' => 'job',
+            'unit_price' => 500,
+            'tax_rate' => 0,
+            'tax_amount' => 0,
+            'line_total' => 500,
+        ]);
+
+        $this->post(route('documents.submit', $currentPurchaseOrder))->assertRedirect();
+
+        $show = $this->get(route('documents.show', $currentPurchaseOrder));
+        $show->assertOk();
+        $show->assertSee('Budget and margin impact');
+        $show->assertSee('Budget overrun');
+        $show->assertSee('Approval reason');
+
+        $this->from(route('documents.show', $currentPurchaseOrder))
+            ->post(route('documents.approve', $currentPurchaseOrder))
+            ->assertRedirect(route('documents.show', $currentPurchaseOrder))
+            ->assertSessionHasErrors('comment');
+
+        $this->assertSame('pending_approval', $currentPurchaseOrder->refresh()->status);
+
+        $this->post(route('documents.approve', $currentPurchaseOrder), [
+            'comment' => 'Approved because the extra materials are required to complete the signed project scope.',
+        ])->assertRedirect();
+
+        $this->assertSame('approved', $currentPurchaseOrder->refresh()->status);
+        $this->assertDatabaseHas('audit_trails', [
+            'action' => 'project_commercial_approval_override',
+            'auditable_type' => Document::class,
+            'auditable_id' => $currentPurchaseOrder->id,
+        ]);
+    }
+
     private function createProject(array $overrides = []): Project
     {
         return Project::create(array_merge([
@@ -368,6 +522,19 @@ class ProjectControlTest extends TestCase
             'budget_amount' => 15000,
             'margin_target_percent' => 25,
             'description' => 'Network rollout with staged procurement and installation.',
+        ], $overrides));
+    }
+
+    private function createWorkItem(Project $project, array $overrides = []): WbsItem
+    {
+        return $project->wbsItems()->create(array_merge([
+            'code' => '1.01',
+            'name' => 'Installation and commissioning',
+            'cost_type' => 'service',
+            'revenue_budget' => 15000,
+            'cost_budget' => 9000,
+            'sort_order' => 10,
+            'status' => 'active',
         ], $overrides));
     }
 

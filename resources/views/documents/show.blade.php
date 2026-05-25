@@ -95,6 +95,24 @@
             ])
             ->all()
         : [];
+    $commercialRisk = $commercialRisk ?? [
+        'show_panel' => false,
+        'requires_approval_note' => false,
+        'warnings' => [],
+        'metrics' => [],
+        'work_items' => [],
+    ];
+    $commercialRiskPanelVisible = (bool) ($commercialRisk['show_panel'] ?? false);
+    $commercialRiskRequiresApprovalNote = (bool) ($commercialRisk['requires_approval_note'] ?? false);
+    $commercialRiskWarnings = $commercialRisk['warnings'] ?? [];
+    $commercialRiskMetrics = $commercialRisk['metrics'] ?? [];
+    $commercialRiskWorkItems = $commercialRisk['work_items'] ?? [];
+    $formatPercent = fn ($value) => $value === null ? 'Not available' : rtrim(rtrim(number_format((float) $value, 2), '0'), '.').'%';
+    $formatCommercialMetric = fn ($metric) => match ($metric['format'] ?? 'number') {
+        'money' => $money((float) ($metric['value'] ?? 0)),
+        'percent' => $formatPercent($metric['value'] ?? null),
+        default => (string) ($metric['value'] ?? 'Not available'),
+    };
 @endphp
 
 @section('header_actions')
@@ -158,6 +176,7 @@
         $document->type === 'purchase_request' && in_array($document->status, ['draft', 'rejected'], true) => 'Upload and verify supplier quotation evidence, or record a quotation exception reason, before requesting approval.',
         $document->type === 'purchase_request' && $document->status === 'pending_approval' && $hasSupplierQuoteException => 'Manager must confirm this quotation exception before approving the purchase request.',
         $document->type === 'purchase_request' && $document->status === 'pending_approval' && ! $hasVerifiedSupplierQuoteEvidence => 'Verify the supplier quotation evidence before approving this purchase request.',
+        $document->status === 'pending_approval' && $commercialRiskRequiresApprovalNote => 'Review the budget and margin impact, then record an approval reason or reject this document.',
         $isQuotationApprovalReview => 'Review the quotation PDF, then approve it for issue or reject it with a reason.',
         in_array($document->status, ['draft', 'rejected'], true) => 'Submit this '.$meta['singular'].' for approval when details and attachments are ready.',
         $document->status === 'pending_approval' => 'Manager approval is required before this document can continue.',
@@ -216,6 +235,15 @@
             $readinessItems[] = ['state' => 'blocked', 'label' => 'Supplier quotation missing', 'message' => 'Upload supplier quotation evidence, or record a quotation exception reason, before approval.'];
         }
     }
+    if ($document->status !== 'cancelled' && $commercialRiskWarnings !== []) {
+        foreach ($commercialRiskWarnings as $warning) {
+            $readinessItems[] = [
+                'state' => $warning['state'] ?? (($warning['requires_note'] ?? false) ? 'blocked' : 'waiting'),
+                'label' => $warning['title'],
+                'message' => $warning['message'],
+            ];
+        }
+    }
     if ($document->status !== 'cancelled' && $document->type === 'supplier_invoice' && $supplierInvoiceVerification) {
         if ($supplierInvoiceVerification['verified'] ?? false) {
             $verifiedBy = $supplierInvoiceVerification['verifier']?->name ?? 'Verified';
@@ -250,6 +278,13 @@
     $showReadinessPanel = $showGenericCommandSections && ! $approvalReadinessIsDuplicated;
     $actionPanelTitle = $canDecideDocument ? 'Approval decision' : 'Available actions';
     $showActionPanel = $hasWorkflowActions && ! $canUseInlineSubmitAction;
+    $approvalCommentRequired = $hasSupplierQuoteException || $commercialRiskRequiresApprovalNote;
+    $approvalCommentLabel = $commercialRiskRequiresApprovalNote
+        ? 'Approval reason'
+        : ($hasSupplierQuoteException ? 'Approval comment' : 'Approval note');
+    $approvalCommentPlaceholder = $commercialRiskRequiresApprovalNote
+        ? 'Explain why this budget or margin exception can proceed'
+        : ($hasSupplierQuoteException ? 'Confirm the quotation exception' : 'Optional note');
 @endphp
 
 <div class="document-open-workspace @if($document->type === 'purchase_request' && $supplierQuoteAttachment) document-open-workspace-source @endif">
@@ -343,6 +378,67 @@
             </section>
         @endif
 
+        @if($commercialRiskPanelVisible)
+            <section class="document-side-card document-commercial-impact-card">
+                <div class="document-side-section-heading">
+                    <h2 class="panel-title">Budget and margin impact</h2>
+                    <span>{{ $document->project?->project_code ?? 'Project' }}</span>
+                </div>
+
+                @if($commercialRiskMetrics !== [])
+                    <dl class="document-commercial-metrics">
+                        @foreach($commercialRiskMetrics as $metric)
+                            <div class="document-commercial-metric">
+                                <dt>{{ $metric['label'] }}</dt>
+                                <dd>{{ $formatCommercialMetric($metric) }}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                @endif
+
+                @if($commercialRiskWarnings !== [] && ! $showReadinessPanel)
+                    <div class="document-readiness-list">
+                        @foreach($commercialRiskWarnings as $warning)
+                            <article class="document-readiness-item readiness-state-{{ $warning['state'] ?? (($warning['requires_note'] ?? false) ? 'blocked' : 'waiting') }}">
+                                <strong>{{ $warning['title'] }}</strong>
+                                <p>{{ $warning['message'] }}</p>
+                            </article>
+                        @endforeach
+                    </div>
+                @endif
+
+                @if($commercialRiskWorkItems !== [])
+                    <div class="document-compact-table mt-3">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th>Work item</th>
+                                <th class="text-right">Budget</th>
+                                <th class="text-right">Used before</th>
+                                <th class="text-right">This document</th>
+                                <th class="text-right">Remaining after</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @foreach($commercialRiskWorkItems as $workItem)
+                                <tr class="@if($workItem['over_budget'] ?? false) is-current @endif">
+                                    <td data-label="Work item">
+                                        <strong>{{ $workItem['code'] }}</strong>
+                                        <span>{{ $workItem['name'] }}</span>
+                                    </td>
+                                    <td data-label="Budget" class="text-right">{{ $money($workItem['budget']) }}</td>
+                                    <td data-label="Used before" class="text-right">{{ $money($workItem['used_before']) }}</td>
+                                    <td data-label="This document" class="text-right">{{ $money($workItem['current_amount']) }}</td>
+                                    <td data-label="Remaining after" class="text-right">{{ $money($workItem['remaining_after']) }}</td>
+                                </tr>
+                            @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </section>
+        @endif
+
         @if($showActionPanel)
             <section class="document-side-card document-action-stack @if($canDecideDocument) document-decision-card @endif">
                 <h2 class="panel-title">{{ $actionPanelTitle }}</h2>
@@ -356,8 +452,11 @@
                     <form method="post" action="{{ route('documents.approve', $document) }}" class="document-decision-form">
                         <input type="hidden" name="_token" value="{{ csrf_token() }}">
                         <label class="document-decision-field">
-                            <span>{{ $hasSupplierQuoteException ? 'Approval comment' : 'Approval note' }}</span>
-                            <textarea class="form-input" name="comment" rows="1" placeholder="{{ $hasSupplierQuoteException ? 'Confirm the quotation exception' : 'Optional note' }}" @if($hasSupplierQuoteException) required @endif></textarea>
+                            <span>{{ $approvalCommentLabel }}</span>
+                            <textarea class="form-input" name="comment" rows="1" placeholder="{{ $approvalCommentPlaceholder }}" @if($approvalCommentRequired) required @endif></textarea>
+                            @if($commercialRiskRequiresApprovalNote)
+                                <span class="mt-1 block text-xs normal-case text-slate-500">Required because this document has a budget or margin exception.</span>
+                            @endif
                         </label>
                         <button type="submit" class="btn btn-primary document-decision-button">Approve</button>
                     </form>
