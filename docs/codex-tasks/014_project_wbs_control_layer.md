@@ -490,6 +490,7 @@ Project commercial calculations now live in a dedicated report service instead o
 The Projects list includes portfolio-level customer confirmed value, supplier committed cost, expected margin, unassigned line count, and projects needing review.
 Each listed project shows customer confirmed value, supplier committed cost, expected margin, budget remaining, and visible review reasons before opening the full project report.
 The project commercial review can be exported as a filtered CSV using streamed, chunked rows for shared-hosting-safe reporting.
+The Projects list and CSV export can be filtered by commercial review status, including work-item budget overruns, actual cost overruns, unassigned project lines, margin exceptions, and supplier actuals above purchase order commitments.
 ```
 
 This answers:

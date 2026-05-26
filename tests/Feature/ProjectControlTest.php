@@ -192,6 +192,54 @@ class ProjectControlTest extends TestCase
         $index->assertSee('Open project');
     }
 
+    public function test_projects_can_be_filtered_by_commercial_review_status(): void
+    {
+        $riskProject = $this->createProject([
+            'project_code' => 'PRJ-2026-023',
+            'name' => 'Work item review filter project',
+            'budget_amount' => 5000,
+            'margin_target_percent' => 0,
+        ]);
+        $riskWorkItem = $this->createWorkItem($riskProject, [
+            'cost_budget' => 1000,
+        ]);
+        $riskSupplierPo = $this->createLinkedDocument($riskProject, 'supplier_po', 'SPO-2026-93501', 1200);
+
+        $this->addProjectLine($riskSupplierPo, $riskWorkItem, 1200);
+
+        $healthyProject = $this->createProject([
+            'project_code' => 'PRJ-2026-024',
+            'name' => 'Clear review filter project',
+            'budget_amount' => 5000,
+            'margin_target_percent' => 10,
+        ]);
+        $this->createLinkedDocument($healthyProject, 'customer_po', 'CPO-2026-93502', 5000);
+        $this->createLinkedDocument($healthyProject, 'supplier_po', 'SPO-2026-93502', 2000);
+
+        $needsReview = $this->get(route('projects.index', ['review' => 'needs_review']));
+
+        $needsReview->assertOk();
+        $needsReview->assertSee('Commercial review');
+        $needsReview->assertSee('Work item review filter project');
+        $needsReview->assertSee('Work item budget overrun');
+        $needsReview->assertDontSee('Clear review filter project');
+
+        $clear = $this->get(route('projects.index', ['review' => 'clear']));
+
+        $clear->assertOk();
+        $clear->assertSee('Clear review filter project');
+        $clear->assertDontSee('Work item review filter project');
+
+        $export = $this->get(route('projects.export', ['review' => 'needs_review']));
+
+        $export->assertOk();
+        $csv = $export->streamedContent();
+
+        $this->assertStringContainsString('PRJ-2026-023,"Work item review filter project",Active', $csv);
+        $this->assertStringContainsString('"Review needed","Work item budget overrun"', $csv);
+        $this->assertStringNotContainsString('Clear review filter project', $csv);
+    }
+
     public function test_project_commercial_review_export_uses_project_filters(): void
     {
         $riskProject = $this->createProject([

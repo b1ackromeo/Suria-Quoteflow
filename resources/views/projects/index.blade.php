@@ -46,6 +46,14 @@
                         @endforeach
                     </select>
                 </label>
+                <label class="form-label">Commercial review
+                    <select class="form-input" name="review">
+                        <option value="">All projects</option>
+                        @foreach($reviewFilters as $value => $label)
+                            <option value="{{ $value }}" @selected($reviewFilter === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </label>
                 <div class="grid grid-cols-2 gap-2">
                     <button class="btn btn-primary" type="submit">Search</button>
                     <a class="btn btn-secondary" href="{{ route('projects.index') }}">Clear</a>
@@ -97,7 +105,7 @@
                     <h2 class="panel-title">Project list</h2>
                     <p class="panel-subtitle">Open a project to review the full budget, margin, work breakdown, and document trail.</p>
                 </div>
-                @if($searchTerm !== '' || $statusFilter)
+                @if($searchTerm !== '' || $statusFilter || $reviewFilter)
                     <span class="status-chip status-draft">Filtered</span>
                 @endif
             </div>
@@ -176,7 +184,11 @@
                         </article>
                     @empty
                         <div class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm font-semibold text-slate-500">
-                            No projects yet. Create a project when a job needs budget, margin, or document grouping.
+                            @if($searchTerm !== '' || $statusFilter || $reviewFilter)
+                                No projects match these filters.
+                            @else
+                                No projects yet. Create a project when a job needs budget, margin, or document grouping.
+                            @endif
                         </div>
                     @endforelse
                 </div>

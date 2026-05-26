@@ -18,8 +18,8 @@ class ProjectController extends Controller
 {
     public function index(Request $request, ProjectCommercialReportService $projectCommercialReport): View
     {
-        [$search, $status] = $this->projectFilters($request);
-        $projects = $this->projectListQuery($search, $status)
+        [$search, $status, $review] = $this->projectFilters($request);
+        $projects = $this->projectListQuery($search, $status, $review, $projectCommercialReport)
             ->paginate(20)
             ->withQueryString();
         $portfolio = $projectCommercialReport->portfolio($projects->getCollection());
@@ -29,15 +29,17 @@ class ProjectController extends Controller
             'portfolioSummaries' => $portfolio['items'],
             'searchTerm' => $search,
             'statusFilter' => $status,
+            'reviewFilter' => $review,
             'statuses' => Project::STATUSES,
+            'reviewFilters' => ProjectCommercialReportService::REVIEW_FILTERS,
             'summary' => $projectCommercialReport->portfolioOverview(),
         ]);
     }
 
     public function exportCsv(Request $request, ProjectCommercialReportService $projectCommercialReport)
     {
-        [$search, $status] = $this->projectFilters($request);
-        $query = $this->projectListQuery($search, $status);
+        [$search, $status, $review] = $this->projectFilters($request);
+        $query = $this->projectListQuery($search, $status, $review, $projectCommercialReport);
         $filename = 'project-commercial-review-'.now()->format('Ymd-His').'.csv';
 
         return response()->streamDownload(function () use ($query, $projectCommercialReport) {
@@ -217,23 +219,30 @@ class ProjectController extends Controller
     {
         $search = trim($request->string('q')->toString());
         $status = $request->string('status')->toString();
+        $review = $request->string('review')->toString();
 
         return [
             $search,
             array_key_exists($status, Project::STATUSES) ? $status : null,
+            array_key_exists($review, ProjectCommercialReportService::REVIEW_FILTERS) ? $review : null,
         ];
     }
 
-    private function projectListQuery(?string $search, ?string $status)
+    private function projectListQuery(?string $search, ?string $status, ?string $review, ProjectCommercialReportService $projectCommercialReport)
     {
-        return Project::query()
+        $query = Project::query()
+            ->select('projects.*')
             ->with(['customer', 'manager'])
             ->withCount('documents')
             ->when($search, fn ($query, $term) => SearchFilters::projects($query, $term))
-            ->when($status, fn ($query, $status) => $query->where('status', $status))
-            ->orderByRaw("case when status = 'active' then 0 when status = 'on_hold' then 1 when status = 'completed' then 2 else 3 end")
-            ->orderBy('expected_completion_date')
-            ->orderBy('project_code');
+            ->when($status, fn ($query, $status) => $query->where('projects.status', $status));
+
+        $projectCommercialReport->applyReviewFilter($query, $review);
+
+        return $query
+            ->orderByRaw("case when projects.status = 'active' then 0 when projects.status = 'on_hold' then 1 when projects.status = 'completed' then 2 else 3 end")
+            ->orderBy('projects.expected_completion_date')
+            ->orderBy('projects.project_code');
     }
 
     private function csvAmount(mixed $value): string

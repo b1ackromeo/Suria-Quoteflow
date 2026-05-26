@@ -7,7 +7,9 @@ use App\Models\DocumentItem;
 use App\Models\Payment;
 use App\Models\Project;
 use App\Models\WbsItem;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class ProjectCommercialReportService
 {
@@ -22,6 +24,11 @@ class ProjectCommercialReportService
         'part_paid',
         'paid',
         'closed',
+    ];
+
+    public const REVIEW_FILTERS = [
+        'needs_review' => 'Needs review',
+        'clear' => 'No visible exceptions',
     ];
 
     /**
@@ -107,29 +114,23 @@ class ProjectCommercialReportService
     {
         $documentTotals = $this->documentTotalsQuery();
         $unassignedLines = $this->unassignedLinesQuery();
-        $customerConfirmed = 'coalesce(document_totals.customer_confirmed, 0)';
-        $supplierCommitted = 'coalesce(document_totals.supplier_committed, 0)';
-        $customerInvoiced = 'coalesce(document_totals.customer_invoiced, 0)';
-        $supplierInvoiced = 'coalesce(document_totals.supplier_invoiced, 0)';
-        $unassignedLineCount = 'coalesce(unassigned_lines.line_count, 0)';
-        $belowMargin = "projects.margin_target_percent > 0 and {$customerConfirmed} > 0 and ((({$customerConfirmed}) - ({$supplierCommitted})) * 100 / nullif({$customerConfirmed}, 0)) < projects.margin_target_percent";
-        $overBudget = "projects.budget_amount > 0 and {$supplierCommitted} > projects.budget_amount";
-        $actualAboveCommitted = "{$supplierCommitted} > 0 and {$supplierInvoiced} > {$supplierCommitted}";
-        $needsReview = "({$belowMargin}) or ({$overBudget}) or ({$actualAboveCommitted}) or ({$unassignedLineCount} > 0)";
+        $workItemExceptions = $this->workItemExceptionsQuery();
+        $review = $this->reviewSqlExpressions();
 
         $row = Project::query()
             ->leftJoinSub($documentTotals, 'document_totals', fn ($join) => $join->on('document_totals.project_id', '=', 'projects.id'))
             ->leftJoinSub($unassignedLines, 'unassigned_lines', fn ($join) => $join->on('unassigned_lines.project_id', '=', 'projects.id'))
+            ->leftJoinSub($workItemExceptions, 'work_item_exceptions', fn ($join) => $join->on('work_item_exceptions.project_id', '=', 'projects.id'))
             ->selectRaw('count(projects.id) as total')
             ->selectRaw("sum(case when projects.status = 'active' then 1 else 0 end) as active")
             ->selectRaw('coalesce(sum(projects.contract_value), 0) as contract_value')
             ->selectRaw('coalesce(sum(projects.budget_amount), 0) as budget_amount')
-            ->selectRaw("coalesce(sum({$customerConfirmed}), 0) as customer_confirmed")
-            ->selectRaw("coalesce(sum({$customerInvoiced}), 0) as customer_invoiced")
-            ->selectRaw("coalesce(sum({$supplierCommitted}), 0) as supplier_committed")
-            ->selectRaw("coalesce(sum({$supplierInvoiced}), 0) as supplier_invoiced")
-            ->selectRaw("coalesce(sum({$unassignedLineCount}), 0) as unassigned_line_count")
-            ->selectRaw("sum(case when {$needsReview} then 1 else 0 end) as review_projects")
+            ->selectRaw("coalesce(sum({$review['customer_confirmed']}), 0) as customer_confirmed")
+            ->selectRaw("coalesce(sum({$review['customer_invoiced']}), 0) as customer_invoiced")
+            ->selectRaw("coalesce(sum({$review['supplier_committed']}), 0) as supplier_committed")
+            ->selectRaw("coalesce(sum({$review['supplier_invoiced']}), 0) as supplier_invoiced")
+            ->selectRaw("coalesce(sum({$review['unassigned_line_count']}), 0) as unassigned_line_count")
+            ->selectRaw("sum(case when {$review['needs_review']} then 1 else 0 end) as review_projects")
             ->first();
 
         $customerConfirmedTotal = (float) ($row->customer_confirmed ?? 0);
@@ -150,6 +151,29 @@ class ProjectCommercialReportService
             'unassigned_line_count' => (int) ($row->unassigned_line_count ?? 0),
             'review_projects' => (int) ($row->review_projects ?? 0),
         ];
+    }
+
+    public function applyReviewFilter(Builder $query, ?string $reviewFilter): Builder
+    {
+        if (! array_key_exists((string) $reviewFilter, self::REVIEW_FILTERS)) {
+            return $query;
+        }
+
+        $documentTotals = $this->documentTotalsQuery();
+        $unassignedLines = $this->unassignedLinesQuery();
+        $workItemExceptions = $this->workItemExceptionsQuery();
+        $review = $this->reviewSqlExpressions();
+
+        $query
+            ->leftJoinSub($documentTotals, 'document_totals', fn ($join) => $join->on('document_totals.project_id', '=', 'projects.id'))
+            ->leftJoinSub($unassignedLines, 'unassigned_lines', fn ($join) => $join->on('unassigned_lines.project_id', '=', 'projects.id'))
+            ->leftJoinSub($workItemExceptions, 'work_item_exceptions', fn ($join) => $join->on('work_item_exceptions.project_id', '=', 'projects.id'));
+
+        if ($reviewFilter === 'needs_review') {
+            return $query->whereRaw("({$review['needs_review']})");
+        }
+
+        return $query->whereRaw("not ({$review['needs_review']})");
     }
 
     /**
@@ -443,42 +467,64 @@ class ProjectCommercialReportService
      */
     private function workItemExceptionCountsByProject(array $projectIds): array
     {
-        $rows = DocumentItem::query()
+        return $this->workItemExceptionsQuery()
+            ->whereIn('project_id', $projectIds)
+            ->get()
+            ->mapWithKeys(fn ($row) => [
+                (int) $row->project_id => [
+                    'over_committed_count' => (int) $row->over_committed_count,
+                    'over_actual_count' => (int) $row->over_actual_count,
+                ],
+            ])
+            ->all();
+    }
+
+    private function workItemExceptionsQuery()
+    {
+        $workItemTotals = DocumentItem::query()
             ->join('documents', 'documents.id', '=', 'document_items.document_id')
             ->join('wbs_items', 'wbs_items.id', '=', 'document_items.wbs_item_id')
-            ->whereIn('document_items.project_id', $projectIds)
+            ->whereNotNull('document_items.project_id')
+            ->whereNotNull('document_items.wbs_item_id')
             ->whereIn('documents.status', self::REPORT_STATUSES)
             ->select('document_items.project_id', 'document_items.wbs_item_id', 'wbs_items.cost_budget')
             ->selectRaw("sum(case when documents.type = 'supplier_po' then document_items.line_total else 0 end) as supplier_committed")
             ->selectRaw("sum(case when documents.type = 'supplier_invoice' then document_items.line_total else 0 end) as supplier_actual")
-            ->groupBy('document_items.project_id', 'document_items.wbs_item_id', 'wbs_items.cost_budget')
-            ->get();
+            ->groupBy('document_items.project_id', 'document_items.wbs_item_id', 'wbs_items.cost_budget');
 
-        $counts = [];
+        return DB::query()
+            ->fromSub($workItemTotals, 'work_item_totals')
+            ->select('project_id')
+            ->selectRaw('sum(case when cost_budget > 0 and supplier_committed > cost_budget then 1 else 0 end) as over_committed_count')
+            ->selectRaw('sum(case when cost_budget > 0 and supplier_actual > cost_budget then 1 else 0 end) as over_actual_count')
+            ->groupBy('project_id');
+    }
 
-        foreach ($rows as $row) {
-            $projectId = (int) $row->project_id;
-            $counts[$projectId] ??= [
-                'over_committed_count' => 0,
-                'over_actual_count' => 0,
-            ];
+    /**
+     * @return array<string, string>
+     */
+    private function reviewSqlExpressions(): array
+    {
+        $customerConfirmed = 'coalesce(document_totals.customer_confirmed, 0)';
+        $customerInvoiced = 'coalesce(document_totals.customer_invoiced, 0)';
+        $supplierCommitted = 'coalesce(document_totals.supplier_committed, 0)';
+        $supplierInvoiced = 'coalesce(document_totals.supplier_invoiced, 0)';
+        $unassignedLineCount = 'coalesce(unassigned_lines.line_count, 0)';
+        $workItemOverCommitted = 'coalesce(work_item_exceptions.over_committed_count, 0)';
+        $workItemOverActual = 'coalesce(work_item_exceptions.over_actual_count, 0)';
+        $belowMargin = "projects.margin_target_percent > 0 and {$customerConfirmed} > 0 and ((({$customerConfirmed}) - ({$supplierCommitted})) * 100 / nullif({$customerConfirmed}, 0)) < projects.margin_target_percent";
+        $overBudget = "projects.budget_amount > 0 and {$supplierCommitted} > projects.budget_amount";
+        $actualAboveCommitted = "{$supplierCommitted} > 0 and {$supplierInvoiced} > {$supplierCommitted}";
+        $needsReview = "({$belowMargin}) or ({$overBudget}) or ({$actualAboveCommitted}) or ({$unassignedLineCount} > 0) or ({$workItemOverCommitted} > 0) or ({$workItemOverActual} > 0)";
 
-            $costBudget = (float) $row->cost_budget;
-
-            if ($costBudget <= 0) {
-                continue;
-            }
-
-            if ((float) $row->supplier_committed > $costBudget) {
-                $counts[$projectId]['over_committed_count']++;
-            }
-
-            if ((float) $row->supplier_actual > $costBudget) {
-                $counts[$projectId]['over_actual_count']++;
-            }
-        }
-
-        return $counts;
+        return [
+            'customer_confirmed' => $customerConfirmed,
+            'customer_invoiced' => $customerInvoiced,
+            'supplier_committed' => $supplierCommitted,
+            'supplier_invoiced' => $supplierInvoiced,
+            'unassigned_line_count' => $unassignedLineCount,
+            'needs_review' => $needsReview,
+        ];
     }
 
     /**
