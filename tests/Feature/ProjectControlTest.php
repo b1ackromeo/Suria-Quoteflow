@@ -95,6 +95,7 @@ class ProjectControlTest extends TestCase
 
         $show->assertOk();
         $show->assertSee('Commercial summary');
+        $show->assertSee('Export report CSV');
         $show->assertSee('Project documents');
         $show->assertSee('Quoted revenue');
         $show->assertSee('Customer confirmed');
@@ -144,6 +145,49 @@ class ProjectControlTest extends TestCase
         $show->assertSee('Supplier actual above committed');
         $show->assertSee('Received / accepted');
         $show->assertSee('Actual variance');
+    }
+
+    public function test_project_commercial_report_can_be_exported_from_detail_page(): void
+    {
+        $project = $this->createProject([
+            'project_code' => 'PRJ-2026-025',
+            'name' => 'Detail export project',
+            'budget_amount' => 1000,
+            'margin_target_percent' => 25,
+        ]);
+        $workItem = $this->createWorkItem($project, [
+            'code' => '2.01',
+            'name' => 'Exported work item',
+            'revenue_budget' => 1500,
+            'cost_budget' => 1000,
+        ]);
+        $customerPo = $this->createLinkedDocument($project, 'customer_po', 'CPO-2026-92501', 1000);
+        $supplierPo = $this->createLinkedDocument($project, 'supplier_po', 'SPO-2026-92501', 1200);
+        $supplierInvoice = $this->createLinkedDocument($project, 'supplier_invoice', 'SIN-2026-92501', 1300);
+        $quotation = $this->createLinkedDocument($project, 'customer_quotation', 'CQ-2026-92501', 1200);
+
+        $this->addProjectLine($customerPo, $workItem, 1000);
+        $this->addProjectLine($supplierPo, $workItem, 1200);
+        $this->addProjectLine($supplierInvoice, $workItem, 1300);
+        $this->addProjectLine($quotation, null, 1200);
+
+        $response = $this->get(route('projects.report.export', $project));
+
+        $response->assertOk();
+        $this->assertStringContainsString('text/csv', (string) $response->headers->get('content-type'));
+
+        $csv = $response->streamedContent();
+
+        $this->assertStringContainsString('"Project commercial report"', $csv);
+        $this->assertStringContainsString('"Project Code",PRJ-2026-025', $csv);
+        $this->assertStringContainsString('"Commercial Summary"', $csv);
+        $this->assertStringContainsString('"Customer Confirmed",1000.00', $csv);
+        $this->assertStringContainsString('"Supplier Committed",1200.00', $csv);
+        $this->assertStringContainsString('"Project Exceptions"', $csv);
+        $this->assertStringContainsString('"Margin below target"', $csv);
+        $this->assertStringContainsString('"Work Breakdown"', $csv);
+        $this->assertStringContainsString('2.01,"Exported work item",Active,Service,3,1500.00,1000.00,0.00,1000.00,0.00,1200.00,0.00,1300.00,-200.00,-300.00', $csv);
+        $this->assertStringContainsString('"Unassigned project lines",,,1', $csv);
     }
 
     public function test_projects_index_shows_portfolio_commercial_review(): void

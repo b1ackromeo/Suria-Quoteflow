@@ -24,6 +24,7 @@
         </div>
         <div class="directory-header-actions">
             <span class="status-chip {{ $project->statusChipClass() }}">{{ $project->statusDisplay() }}</span>
+            <a class="btn btn-secondary" href="{{ route('projects.report.export', $project) }}">Export report CSV</a>
             <a class="btn btn-secondary" href="{{ route('projects.index') }}">Back</a>
             @if($canManageProject)
                 <a class="btn btn-primary" href="{{ route('projects.edit', $project) }}">Edit project</a>

@@ -42,6 +42,7 @@ Route::middleware(['auth', 'role:admin,manager,sales,procurement,accounts,viewer
     Route::get('/projects/export', [ProjectController::class, 'exportCsv'])->name('projects.export');
     Route::get('/projects/create', [ProjectController::class, 'create'])->middleware('role:admin,manager')->name('projects.create');
     Route::post('/projects', [ProjectController::class, 'store'])->middleware('role:admin,manager')->name('projects.store');
+    Route::get('/projects/{project}/commercial-report/export', [ProjectController::class, 'exportReportCsv'])->name('projects.report.export');
     Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
     Route::get('/projects/{project}/edit', [ProjectController::class, 'edit'])->middleware('role:admin,manager')->name('projects.edit');
     Route::put('/projects/{project}', [ProjectController::class, 'update'])->middleware('role:admin,manager')->name('projects.update');

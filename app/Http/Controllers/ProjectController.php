@@ -110,6 +110,164 @@ class ProjectController extends Controller
         }, $filename, ['Content-Type' => 'text/csv']);
     }
 
+    public function exportReportCsv(Project $project, ProjectCommercialReportService $projectCommercialReport)
+    {
+        $project->load(['customer', 'manager']);
+        $workItems = $project->wbsItems()->with('parent')->get();
+        $commercialReport = $projectCommercialReport->report($project, $workItems);
+        $filename = 'project-commercial-report-'.$project->project_code.'-'.now()->format('Ymd-His').'.csv';
+
+        return response()->streamDownload(function () use ($project, $workItems, $commercialReport) {
+            $handle = fopen('php://output', 'w');
+            $summary = $commercialReport['summary'];
+            $workItemSummaries = $commercialReport['work_items'];
+            $workItemTotals = $commercialReport['totals'];
+            $unassigned = $commercialReport['unassigned'];
+            $exceptions = $commercialReport['exceptions'];
+
+            fputcsv($handle, ['Project commercial report']);
+            fputcsv($handle, ['Project Code', $project->project_code]);
+            fputcsv($handle, ['Project Name', $project->name]);
+            fputcsv($handle, ['Status', $project->statusDisplay()]);
+            fputcsv($handle, ['Customer', $project->customer?->name ?? '']);
+            fputcsv($handle, ['Manager', $project->manager?->name ?? '']);
+            fputcsv($handle, ['Target Date', optional($project->expected_completion_date)->format('Y-m-d')]);
+            fputcsv($handle, []);
+
+            fputcsv($handle, ['Commercial Summary']);
+            fputcsv($handle, ['Metric', 'Value']);
+
+            foreach ([
+                'Quoted Revenue' => $summary['quoted_revenue'],
+                'Customer Confirmed' => $summary['customer_confirmed'],
+                'Customer Invoiced' => $summary['customer_invoiced'],
+                'Customer Paid' => $summary['customer_paid'],
+                'Estimated Cost' => $summary['estimated_cost'],
+                'Supplier Committed' => $summary['supplier_committed'],
+                'Received / Accepted' => $summary['received_cost'],
+                'Supplier Invoiced' => $summary['supplier_invoiced'],
+                'Supplier Paid' => $summary['supplier_paid'],
+                'Expected Margin' => $summary['expected_margin'],
+                'Actual Margin' => $summary['actual_margin'],
+                'Unbilled Revenue' => $summary['unbilled_revenue'],
+                'Unpaid Supplier Cost' => $summary['unpaid_supplier_cost'],
+                'Budget Remaining' => $summary['budget_remaining'],
+            ] as $label => $value) {
+                fputcsv($handle, [$label, $this->csvAmount($value)]);
+            }
+
+            fputcsv($handle, ['Expected Margin %', $this->csvPercent($summary['expected_margin_percent'])]);
+            fputcsv($handle, ['Actual Margin %', $this->csvPercent($summary['actual_margin_percent'])]);
+            fputcsv($handle, ['Linked Documents', $summary['document_count']]);
+            fputcsv($handle, []);
+
+            fputcsv($handle, ['Project Exceptions']);
+            fputcsv($handle, ['Title', 'Message', 'Amount']);
+
+            if ($exceptions === []) {
+                fputcsv($handle, ['No project exceptions visible', 'Budget, margin, actual cost, and work-item assignment checks have no visible blockers.', '']);
+            } else {
+                foreach ($exceptions as $exception) {
+                    fputcsv($handle, [
+                        $exception['title'],
+                        $exception['message'],
+                        array_key_exists('amount', $exception) ? $this->csvAmount($exception['amount']) : '',
+                    ]);
+                }
+            }
+
+            fputcsv($handle, []);
+            fputcsv($handle, ['Work Breakdown']);
+            fputcsv($handle, [
+                'Cost Code',
+                'Work Item',
+                'Status',
+                'Cost Type',
+                'Line Count',
+                'Revenue Budget',
+                'Cost Budget',
+                'Quoted Revenue',
+                'Customer Confirmed',
+                'Customer Invoiced',
+                'Supplier Committed',
+                'Received / Accepted',
+                'Supplier Actual',
+                'Remaining Budget',
+                'Actual Variance',
+            ]);
+
+            foreach ($workItems as $workItem) {
+                $itemSummary = $workItemSummaries[$workItem->id] ?? [
+                    'line_count' => 0,
+                    'quoted_revenue' => 0,
+                    'customer_confirmed' => 0,
+                    'customer_invoiced' => 0,
+                    'supplier_committed' => 0,
+                    'received_cost' => 0,
+                    'supplier_actual' => 0,
+                    'remaining_budget' => (float) $workItem->cost_budget,
+                    'actual_variance' => (float) $workItem->cost_budget,
+                ];
+
+                fputcsv($handle, [
+                    $workItem->code,
+                    $workItem->name,
+                    $workItem->statusDisplay(),
+                    $workItem->costTypeDisplay(),
+                    $itemSummary['line_count'],
+                    $this->csvAmount($workItem->revenue_budget),
+                    $this->csvAmount($workItem->cost_budget),
+                    $this->csvAmount($itemSummary['quoted_revenue']),
+                    $this->csvAmount($itemSummary['customer_confirmed']),
+                    $this->csvAmount($itemSummary['customer_invoiced']),
+                    $this->csvAmount($itemSummary['supplier_committed']),
+                    $this->csvAmount($itemSummary['received_cost']),
+                    $this->csvAmount($itemSummary['supplier_actual']),
+                    $this->csvAmount($itemSummary['remaining_budget']),
+                    $this->csvAmount($itemSummary['actual_variance']),
+                ]);
+            }
+
+            fputcsv($handle, [
+                '',
+                'Unassigned project lines',
+                '',
+                '',
+                $unassigned['line_count'],
+                '',
+                '',
+                $this->csvAmount($unassigned['quoted_revenue']),
+                $this->csvAmount($unassigned['customer_confirmed']),
+                $this->csvAmount($unassigned['customer_invoiced']),
+                $this->csvAmount($unassigned['supplier_committed']),
+                $this->csvAmount($unassigned['received_cost']),
+                $this->csvAmount($unassigned['supplier_actual']),
+                '',
+                '',
+            ]);
+
+            fputcsv($handle, [
+                '',
+                'Work breakdown totals',
+                '',
+                '',
+                $workItemTotals['line_count'],
+                $this->csvAmount($workItemTotals['revenue_budget']),
+                $this->csvAmount($workItemTotals['cost_budget']),
+                $this->csvAmount($workItemTotals['quoted_revenue']),
+                $this->csvAmount($workItemTotals['customer_confirmed']),
+                $this->csvAmount($workItemTotals['customer_invoiced']),
+                $this->csvAmount($workItemTotals['supplier_committed']),
+                $this->csvAmount($workItemTotals['received_cost']),
+                $this->csvAmount($workItemTotals['supplier_actual']),
+                $this->csvAmount($workItemTotals['remaining_budget']),
+                $this->csvAmount($workItemTotals['actual_variance']),
+            ]);
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
     public function create(): View
     {
         $this->ensureProjectManagementAccess();
@@ -255,5 +413,10 @@ class ProjectController extends Controller
     private function csvAmount(mixed $value): string
     {
         return number_format((float) $value, 2, '.', '');
+    }
+
+    private function csvPercent(mixed $value): string
+    {
+        return $value === null ? '' : $this->csvAmount($value);
     }
 }
