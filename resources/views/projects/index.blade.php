@@ -9,6 +9,7 @@
     $date = fn ($value) => $value ? $companyProfile->formatDate($value) : 'Not set';
     $percent = fn ($value) => $value === null ? 'Not available' : rtrim(rtrim(number_format((float) $value, 2), '0'), '.').'%';
     $canManageProjects = auth()->user()->hasRole('admin', 'manager');
+    $hasProjectFilters = $searchTerm !== '' || $statusFilter || $reviewFilter;
 @endphp
 
 @section('content')
@@ -60,6 +61,13 @@
                 </div>
             </form>
 
+            <div class="space-y-1">
+                <h2 class="text-xs font-bold uppercase tracking-wide text-slate-400">{{ $hasProjectFilters ? 'Filtered totals' : 'Portfolio totals' }}</h2>
+                <p class="text-xs font-semibold leading-5 text-slate-500">
+                    {{ $hasProjectFilters ? 'Totals follow the current project filters.' : 'Totals include all project records.' }}
+                </p>
+            </div>
+
             <div class="directory-stat-grid">
                 <div class="directory-stat-card">
                     <span>Total projects</span>
@@ -105,7 +113,7 @@
                     <h2 class="panel-title">Project list</h2>
                     <p class="panel-subtitle">Open a project to review the full budget, margin, work breakdown, and document trail.</p>
                 </div>
-                @if($searchTerm !== '' || $statusFilter || $reviewFilter)
+                @if($hasProjectFilters)
                     <span class="status-chip status-draft">Filtered</span>
                 @endif
             </div>
@@ -184,7 +192,7 @@
                         </article>
                     @empty
                         <div class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm font-semibold text-slate-500">
-                            @if($searchTerm !== '' || $statusFilter || $reviewFilter)
+                            @if($hasProjectFilters)
                                 No projects match these filters.
                             @else
                                 No projects yet. Create a project when a job needs budget, margin, or document grouping.

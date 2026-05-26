@@ -179,6 +179,7 @@ class ProjectControlTest extends TestCase
         $index = $this->get(route('projects.index'));
 
         $index->assertOk();
+        $index->assertSee('Portfolio totals');
         $index->assertSee('Projects needing review');
         $index->assertSee('Customer confirmed');
         $index->assertSee('Supplier committed');
@@ -220,6 +221,8 @@ class ProjectControlTest extends TestCase
 
         $needsReview->assertOk();
         $needsReview->assertSee('Commercial review');
+        $needsReview->assertSee('Filtered totals');
+        $needsReview->assertSeeTextInOrder(['Total projects', '1', 'Projects needing review', '1']);
         $needsReview->assertSee('Work item review filter project');
         $needsReview->assertSee('Work item budget overrun');
         $needsReview->assertDontSee('Clear review filter project');
@@ -227,6 +230,7 @@ class ProjectControlTest extends TestCase
         $clear = $this->get(route('projects.index', ['review' => 'clear']));
 
         $clear->assertOk();
+        $clear->assertSeeTextInOrder(['Total projects', '1', 'Projects needing review', '0']);
         $clear->assertSee('Clear review filter project');
         $clear->assertDontSee('Work item review filter project');
 

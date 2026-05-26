@@ -9,6 +9,7 @@ use App\Models\WbsItem;
 use App\Services\Projects\ProjectCommercialReportService;
 use App\Support\Audit;
 use App\Support\SearchFilters;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -19,7 +20,8 @@ class ProjectController extends Controller
     public function index(Request $request, ProjectCommercialReportService $projectCommercialReport): View
     {
         [$search, $status, $review] = $this->projectFilters($request);
-        $projects = $this->projectListQuery($search, $status, $review, $projectCommercialReport)
+        $projectScope = $this->projectScopeQuery($search, $status, $review, $projectCommercialReport);
+        $projects = $this->projectListQuery(clone $projectScope)
             ->paginate(20)
             ->withQueryString();
         $portfolio = $projectCommercialReport->portfolio($projects->getCollection());
@@ -32,14 +34,14 @@ class ProjectController extends Controller
             'reviewFilter' => $review,
             'statuses' => Project::STATUSES,
             'reviewFilters' => ProjectCommercialReportService::REVIEW_FILTERS,
-            'summary' => $projectCommercialReport->portfolioOverview(),
+            'summary' => $projectCommercialReport->portfolioOverview($projectScope),
         ]);
     }
 
     public function exportCsv(Request $request, ProjectCommercialReportService $projectCommercialReport)
     {
         [$search, $status, $review] = $this->projectFilters($request);
-        $query = $this->projectListQuery($search, $status, $review, $projectCommercialReport);
+        $query = $this->projectListQuery($this->projectScopeQuery($search, $status, $review, $projectCommercialReport));
         $filename = 'project-commercial-review-'.now()->format('Ymd-His').'.csv';
 
         return response()->streamDownload(function () use ($query, $projectCommercialReport) {
@@ -228,18 +230,23 @@ class ProjectController extends Controller
         ];
     }
 
-    private function projectListQuery(?string $search, ?string $status, ?string $review, ProjectCommercialReportService $projectCommercialReport)
+    private function projectScopeQuery(?string $search, ?string $status, ?string $review, ProjectCommercialReportService $projectCommercialReport): Builder
     {
         $query = Project::query()
-            ->select('projects.*')
-            ->with(['customer', 'manager'])
-            ->withCount('documents')
             ->when($search, fn ($query, $term) => SearchFilters::projects($query, $term))
             ->when($status, fn ($query, $status) => $query->where('projects.status', $status));
 
         $projectCommercialReport->applyReviewFilter($query, $review);
 
+        return $query;
+    }
+
+    private function projectListQuery(Builder $query): Builder
+    {
         return $query
+            ->select('projects.*')
+            ->with(['customer', 'manager'])
+            ->withCount('documents')
             ->orderByRaw("case when projects.status = 'active' then 0 when projects.status = 'on_hold' then 1 when projects.status = 'completed' then 2 else 3 end")
             ->orderBy('projects.expected_completion_date')
             ->orderBy('projects.project_code');

@@ -110,14 +110,17 @@ class ProjectCommercialReportService
         ];
     }
 
-    public function portfolioOverview(): array
+    public function portfolioOverview(?Builder $projectScope = null): array
     {
         $documentTotals = $this->documentTotalsQuery();
         $unassignedLines = $this->unassignedLinesQuery();
         $workItemExceptions = $this->workItemExceptionsQuery();
         $review = $this->reviewSqlExpressions();
+        $projectIds = clone ($projectScope ?? Project::query());
+        $projectIds->select('projects.id')->reorder();
 
         $row = Project::query()
+            ->joinSub($projectIds, 'project_scope', fn ($join) => $join->on('project_scope.id', '=', 'projects.id'))
             ->leftJoinSub($documentTotals, 'document_totals', fn ($join) => $join->on('document_totals.project_id', '=', 'projects.id'))
             ->leftJoinSub($unassignedLines, 'unassigned_lines', fn ($join) => $join->on('unassigned_lines.project_id', '=', 'projects.id'))
             ->leftJoinSub($workItemExceptions, 'work_item_exceptions', fn ($join) => $join->on('work_item_exceptions.project_id', '=', 'projects.id'))
