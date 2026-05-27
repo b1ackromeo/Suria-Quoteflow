@@ -548,7 +548,7 @@ class DocumentWorkflowTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Suria QuoteFlow');
-        $response->assertSee('brand/suria-quoteflow-app-icon.svg', false);
+        $response->assertSee('brand/SuriaQuoteflowlogo.svg', false);
         $response->assertSee('brand/favicon.svg', false);
     }
 

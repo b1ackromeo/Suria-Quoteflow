@@ -52,7 +52,7 @@
         <aside class="app-sidebar" aria-label="Application navigation">
             <div class="sidebar-brand">
                 <a href="{{ route('dashboard') }}" class="brand-lockup-horizontal" aria-label="Suria QuoteFlow dashboard">
-                    <img class="brand-horizontal-logo" src="{{ asset('brand/suria-quoteflow-horizontal-lockup.svg') }}" alt="" aria-hidden="true">
+                    <img class="brand-horizontal-logo" src="{{ asset('brand/SuriaQuoteflowlogo.svg') }}" alt="" aria-hidden="true">
                 </a>
             </div>
 
