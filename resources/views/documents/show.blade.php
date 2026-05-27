@@ -7,6 +7,22 @@
     $companyProfile = \App\Models\CompanyProfile::active();
     $money = fn ($value, ?string $currency = null) => $companyProfile->formatMoney($value, $currency ?: $document->currency);
     $date = fn ($value) => $value ? $companyProfile->formatDate($value) : 'Not set';
+    $retention = function ($amount, $percent) use ($money) {
+        $amountValue = (float) ($amount ?? 0);
+        $percentValue = (float) ($percent ?? 0);
+
+        if ($amountValue <= 0 && $percentValue <= 0) {
+            return 'Not set';
+        }
+
+        $label = $money($amountValue);
+
+        if ($percentValue > 0) {
+            $label .= ' ('.rtrim(rtrim(number_format($percentValue, 2), '0'), '.').'%)';
+        }
+
+        return $label;
+    };
 
     $canWrite = auth()->user()->hasRole('admin', 'manager')
         || ($document->direction === 'outgoing' && auth()->user()->hasRole('sales', 'accounts'))
@@ -211,6 +227,10 @@
         $detailRows[] = ['label' => 'Progress invoice', 'value' => $document->progress_invoice_number && $document->progress_invoice_total ? 'No. '.$document->progress_invoice_number.' of '.$document->progress_invoice_total : 'Not set'];
         $detailRows[] = ['label' => 'Billing stage', 'value' => $document->billing_stage_name ?: 'Not set'];
         $detailRows[] = ['label' => 'Balance', 'value' => $money($balanceDue)];
+    }
+    if ($document->hasRetention()) {
+        $detailRows[] = ['label' => 'Retention', 'value' => $retention($document->retention_amount, $document->retention_percent)];
+        $detailRows[] = ['label' => 'Retention release', 'value' => $date($document->retention_release_date)];
     }
     $readinessItems = [];
     if ($document->status === 'cancelled') {

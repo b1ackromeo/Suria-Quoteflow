@@ -121,6 +121,7 @@ class ProjectController extends Controller
             $handle = fopen('php://output', 'w');
             $summary = $commercialReport['summary'];
             $billingProgress = $commercialReport['billing'];
+            $retentionSummary = $commercialReport['retention'];
             $workItemSummaries = $commercialReport['work_items'];
             $workItemTotals = $commercialReport['totals'];
             $unassigned = $commercialReport['unassigned'];
@@ -203,6 +204,16 @@ class ProjectController extends Controller
                     ]);
                 }
             }
+
+            fputcsv($handle, []);
+            fputcsv($handle, ['Retention Summary']);
+            fputcsv($handle, ['Metric', 'Value']);
+            fputcsv($handle, ['Customer Retention Held', $this->csvAmount($retentionSummary['customer_retention_held'] ?? 0)]);
+            fputcsv($handle, ['Supplier Retention Held', $this->csvAmount($retentionSummary['supplier_retention_held'] ?? 0)]);
+            fputcsv($handle, ['Net Retention Exposure', $this->csvAmount($retentionSummary['net_retention_exposure'] ?? 0)]);
+            fputcsv($handle, ['Customer Retention Release', $retentionSummary['customer_release_date'] ?? '']);
+            fputcsv($handle, ['Supplier Retention Release', $retentionSummary['supplier_release_date'] ?? '']);
+            fputcsv($handle, ['Documents With Retention', (int) ($retentionSummary['document_count'] ?? 0)]);
 
             fputcsv($handle, []);
             fputcsv($handle, ['Project Exceptions']);
@@ -395,6 +406,7 @@ class ProjectController extends Controller
             'project' => $project,
             'summary' => $commercialReport['summary'],
             'billingProgress' => $commercialReport['billing'],
+            'retentionSummary' => $commercialReport['retention'],
             'workItems' => $workItems,
             'workItemSummaries' => $commercialReport['work_items'],
             'workItemTotals' => $commercialReport['totals'],

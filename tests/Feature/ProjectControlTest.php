@@ -202,6 +202,29 @@ class ProjectControlTest extends TestCase
         $show->assertSee(route('documents.show', $customerInvoice), false);
     }
 
+    public function test_project_page_shows_retention_summary(): void
+    {
+        $project = $this->createProject([
+            'project_code' => 'PRJ-2026-028',
+            'name' => 'Retention project',
+        ]);
+        $customerInvoice = $this->createLinkedDocument($project, 'customer_invoice', 'INV-2026-92801', 1000);
+        $supplierInvoice = $this->createLinkedDocument($project, 'supplier_invoice', 'SIN-2026-92801', 800);
+
+        $this->attachRetention($customerInvoice, 5, 50, '2026-08-01');
+        $this->attachRetention($supplierInvoice, 2.5, 20, '2026-08-15');
+
+        $show = $this->get(route('projects.show', $project));
+
+        $show->assertOk();
+        $show->assertSee('Retention');
+        $show->assertSee('Customer retention held');
+        $show->assertSee('Supplier retention held');
+        $show->assertSee('Net retention exposure');
+        $show->assertSee('2026-08-01');
+        $show->assertSee('2026-08-15');
+    }
+
     public function test_project_commercial_report_can_be_exported_from_detail_page(): void
     {
         $project = $this->createProject([
@@ -296,6 +319,32 @@ class ProjectControlTest extends TestCase
         $this->assertStringContainsString('"Recent Staged Invoices"', $csv);
         $this->assertStringContainsString('INV-2026-92601,"Customer invoice","Acme Trading Sdn Bhd",2026-05-14,"No. 1 of 2",Deposit,600.00', $csv);
         $this->assertStringContainsString('SIN-2026-92601,"Supplier invoice","Best Supplies Sdn Bhd",2026-05-14,"No. 1 of 2",Deposit,300.00', $csv);
+    }
+
+    public function test_project_commercial_report_export_includes_retention_summary(): void
+    {
+        $project = $this->createProject([
+            'project_code' => 'PRJ-2026-029',
+            'name' => 'Retention export project',
+        ]);
+        $customerInvoice = $this->createLinkedDocument($project, 'customer_invoice', 'INV-2026-92901', 1000);
+        $supplierInvoice = $this->createLinkedDocument($project, 'supplier_invoice', 'SIN-2026-92901', 800);
+
+        $this->attachRetention($customerInvoice, 5, 50, '2026-08-01');
+        $this->attachRetention($supplierInvoice, 2.5, 20, '2026-08-15');
+
+        $response = $this->get(route('projects.report.export', $project));
+
+        $response->assertOk();
+        $csv = $response->streamedContent();
+
+        $this->assertStringContainsString('"Retention Summary"', $csv);
+        $this->assertStringContainsString('"Customer Retention Held",50.00', $csv);
+        $this->assertStringContainsString('"Supplier Retention Held",20.00', $csv);
+        $this->assertStringContainsString('"Net Retention Exposure",30.00', $csv);
+        $this->assertStringContainsString('"Customer Retention Release",2026-08-01', $csv);
+        $this->assertStringContainsString('"Supplier Retention Release",2026-08-15', $csv);
+        $this->assertStringContainsString('"Documents With Retention",2', $csv);
     }
 
     public function test_projects_index_shows_portfolio_commercial_review(): void
@@ -937,6 +986,15 @@ class ProjectControlTest extends TestCase
                 'is_current' => (bool) ($stage['is_current'] ?? false),
             ]);
         }
+    }
+
+    private function attachRetention(Document $document, float $percent, float $amount, string $releaseDate): void
+    {
+        $document->update([
+            'retention_percent' => $percent,
+            'retention_amount' => $amount,
+            'retention_release_date' => $releaseDate,
+        ]);
     }
 
     private function documentPayload(array $overrides = []): array

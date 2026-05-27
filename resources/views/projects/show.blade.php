@@ -14,6 +14,14 @@
         'supplier' => [],
         'recent_invoices' => [],
     ];
+    $retentionSummary = $retentionSummary ?? [
+        'customer_retention_held' => 0,
+        'supplier_retention_held' => 0,
+        'net_retention_exposure' => 0,
+        'customer_release_date' => null,
+        'supplier_release_date' => null,
+        'document_count' => 0,
+    ];
     $customerBilling = $billingProgress['customer'] ?? [];
     $supplierBilling = $billingProgress['supplier'] ?? [];
     $recentBillingInvoices = $billingProgress['recent_invoices'] ?? [];
@@ -308,6 +316,39 @@
                                 <p>No milestone customer or supplier invoices are linked to this project yet.</p>
                             </article>
                         @endif
+                    </div>
+                </section>
+
+                <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="directory-table-header border-0 p-0">
+                        <div>
+                            <h2 class="panel-title">Retention</h2>
+                            <p class="panel-subtitle">Track retention amounts already held on project invoices and the next recorded release dates.</p>
+                        </div>
+                        <span class="issuer-mini">{{ (int) ($retentionSummary['document_count'] ?? 0) }} document{{ (int) ($retentionSummary['document_count'] ?? 0) === 1 ? '' : 's' }}</span>
+                    </div>
+
+                    <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                        <div class="directory-stat-card">
+                            <span>Customer retention held</span>
+                            <strong>{{ $money($retentionSummary['customer_retention_held'] ?? 0) }}</strong>
+                        </div>
+                        <div class="directory-stat-card">
+                            <span>Supplier retention held</span>
+                            <strong>{{ $money($retentionSummary['supplier_retention_held'] ?? 0) }}</strong>
+                        </div>
+                        <div class="directory-stat-card">
+                            <span>Net retention exposure</span>
+                            <strong>{{ $money($retentionSummary['net_retention_exposure'] ?? 0) }}</strong>
+                        </div>
+                        <div class="directory-stat-card">
+                            <span>Customer release date</span>
+                            <strong>{{ $date($retentionSummary['customer_release_date'] ?? null) }}</strong>
+                        </div>
+                        <div class="directory-stat-card">
+                            <span>Supplier release date</span>
+                            <strong>{{ $date($retentionSummary['supplier_release_date'] ?? null) }}</strong>
+                        </div>
                     </div>
                 </section>
 

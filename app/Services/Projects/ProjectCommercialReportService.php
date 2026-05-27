@@ -193,6 +193,7 @@ class ProjectCommercialReportService
         return [
             'summary' => $summary,
             'billing' => $this->billingProgress($project),
+            'retention' => $this->retentionSummary($project),
             'work_items' => $workItemReport['items'],
             'totals' => $workItemReport['totals'],
             'unassigned' => $workItemReport['unassigned'],
@@ -257,6 +258,33 @@ class ProjectCommercialReportService
             'customer' => $this->milestoneSummary($project, 'customer_po', 'customer_invoice'),
             'supplier' => $this->milestoneSummary($project, 'supplier_po', 'supplier_invoice'),
             'recent_invoices' => $this->recentMilestoneInvoices($project),
+        ];
+    }
+
+    private function retentionSummary(Project $project): array
+    {
+        $retentionDocuments = Document::query()
+            ->where('project_id', $project->id)
+            ->whereIn('status', self::REPORT_STATUSES)
+            ->whereIn('type', ['customer_invoice', 'supplier_invoice'])
+            ->whereNotNull('retention_amount')
+            ->where('retention_amount', '>', 0);
+
+        $customerRetention = (clone $retentionDocuments)
+            ->where('type', 'customer_invoice');
+        $supplierRetention = (clone $retentionDocuments)
+            ->where('type', 'supplier_invoice');
+
+        $customerHeld = (float) (clone $customerRetention)->sum('retention_amount');
+        $supplierHeld = (float) (clone $supplierRetention)->sum('retention_amount');
+
+        return [
+            'customer_retention_held' => $customerHeld,
+            'supplier_retention_held' => $supplierHeld,
+            'net_retention_exposure' => $customerHeld - $supplierHeld,
+            'customer_release_date' => (clone $customerRetention)->min('retention_release_date'),
+            'supplier_release_date' => (clone $supplierRetention)->min('retention_release_date'),
+            'document_count' => (clone $retentionDocuments)->count(),
         ];
     }
 

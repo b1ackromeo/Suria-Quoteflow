@@ -125,6 +125,9 @@ class Document extends Model
         'progress_invoice_number',
         'progress_invoice_total',
         'billing_stage_name',
+        'retention_percent',
+        'retention_amount',
+        'retention_release_date',
         'subtotal',
         'tax_total',
         'total',
@@ -141,9 +144,12 @@ class Document extends Model
         'due_date' => 'date',
         'approved_at' => 'datetime',
         'fulfilled_at' => 'datetime',
+        'retention_release_date' => 'date',
         'payment_due_days' => 'integer',
         'progress_invoice_number' => 'integer',
         'progress_invoice_total' => 'integer',
+        'retention_percent' => 'decimal:2',
+        'retention_amount' => 'decimal:2',
         'subtotal' => 'decimal:2',
         'tax_total' => 'decimal:2',
         'total' => 'decimal:2',
@@ -302,6 +308,13 @@ class Document extends Model
         }
 
         return 'Not specified';
+    }
+
+    public function hasRetention(): bool
+    {
+        return (float) ($this->retention_amount ?? 0) > 0
+            || (float) ($this->retention_percent ?? 0) > 0
+            || $this->retention_release_date !== null;
     }
 
     public static function formatQuantity(mixed $value, string $default = '0'): string

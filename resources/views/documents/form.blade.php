@@ -646,6 +646,20 @@
             </div>
         @endif
 
+        @if($isQuotationDocument || $isPoDocument || $isInvoiceDocument)
+            <div class="grid gap-4 md:grid-cols-3">
+                <label class="form-label">Retention (%)
+                    <input class="form-input" type="number" step="0.01" min="0" max="100" name="retention_percent" value="{{ old('retention_percent', $document->retention_percent) }}" placeholder="5">
+                </label>
+                <label class="form-label">Retention amount
+                    <input class="form-input" type="number" step="0.01" min="0" name="retention_amount" value="{{ old('retention_amount', $document->retention_amount) }}" placeholder="0.00">
+                </label>
+                <label class="form-label">Retention release date
+                    <input class="form-input" type="date" name="retention_release_date" value="{{ old('retention_release_date', optional($document->retention_release_date)->format('Y-m-d')) }}">
+                </label>
+            </div>
+        @endif
+
         <div class="{{ $showBillingStages ? '' : 'hidden' }} rounded-lg border border-slate-200" data-billing-stage-panel>
             <div class="flex flex-col gap-3 border-b border-slate-100 p-4 md:flex-row md:items-center md:justify-between">
                 <div>

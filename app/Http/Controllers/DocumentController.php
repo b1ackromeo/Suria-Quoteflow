@@ -135,6 +135,9 @@ class DocumentController extends Controller
                 'progress_invoice_number' => $data['progress_invoice_number'] ?? null,
                 'progress_invoice_total' => $data['progress_invoice_total'] ?? null,
                 'billing_stage_name' => $data['billing_stage_name'] ?? null,
+                'retention_percent' => $data['retention_percent'] ?? null,
+                'retention_amount' => $data['retention_amount'] ?? null,
+                'retention_release_date' => $data['retention_release_date'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'terms' => $data['terms'] ?? null,
                 'created_by' => auth()->id(),
@@ -243,6 +246,9 @@ class DocumentController extends Controller
                 'progress_invoice_number' => $data['progress_invoice_number'] ?? null,
                 'progress_invoice_total' => $data['progress_invoice_total'] ?? null,
                 'billing_stage_name' => $data['billing_stage_name'] ?? null,
+                'retention_percent' => $data['retention_percent'] ?? null,
+                'retention_amount' => $data['retention_amount'] ?? null,
+                'retention_release_date' => $data['retention_release_date'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'terms' => $data['terms'] ?? null,
             ]);
@@ -1168,6 +1174,9 @@ class DocumentController extends Controller
             'payment_terms_type' => $sourceDocument->payment_terms_type ?: 'standard',
             'payment_due_days' => $sourceDocument->payment_due_days,
             'payment_terms_label' => $sourceDocument->payment_terms_label,
+            'retention_percent' => $sourceDocument->retention_percent,
+            'retention_amount' => $sourceDocument->retention_amount,
+            'retention_release_date' => optional($sourceDocument->retention_release_date)->toDateString(),
             'notes' => $sourceDocument->notes,
             'terms' => $sourceDocument->terms,
         ]);
@@ -1181,6 +1190,9 @@ class DocumentController extends Controller
             $document->payment_terms_type = 'standard';
             $document->payment_due_days = null;
             $document->payment_terms_label = null;
+            $document->retention_percent = null;
+            $document->retention_amount = null;
+            $document->retention_release_date = null;
         }
 
         $document->setRelation('items', $sourceDocument->items->map(fn ($item) => $item->replicate(['document_id'])));
@@ -1311,6 +1323,9 @@ class DocumentController extends Controller
             'progress_invoice_number' => ['nullable', 'integer', 'min:1', 'max:99'],
             'progress_invoice_total' => ['nullable', 'integer', 'min:1', 'max:99'],
             'billing_stage_name' => ['nullable', 'string', 'max:255'],
+            'retention_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'retention_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'retention_release_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
             'notes' => ['nullable', 'string'],
             'terms' => ['nullable', 'string'],
             'source_attachment' => $sourceAttachmentRules,
@@ -1481,6 +1496,7 @@ class DocumentController extends Controller
         }
 
         $data['billing_stages'] = $this->normalizedBillingStages($data['billing_stages'] ?? []);
+        $data = $this->normalizeRetentionPayload($data);
 
         return $this->validateMilestoneBillingPayload($data, $meta);
     }
@@ -1583,6 +1599,58 @@ class DocumentController extends Controller
         }
 
         $data['billing_stage_name'] = trim((string) $data['billing_stage_name']);
+
+        return $data;
+    }
+
+    private function normalizeRetentionPayload(array $data): array
+    {
+        $retentionPercent = filled($data['retention_percent'] ?? null)
+            ? round((float) $data['retention_percent'], 2)
+            : null;
+        $retentionAmount = filled($data['retention_amount'] ?? null)
+            ? round((float) $data['retention_amount'], 2)
+            : null;
+        $retentionReleaseDate = filled($data['retention_release_date'] ?? null)
+            ? $data['retention_release_date']
+            : null;
+        $documentTotal = $this->documentTotalFromValidatedPayload($data);
+
+        if ($retentionPercent !== null && $retentionAmount === null) {
+            $retentionAmount = round($documentTotal * ($retentionPercent / 100), 2);
+        }
+
+        if ($retentionAmount !== null && $retentionPercent === null) {
+            $retentionPercent = $documentTotal > 0
+                ? round(($retentionAmount / $documentTotal) * 100, 2)
+                : null;
+        }
+
+        if ($retentionAmount !== null && $retentionAmount > $documentTotal + 0.01) {
+            throw ValidationException::withMessages([
+                'retention_amount' => 'Retention amount cannot be greater than the document total.',
+            ]);
+        }
+
+        if ($retentionPercent !== null && $retentionAmount !== null) {
+            $calculatedAmount = round($documentTotal * ($retentionPercent / 100), 2);
+
+            if (abs($calculatedAmount - $retentionAmount) > 0.01) {
+                throw ValidationException::withMessages([
+                    'retention_amount' => 'Retention amount must match the retention percentage for this document total.',
+                ]);
+            }
+        }
+
+        if ($retentionReleaseDate !== null && ($retentionAmount === null || $retentionAmount <= 0)) {
+            throw ValidationException::withMessages([
+                'retention_release_date' => 'Add a retention percentage or amount before setting a retention release date.',
+            ]);
+        }
+
+        $data['retention_percent'] = $retentionPercent !== null && $retentionPercent > 0 ? $retentionPercent : null;
+        $data['retention_amount'] = $retentionAmount !== null && $retentionAmount > 0 ? $retentionAmount : null;
+        $data['retention_release_date'] = $data['retention_amount'] === null ? null : $retentionReleaseDate;
 
         return $data;
     }

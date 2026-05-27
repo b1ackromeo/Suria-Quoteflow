@@ -115,6 +115,17 @@
     $terms = filled($document->terms)
         ? preg_split('/\r\n|\r|\n/', trim($document->terms))
         : $defaultTerms;
+    $retentionAmountValue = (float) ($document->retention_amount ?? 0);
+    $retentionPercentValue = (float) ($document->retention_percent ?? 0);
+    $retentionSummary = null;
+
+    if ($retentionAmountValue > 0 || $retentionPercentValue > 0) {
+        $retentionSummary = $companyProfile->formatMoney($retentionAmountValue, $document->currency);
+
+        if ($retentionPercentValue > 0) {
+            $retentionSummary .= ' ('.rtrim(rtrim(number_format($retentionPercentValue, 2), '0'), '.').'%)';
+        }
+    }
 @endphp
 
 <!doctype html>
@@ -824,15 +835,33 @@
                                     <tr><td class="label">Billing Stage</td><td class="value">{{ $document->billing_stage_name }}</td></tr>
                                 @endif
                                 <tr><td class="label">Payment Term</td><td class="value">{{ $document->paymentTermsDisplay() }}</td></tr>
+                                @if($retentionSummary)
+                                    <tr><td class="label">Retention</td><td class="value">{{ $retentionSummary }}</td></tr>
+                                @endif
+                                @if($document->retention_release_date)
+                                    <tr><td class="label">Retention Release</td><td class="value">{{ $companyProfile->formatDate($document->retention_release_date) }}</td></tr>
+                                @endif
                             @elseif($isCustomerPo)
                                 <tr><td class="label">Customer PO No.</td><td class="value">{{ $document->document_number }}</td></tr>
                                 <tr><td class="label">Date Received</td><td class="value">{{ $companyProfile->formatDate($document->issue_date) }}</td></tr>
                                 <tr><td class="label">Completion Target</td><td class="value">{{ $companyProfile->formatDate($document->due_date) }}</td></tr>
                                 <tr><td class="label">PO Ref.</td><td class="value">{{ $document->external_reference ?: '-' }}</td></tr>
+                                @if($retentionSummary)
+                                    <tr><td class="label">Retention</td><td class="value">{{ $retentionSummary }}</td></tr>
+                                @endif
+                                @if($document->retention_release_date)
+                                    <tr><td class="label">Retention Release</td><td class="value">{{ $companyProfile->formatDate($document->retention_release_date) }}</td></tr>
+                                @endif
                             @else
                                 <tr><td class="label">Document No.</td><td class="value">{{ $document->document_number }}</td></tr>
                                 <tr><td class="label">Document Date</td><td class="value">{{ $companyProfile->formatDate($document->issue_date) }}</td></tr>
                                 <tr><td class="label">Reference</td><td class="value">{{ $document->external_reference ?: '-' }}</td></tr>
+                                @if($retentionSummary)
+                                    <tr><td class="label">Retention</td><td class="value">{{ $retentionSummary }}</td></tr>
+                                @endif
+                                @if($document->retention_release_date)
+                                    <tr><td class="label">Retention Release</td><td class="value">{{ $companyProfile->formatDate($document->retention_release_date) }}</td></tr>
+                                @endif
                             @endif
                         </table>
                     </div>

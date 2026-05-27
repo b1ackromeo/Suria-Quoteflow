@@ -3697,6 +3697,117 @@ class DocumentWorkflowTest extends TestCase
         $this->assertStringNotContainsString('trigger', strtolower($html));
     }
 
+    public function test_retention_fields_are_saved_and_rendered_for_customer_invoice(): void
+    {
+        $payload = [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'INV-RETENTION-001',
+            'issue_date' => '2026-05-14',
+            'due_date' => '2026-06-13',
+            'currency' => 'MYR',
+            'payment_terms_type' => 'standard',
+            'payment_due_days' => 30,
+            'payment_terms_label' => '30 days from invoice date',
+            'retention_percent' => 10,
+            'retention_release_date' => '2026-08-01',
+            'items' => [
+                [
+                    'product_id' => $this->service->id,
+                    'description' => 'Retention-enabled invoice line',
+                    'quantity' => 1,
+                    'unit' => 'job',
+                    'unit_price' => 1100,
+                    'tax_rate' => 8,
+                ],
+            ],
+            'notes' => 'Retention billing test.',
+            'terms' => 'Retention is released after final acceptance.',
+        ];
+
+        $this->post(route('documents.store', 'customer-invoices'), $payload)
+            ->assertRedirect();
+
+        $invoice = Document::where('external_reference', 'INV-RETENTION-001')->firstOrFail();
+
+        $this->assertSame('10.00', (string) $invoice->retention_percent);
+        $this->assertSame('118.80', (string) $invoice->retention_amount);
+        $this->assertSame('2026-08-01', $invoice->retention_release_date?->format('Y-m-d'));
+
+        $show = $this->get(route('documents.show', $invoice));
+        $show->assertOk();
+        $show->assertSee('Retention');
+        $show->assertSee('Retention release');
+        $show->assertSee('10%');
+
+        $html = view('documents.pdf', [
+            'document' => $invoice->load(['customer', 'supplier', 'relatedDocument', 'items.product', 'billingStages', 'payments', 'creator', 'approver']),
+            'meta' => Document::metaForSlug(Document::slugForType($invoice->type)),
+        ])->render();
+
+        $this->assertStringContainsString('Retention', $html);
+        $this->assertStringContainsString('10%)', $html);
+        $this->assertStringContainsString('Retention Release', $html);
+    }
+
+    public function test_retention_amount_must_match_retention_percentage_for_document_total(): void
+    {
+        $payload = [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'INV-RETENTION-MISMATCH',
+            'issue_date' => '2026-05-14',
+            'due_date' => '2026-06-13',
+            'currency' => 'MYR',
+            'payment_terms_type' => 'standard',
+            'payment_due_days' => 30,
+            'payment_terms_label' => '30 days from invoice date',
+            'retention_percent' => 10,
+            'retention_amount' => 200,
+            'items' => [
+                [
+                    'product_id' => $this->service->id,
+                    'description' => 'Retention mismatch invoice line',
+                    'quantity' => 1,
+                    'unit' => 'job',
+                    'unit_price' => 1100,
+                    'tax_rate' => 8,
+                ],
+            ],
+        ];
+
+        $this->post(route('documents.store', 'customer-invoices'), $payload)
+            ->assertSessionHasErrors([
+                'retention_amount' => 'Retention amount must match the retention percentage for this document total.',
+            ]);
+    }
+
+    public function test_converted_customer_invoice_inherits_retention_terms_from_customer_po(): void
+    {
+        $customerPo = $this->createDocument('customer-pos', [
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'CPO-RETENTION-001',
+            'description' => 'Retention customer PO',
+            'quantity' => 1,
+            'unit_price' => 1200,
+            'retention_percent' => 5,
+            'retention_amount' => 64.8,
+            'retention_release_date' => '2026-09-01',
+        ]);
+
+        $customerPo->update(['status' => 'fulfilled']);
+
+        $this->post(route('documents.convert', [$customerPo, 'customer-invoices']))
+            ->assertRedirect();
+
+        $invoice = Document::query()
+            ->where('type', 'customer_invoice')
+            ->where('related_document_id', $customerPo->id)
+            ->firstOrFail();
+
+        $this->assertSame('5.00', (string) $invoice->retention_percent);
+        $this->assertSame('64.80', (string) $invoice->retention_amount);
+        $this->assertSame('2026-09-01', $invoice->retention_release_date?->format('Y-m-d'));
+    }
+
     private function createDocument(string $module, array $overrides): Document
     {
         $reference = $overrides['external_reference'];
@@ -3740,6 +3851,9 @@ class DocumentWorkflowTest extends TestCase
             'issue_date' => '2026-05-14',
             'due_date' => '2026-06-13',
             'currency' => 'MYR',
+            'retention_percent' => $overrides['retention_percent'] ?? null,
+            'retention_amount' => $overrides['retention_amount'] ?? null,
+            'retention_release_date' => $overrides['retention_release_date'] ?? null,
             'items' => [
                 [
                     'product_id' => $this->service->id,
