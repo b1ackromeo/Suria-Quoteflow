@@ -502,21 +502,38 @@ This answers:
 Which projects are profitable, over budget, blocked, or commercially risky?
 ```
 
-### Phase 5 - Advanced project billing later only
+### Phase 5 - Advanced project billing
 
-Do not start here.
+Goal: make staged billing commercially consistent before adding more complex contract billing controls.
+
+Implementation status: milestone / progress billing validation foundation started in the Laravel Blade app.
+
+Build:
+
+```text
+Server-side milestone billing schedule validation
+Progress invoice stage consistency checks
+Stale milestone-field cleanup when fixed payment terms are selected
+```
+
+Implemented behavior:
+
+```text
+Milestone-based documents now require at least one billing stage before save.
+Milestone-based customer and supplier invoices now require a progress invoice number, total progress invoice count, and a current billing stage.
+Progress invoice saves now enforce a single current invoice stage, require the document billing stage name to match that current stage, and require the current billed amount across stages to match the invoice total.
+Switching a document back to fixed payment terms clears milestone-only billing fields and stored billing stages so stale staged-billing data does not remain on the record.
+```
 
 Future possible additions:
 
 ```text
-Milestone billing
-Progress claims
 Retention
 Variation orders
 Partial delivery billing
 ```
 
-These should come only after project, WBS, budget, margin, and reporting foundations are stable.
+These should continue only after project, WBS, budget, margin, reporting, and staged-billing foundations remain stable.
 
 ## Explicit non-goals for this task
 

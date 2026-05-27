@@ -507,7 +507,7 @@ class DocumentWorkflowTest extends TestCase
         $response->assertSee('Supplier payments made');
         $response->assertSee('Open reports');
         $response->assertSee('href="'.route('approvals.pending').'"', false);
-        $response->assertSee('brand/suria-quoteflow-horizontal-lockup.svg', false);
+        $response->assertSee('brand/SuriaQuoteflowlogo.svg', false);
         $response->assertSee('brand/favicon.svg', false);
         $response->assertSee('sidebar-workspace', false);
         $response->assertSee('Current company');
@@ -3517,6 +3517,128 @@ class DocumentWorkflowTest extends TestCase
         $this->assertStringNotContainsString('<th class="right" style="width: 62px;">Tax</th>', $html);
     }
 
+    public function test_milestone_document_requires_billing_stage_schedule(): void
+    {
+        $payload = $this->documentPayload('supplier-pos', [
+            'supplier_id' => $this->supplier->id,
+            'external_reference' => 'SQ-MILESTONE-NO-STAGES',
+            'description' => 'Milestone PO without billing stages',
+            'quantity' => 2,
+            'unit_price' => 450,
+        ]);
+
+        $payload['payment_terms_type'] = 'milestone';
+        $payload['payment_terms_label'] = 'Milestone based';
+        $payload['billing_stages'] = [];
+
+        $this->post(route('documents.store', 'supplier-pos'), $payload)
+            ->assertSessionHasErrors([
+                'billing_stages' => 'Add at least one billing stage for milestone / progress billing.',
+            ]);
+
+        $this->assertDatabaseMissing('documents', [
+            'external_reference' => 'SQ-MILESTONE-NO-STAGES',
+        ]);
+    }
+
+    public function test_milestone_invoice_requires_current_stage_to_match_progress_stage_name(): void
+    {
+        $payload = $this->milestoneInvoicePayload([
+            'external_reference' => 'CPO-MILESTONE-STAGE-MISMATCH',
+            'billing_stage_name' => 'Final Claim',
+        ]);
+
+        $this->post(route('documents.store', 'customer-invoices'), $payload)
+            ->assertSessionHasErrors([
+                'billing_stage_name' => 'Select the same billing stage as the current invoice stage.',
+            ]);
+
+        $this->assertDatabaseMissing('documents', [
+            'external_reference' => 'CPO-MILESTONE-STAGE-MISMATCH',
+        ]);
+    }
+
+    public function test_milestone_invoice_requires_billing_stage_amount_to_match_document_total(): void
+    {
+        $payload = $this->milestoneInvoicePayload([
+            'external_reference' => 'CPO-MILESTONE-AMOUNT-MISMATCH',
+            'billing_stages' => [
+                [
+                    'stage_name' => 'Deposit',
+                    'condition_label' => 'Upon customer PO / written acceptance',
+                    'percentage' => 40,
+                    'amount' => 1188,
+                    'payment_term' => 'Due upon invoice',
+                    'previously_invoiced' => 1188,
+                    'current_invoice' => 0,
+                    'remaining_amount' => 0,
+                    'is_current' => 0,
+                ],
+                [
+                    'stage_name' => 'Progress Claim 1',
+                    'condition_label' => 'Upon delivery or installation start',
+                    'percentage' => 40,
+                    'amount' => 1188,
+                    'payment_term' => '7 days from invoice date',
+                    'previously_invoiced' => 0,
+                    'current_invoice' => 1000,
+                    'remaining_amount' => 188,
+                    'is_current' => 1,
+                ],
+                [
+                    'stage_name' => 'Final Claim',
+                    'condition_label' => 'Upon completion and handover acceptance',
+                    'percentage' => 20,
+                    'amount' => 594,
+                    'payment_term' => '14 days from invoice date',
+                    'previously_invoiced' => 0,
+                    'current_invoice' => 0,
+                    'remaining_amount' => 594,
+                    'is_current' => 0,
+                ],
+            ],
+        ]);
+
+        $this->post(route('documents.store', 'customer-invoices'), $payload)
+            ->assertSessionHasErrors([
+                'billing_stages' => 'The invoice amount across billing stages must match the document total.',
+            ]);
+
+        $this->assertDatabaseMissing('documents', [
+            'external_reference' => 'CPO-MILESTONE-AMOUNT-MISMATCH',
+        ]);
+    }
+
+    public function test_switching_back_to_standard_terms_clears_milestone_invoice_fields(): void
+    {
+        $this->post(route('documents.store', 'customer-invoices'), $this->milestoneInvoicePayload([
+            'external_reference' => 'CPO-MILESTONE-TO-STANDARD',
+        ]))->assertRedirect();
+
+        $invoice = Document::where('external_reference', 'CPO-MILESTONE-TO-STANDARD')->firstOrFail();
+
+        $payload = $this->milestoneInvoicePayload([
+            'external_reference' => 'CPO-MILESTONE-TO-STANDARD',
+            'payment_terms_type' => 'standard',
+            'payment_due_days' => 30,
+            'payment_terms_label' => '30 days from invoice date',
+            'progress_invoice_number' => 2,
+            'progress_invoice_total' => 3,
+            'billing_stage_name' => 'Progress Claim 1',
+        ]);
+
+        $this->put(route('documents.update', $invoice), $payload)
+            ->assertRedirect();
+
+        $invoice->refresh();
+
+        $this->assertSame('standard', $invoice->payment_terms_type);
+        $this->assertNull($invoice->progress_invoice_number);
+        $this->assertNull($invoice->progress_invoice_total);
+        $this->assertNull($invoice->billing_stage_name);
+        $this->assertCount(0, $invoice->billingStages);
+    }
+
     public function test_supplier_po_uses_supplier_facing_payment_conditions(): void
     {
         $payload = [
@@ -3631,6 +3753,70 @@ class DocumentWorkflowTest extends TestCase
             'notes' => 'Feature test workflow document.',
             'terms' => 'Generated by automated workflow coverage.',
         ];
+    }
+
+    private function milestoneInvoicePayload(array $overrides = []): array
+    {
+        return array_replace_recursive([
+            'customer_id' => $this->customer->id,
+            'external_reference' => 'CPO-MILESTONE-DEFAULT',
+            'project_name' => 'Cyberjaya Site',
+            'delivery_to' => "Cyberjaya, Selangor\nContact: Operations Lead",
+            'issue_date' => '2026-05-14',
+            'currency' => 'MYR',
+            'payment_terms_type' => 'milestone',
+            'payment_due_days' => 7,
+            'progress_invoice_number' => 2,
+            'progress_invoice_total' => 3,
+            'billing_stage_name' => 'Progress Claim 1',
+            'items' => [
+                [
+                    'product_id' => $this->service->id,
+                    'description' => 'Progress Claim 1 - installation start',
+                    'quantity' => 1,
+                    'unit' => 'stage',
+                    'unit_price' => 1100,
+                    'tax_rate' => 8,
+                ],
+            ],
+            'billing_stages' => [
+                [
+                    'stage_name' => 'Deposit',
+                    'condition_label' => 'Upon customer PO / written acceptance',
+                    'percentage' => 40,
+                    'amount' => 1188,
+                    'payment_term' => 'Due upon invoice',
+                    'previously_invoiced' => 1188,
+                    'current_invoice' => 0,
+                    'remaining_amount' => 0,
+                    'is_current' => 0,
+                ],
+                [
+                    'stage_name' => 'Progress Claim 1',
+                    'condition_label' => 'Upon delivery or installation start',
+                    'percentage' => 40,
+                    'amount' => 1188,
+                    'payment_term' => '7 days from invoice date',
+                    'previously_invoiced' => 0,
+                    'current_invoice' => 1188,
+                    'remaining_amount' => 0,
+                    'is_current' => 1,
+                ],
+                [
+                    'stage_name' => 'Final Claim',
+                    'condition_label' => 'Upon completion and handover acceptance',
+                    'percentage' => 20,
+                    'amount' => 594,
+                    'payment_term' => '14 days from invoice date',
+                    'previously_invoiced' => 0,
+                    'current_invoice' => 0,
+                    'remaining_amount' => 594,
+                    'is_current' => 0,
+                ],
+            ],
+            'notes' => 'Progress billing test.',
+            'terms' => 'Customer-facing progress billing terms.',
+        ], $overrides);
     }
 
     private function directExceptionCases(): array

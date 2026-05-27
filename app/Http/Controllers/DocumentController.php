@@ -1480,12 +1480,128 @@ class DocumentController extends Controller
             throw ValidationException::withMessages(['progress_invoice_number' => 'Progress invoice number cannot be greater than total progress invoices.']);
         }
 
-        $data['billing_stages'] = collect($data['billing_stages'] ?? [])
+        $data['billing_stages'] = $this->normalizedBillingStages($data['billing_stages'] ?? []);
+
+        return $this->validateMilestoneBillingPayload($data, $meta);
+    }
+
+    private function normalizedBillingStages(array $stages): array
+    {
+        return collect($stages)
+            ->map(function ($stage) {
+                return [
+                    'stage_name' => isset($stage['stage_name']) ? trim((string) $stage['stage_name']) : null,
+                    'condition_label' => isset($stage['condition_label']) ? trim((string) $stage['condition_label']) : null,
+                    'percentage' => $stage['percentage'] ?? null,
+                    'amount' => $stage['amount'] ?? null,
+                    'payment_term' => isset($stage['payment_term']) ? trim((string) $stage['payment_term']) : null,
+                    'previously_invoiced' => $stage['previously_invoiced'] ?? null,
+                    'current_invoice' => $stage['current_invoice'] ?? null,
+                    'remaining_amount' => $stage['remaining_amount'] ?? null,
+                    'is_current' => $stage['is_current'] ?? false,
+                ];
+            })
             ->filter(fn ($stage) => filled($stage['stage_name'] ?? null))
             ->values()
             ->all();
+    }
+
+    private function validateMilestoneBillingPayload(array $data, array $meta): array
+    {
+        if (($data['payment_terms_type'] ?? 'standard') !== 'milestone') {
+            $data['progress_invoice_number'] = null;
+            $data['progress_invoice_total'] = null;
+            $data['billing_stage_name'] = null;
+            $data['billing_stages'] = [];
+
+            return $data;
+        }
+
+        if (($data['billing_stages'] ?? []) === []) {
+            throw ValidationException::withMessages([
+                'billing_stages' => 'Add at least one billing stage for milestone / progress billing.',
+            ]);
+        }
+
+        if (! in_array($meta['type'], ['customer_invoice', 'supplier_invoice'], true)) {
+            $data['progress_invoice_number'] = null;
+            $data['progress_invoice_total'] = null;
+            $data['billing_stage_name'] = null;
+
+            return $data;
+        }
+
+        $errors = [];
+
+        if (empty($data['progress_invoice_number'])) {
+            $errors['progress_invoice_number'] = 'Enter the progress invoice number for this milestone invoice.';
+        }
+
+        if (empty($data['progress_invoice_total'])) {
+            $errors['progress_invoice_total'] = 'Enter the total number of progress invoices for this milestone invoice.';
+        }
+
+        if (! filled($data['billing_stage_name'] ?? null)) {
+            $errors['billing_stage_name'] = 'Enter the current billing stage for this milestone invoice.';
+        }
+
+        $currentStages = collect($data['billing_stages'])
+            ->filter(fn ($stage) => (bool) ($stage['is_current'] ?? false))
+            ->values();
+
+        if ($currentStages->count() !== 1) {
+            $errors['billing_stages'] = 'Select one current invoice stage for this milestone invoice.';
+        }
+
+        if (! isset($errors['billing_stages'])) {
+            $currentStage = $currentStages->first();
+            $billingStageName = trim((string) ($data['billing_stage_name'] ?? ''));
+            $currentStageName = trim((string) ($currentStage['stage_name'] ?? ''));
+
+            if ($billingStageName !== $currentStageName) {
+                $errors['billing_stage_name'] = 'Select the same billing stage as the current invoice stage.';
+            }
+
+            $nonCurrentInvoiceAmount = collect($data['billing_stages'])
+                ->reject(fn ($stage) => (bool) ($stage['is_current'] ?? false))
+                ->sum(fn ($stage) => round((float) ($stage['current_invoice'] ?? 0), 2));
+
+            if ($nonCurrentInvoiceAmount > 0.009 && ! isset($errors['billing_stages'])) {
+                $errors['billing_stages'] = 'Only the current invoice stage can include this invoice amount.';
+            }
+        }
+
+        $currentInvoiceAmount = collect($data['billing_stages'])
+            ->sum(fn ($stage) => round((float) ($stage['current_invoice'] ?? 0), 2));
+
+        if (abs($currentInvoiceAmount - $this->documentTotalFromValidatedPayload($data)) > 0.01 && ! isset($errors['billing_stages'])) {
+            $errors['billing_stages'] = 'The invoice amount across billing stages must match the document total.';
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        $data['billing_stage_name'] = trim((string) $data['billing_stage_name']);
 
         return $data;
+    }
+
+    private function documentTotalFromValidatedPayload(array $data): float
+    {
+        $taxRateOverride = ($data['document_tax_rate'] ?? null) !== null
+            ? (float) $data['document_tax_rate']
+            : null;
+
+        return round(collect($data['items'] ?? [])->sum(function ($item) use ($taxRateOverride) {
+            $quantity = (float) ($item['quantity'] ?? 0);
+            $unitPrice = (float) ($item['unit_price'] ?? 0);
+            $taxRate = $taxRateOverride ?? (float) ($item['tax_rate'] ?? 0);
+            $lineSubtotal = round($quantity * $unitPrice, 2);
+            $taxAmount = round($lineSubtotal * ($taxRate / 100), 2);
+
+            return $lineSubtotal + $taxAmount;
+        }), 2);
     }
 
     private function directExceptionSourceNoteMessage(string $sourceType): string
