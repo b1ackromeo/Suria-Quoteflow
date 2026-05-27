@@ -152,6 +152,56 @@ class ProjectControlTest extends TestCase
         $show->assertSee('Actual variance');
     }
 
+    public function test_project_page_shows_billing_progress_rollup(): void
+    {
+        $project = $this->createProject([
+            'project_code' => 'PRJ-2026-026',
+            'name' => 'Milestone billing project',
+        ]);
+        $customerPo = $this->createLinkedDocument($project, 'customer_po', 'CPO-2026-91501', 1000);
+        $customerInvoice = $this->createLinkedDocument($project, 'customer_invoice', 'INV-2026-91501', 600);
+        $supplierPo = $this->createLinkedDocument($project, 'supplier_po', 'SPO-2026-91501', 900);
+        $supplierInvoice = $this->createLinkedDocument($project, 'supplier_invoice', 'SIN-2026-91501', 300);
+
+        $this->attachMilestoneSchedule($customerPo, [
+            ['stage_name' => 'Deposit', 'amount' => 600, 'percentage' => 60, 'payment_term' => 'Due upon invoice'],
+            ['stage_name' => 'Final Claim', 'amount' => 400, 'percentage' => 40, 'payment_term' => '14 days from invoice date'],
+        ]);
+        $this->attachMilestoneSchedule($customerInvoice, [
+            ['stage_name' => 'Deposit', 'amount' => 600, 'percentage' => 60, 'current_invoice' => 600, 'is_current' => true],
+            ['stage_name' => 'Final Claim', 'amount' => 400, 'percentage' => 40, 'remaining_amount' => 400],
+        ], [
+            'progress_invoice_number' => 1,
+            'progress_invoice_total' => 2,
+            'billing_stage_name' => 'Deposit',
+        ]);
+        $this->attachMilestoneSchedule($supplierPo, [
+            ['stage_name' => 'Deposit', 'amount' => 300, 'percentage' => 33.33, 'payment_term' => 'Due upon valid supplier invoice'],
+            ['stage_name' => 'Final Claim', 'amount' => 600, 'percentage' => 66.67, 'payment_term' => '14 days from supplier invoice'],
+        ]);
+        $this->attachMilestoneSchedule($supplierInvoice, [
+            ['stage_name' => 'Deposit', 'amount' => 300, 'percentage' => 33.33, 'current_invoice' => 300, 'is_current' => true],
+            ['stage_name' => 'Final Claim', 'amount' => 600, 'percentage' => 66.67, 'remaining_amount' => 600],
+        ], [
+            'progress_invoice_number' => 1,
+            'progress_invoice_total' => 2,
+            'billing_stage_name' => 'Deposit',
+        ]);
+
+        $show = $this->get(route('projects.show', $project));
+
+        $show->assertOk();
+        $show->assertSee('Billing progress');
+        $show->assertSee('Customer billing');
+        $show->assertSee('Supplier billing');
+        $show->assertSee('Recent staged invoices');
+        $show->assertSee('No. 1 of 2');
+        $show->assertSee('Deposit');
+        $show->assertSee('INV-2026-91501');
+        $show->assertSee('SIN-2026-91501');
+        $show->assertSee(route('documents.show', $customerInvoice), false);
+    }
+
     public function test_project_commercial_report_can_be_exported_from_detail_page(): void
     {
         $project = $this->createProject([
@@ -197,6 +247,55 @@ class ProjectControlTest extends TestCase
         $this->assertStringContainsString('"Work Breakdown"', $csv);
         $this->assertStringContainsString('2.01,"Exported work item",Active,Service,3,1500.00,1000.00,0.00,1000.00,0.00,1200.00,0.00,1300.00,-200.00,-300.00', $csv);
         $this->assertStringContainsString('"Unassigned project lines",,,1', $csv);
+    }
+
+    public function test_project_commercial_report_export_includes_billing_progress(): void
+    {
+        $project = $this->createProject([
+            'project_code' => 'PRJ-2026-027',
+            'name' => 'Billing export project',
+        ]);
+        $customerPo = $this->createLinkedDocument($project, 'customer_po', 'CPO-2026-92601', 1000);
+        $customerInvoice = $this->createLinkedDocument($project, 'customer_invoice', 'INV-2026-92601', 600);
+        $supplierPo = $this->createLinkedDocument($project, 'supplier_po', 'SPO-2026-92601', 900);
+        $supplierInvoice = $this->createLinkedDocument($project, 'supplier_invoice', 'SIN-2026-92601', 300);
+
+        $this->attachMilestoneSchedule($customerPo, [
+            ['stage_name' => 'Deposit', 'amount' => 600, 'percentage' => 60],
+            ['stage_name' => 'Final Claim', 'amount' => 400, 'percentage' => 40],
+        ]);
+        $this->attachMilestoneSchedule($customerInvoice, [
+            ['stage_name' => 'Deposit', 'amount' => 600, 'percentage' => 60, 'current_invoice' => 600, 'is_current' => true],
+            ['stage_name' => 'Final Claim', 'amount' => 400, 'percentage' => 40, 'remaining_amount' => 400],
+        ], [
+            'progress_invoice_number' => 1,
+            'progress_invoice_total' => 2,
+            'billing_stage_name' => 'Deposit',
+        ]);
+        $this->attachMilestoneSchedule($supplierPo, [
+            ['stage_name' => 'Deposit', 'amount' => 300, 'percentage' => 33.33],
+            ['stage_name' => 'Final Claim', 'amount' => 600, 'percentage' => 66.67],
+        ]);
+        $this->attachMilestoneSchedule($supplierInvoice, [
+            ['stage_name' => 'Deposit', 'amount' => 300, 'percentage' => 33.33, 'current_invoice' => 300, 'is_current' => true],
+            ['stage_name' => 'Final Claim', 'amount' => 600, 'percentage' => 66.67, 'remaining_amount' => 600],
+        ], [
+            'progress_invoice_number' => 1,
+            'progress_invoice_total' => 2,
+            'billing_stage_name' => 'Deposit',
+        ]);
+
+        $response = $this->get(route('projects.report.export', $project));
+
+        $response->assertOk();
+        $csv = $response->streamedContent();
+
+        $this->assertStringContainsString('"Billing Progress"', $csv);
+        $this->assertStringContainsString('"Customer billing",1,2,1,1000.00,600.00,400.00,0.00,"No. 1 of 2",Deposit', $csv);
+        $this->assertStringContainsString('"Supplier billing",1,2,1,900.00,300.00,600.00,0.00,"No. 1 of 2",Deposit', $csv);
+        $this->assertStringContainsString('"Recent Staged Invoices"', $csv);
+        $this->assertStringContainsString('INV-2026-92601,"Customer invoice","Acme Trading Sdn Bhd",2026-05-14,"No. 1 of 2",Deposit,600.00', $csv);
+        $this->assertStringContainsString('SIN-2026-92601,"Supplier invoice","Best Supplies Sdn Bhd",2026-05-14,"No. 1 of 2",Deposit,300.00', $csv);
     }
 
     public function test_projects_index_shows_portfolio_commercial_review(): void
@@ -807,6 +906,37 @@ class ProjectControlTest extends TestCase
             'tax_amount' => 0,
             'line_total' => $total,
         ]);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $stages
+     * @param  array<string, mixed>  $documentOverrides
+     */
+    private function attachMilestoneSchedule(Document $document, array $stages, array $documentOverrides = []): void
+    {
+        $document->update(array_merge([
+            'payment_terms_type' => 'milestone',
+            'progress_invoice_number' => null,
+            'progress_invoice_total' => null,
+            'billing_stage_name' => null,
+        ], $documentOverrides));
+
+        $document->billingStages()->delete();
+
+        foreach (array_values($stages) as $index => $stage) {
+            $document->billingStages()->create([
+                'sort_order' => $index + 1,
+                'stage_name' => $stage['stage_name'],
+                'condition_label' => $stage['condition_label'] ?? null,
+                'percentage' => (float) ($stage['percentage'] ?? 0),
+                'amount' => (float) ($stage['amount'] ?? 0),
+                'payment_term' => $stage['payment_term'] ?? null,
+                'previously_invoiced' => (float) ($stage['previously_invoiced'] ?? 0),
+                'current_invoice' => (float) ($stage['current_invoice'] ?? 0),
+                'remaining_amount' => (float) ($stage['remaining_amount'] ?? 0),
+                'is_current' => (bool) ($stage['is_current'] ?? false),
+            ]);
+        }
     }
 
     private function documentPayload(array $overrides = []): array

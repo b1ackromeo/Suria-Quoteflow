@@ -9,6 +9,14 @@
     $date = fn ($value) => $value ? $companyProfile->formatDate($value) : 'Not set';
     $percent = fn ($value) => $value === null ? 'Not available' : rtrim(rtrim(number_format((float) $value, 2), '0'), '.').'%';
     $marginTarget = rtrim(rtrim(number_format((float) $project->margin_target_percent, 2), '0'), '.');
+    $billingProgress = $billingProgress ?? [
+        'customer' => [],
+        'supplier' => [],
+        'recent_invoices' => [],
+    ];
+    $customerBilling = $billingProgress['customer'] ?? [];
+    $supplierBilling = $billingProgress['supplier'] ?? [];
+    $recentBillingInvoices = $billingProgress['recent_invoices'] ?? [];
     $projectExceptions = $projectExceptions ?? [];
     $projectEvidence = $projectEvidence ?? [];
     $unassignedEvidence = $projectEvidence['unassigned_lines'] ?? ['line_count' => 0, 'showing_count' => 0, 'is_truncated' => false, 'items' => []];
@@ -181,6 +189,125 @@
                             <span>Budget remaining</span>
                             <strong>{{ $money($summary['budget_remaining']) }}</strong>
                         </div>
+                    </div>
+                </section>
+
+                <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+                    <div class="directory-table-header border-0 p-4">
+                        <div>
+                            <h2 class="panel-title">Billing progress</h2>
+                            <p class="panel-subtitle">Milestone and progress billing totals are grouped from customer and supplier documents linked to this project.</p>
+                        </div>
+                        <span class="issuer-mini">{{ count($recentBillingInvoices) }} recent invoice{{ count($recentBillingInvoices) === 1 ? '' : 's' }}</span>
+                    </div>
+
+                    <div class="grid gap-4 border-t border-slate-200 p-4 xl:grid-cols-2">
+                        @foreach([
+                            'Customer billing' => $customerBilling,
+                            'Supplier billing' => $supplierBilling,
+                        ] as $label => $billing)
+                            <article class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                                <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                                    <div>
+                                        <h3 class="text-sm font-bold text-slate-950">{{ $label }}</h3>
+                                        <p class="mt-1 text-sm font-medium leading-6 text-slate-500">Roll up planned milestone value, current invoicing, and the latest recorded billing stage.</p>
+                                    </div>
+                                    <span class="issuer-mini">{{ (int) ($billing['schedule_document_count'] ?? 0) }} schedule{{ (int) ($billing['schedule_document_count'] ?? 0) === 1 ? '' : 's' }}</span>
+                                </div>
+
+                                <dl class="document-detail-list mt-4">
+                                    <div>
+                                        <dt>Planned stages</dt>
+                                        <dd>{{ (int) ($billing['planned_stage_count'] ?? 0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Progress invoices</dt>
+                                        <dd>{{ (int) ($billing['progress_invoice_count'] ?? 0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Scheduled value</dt>
+                                        <dd>{{ $money($billing['scheduled_value'] ?? 0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Invoiced value</dt>
+                                        <dd>{{ $money($billing['invoiced_value'] ?? 0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Remaining staged value</dt>
+                                        <dd>{{ $money($billing['remaining_value'] ?? 0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Above scheduled value</dt>
+                                        <dd>{{ $money($billing['over_billed_value'] ?? 0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Latest progress</dt>
+                                        <dd>{{ $billing['latest_progress_label'] ?? 'Not billed yet' }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Latest billing stage</dt>
+                                        <dd>{{ $billing['latest_stage_name'] ?? 'Not billed yet' }}</dd>
+                                    </div>
+                                </dl>
+
+                                @if(! empty($billing['latest_invoice_id']))
+                                    <div class="mt-4 text-right">
+                                        <a class="btn btn-secondary" href="{{ route('documents.show', $billing['latest_invoice_id']) }}">Open latest invoice</a>
+                                    </div>
+                                @endif
+                            </article>
+                        @endforeach
+                    </div>
+
+                    <div class="border-t border-slate-200 p-4">
+                        <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-950">Recent staged invoices</h3>
+                                <p class="mt-1 text-sm font-medium leading-6 text-slate-500">Use these latest milestone invoices to trace the billing stage currently recorded on the project.</p>
+                            </div>
+                            <span class="issuer-mini">{{ count($recentBillingInvoices) }} row{{ count($recentBillingInvoices) === 1 ? '' : 's' }}</span>
+                        </div>
+
+                        @if($recentBillingInvoices !== [])
+                            <div class="document-compact-table mt-4">
+                                <table>
+                                    <thead>
+                                    <tr>
+                                        <th>Document</th>
+                                        <th>Party</th>
+                                        <th>Issue date</th>
+                                        <th>Progress invoice</th>
+                                        <th>Billing stage</th>
+                                        <th class="text-right">Amount</th>
+                                        <th></th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    @foreach($recentBillingInvoices as $invoice)
+                                        <tr>
+                                            <td data-label="Document">
+                                                <strong>{{ $invoice['document_number'] }}</strong>
+                                                <span>{{ $invoice['document_label'] }}</span>
+                                            </td>
+                                            <td data-label="Party">{{ $invoice['party_name'] }}</td>
+                                            <td data-label="Issue date">{{ $date($invoice['issue_date']) }}</td>
+                                            <td data-label="Progress invoice">{{ $invoice['progress_label'] ?? 'Not set' }}</td>
+                                            <td data-label="Billing stage">{{ $invoice['billing_stage_name'] ?? 'Not set' }}</td>
+                                            <td data-label="Amount" class="text-right font-bold text-slate-950">{{ $money($invoice['total']) }}</td>
+                                            <td data-label="Action" class="text-right">
+                                                <a class="btn btn-secondary" href="{{ route('documents.show', $invoice['document_id']) }}">Open</a>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @else
+                            <article class="document-readiness-item readiness-state-ready mt-4">
+                                <strong>No staged invoices recorded</strong>
+                                <p>No milestone customer or supplier invoices are linked to this project yet.</p>
+                            </article>
+                        @endif
                     </div>
                 </section>
 

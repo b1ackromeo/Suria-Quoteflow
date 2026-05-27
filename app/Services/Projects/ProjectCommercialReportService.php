@@ -3,6 +3,7 @@
 namespace App\Services\Projects;
 
 use App\Models\Document;
+use App\Models\DocumentBillingStage;
 use App\Models\DocumentItem;
 use App\Models\Payment;
 use App\Models\Project;
@@ -191,6 +192,7 @@ class ProjectCommercialReportService
 
         return [
             'summary' => $summary,
+            'billing' => $this->billingProgress($project),
             'work_items' => $workItemReport['items'],
             'totals' => $workItemReport['totals'],
             'unassigned' => $workItemReport['unassigned'],
@@ -247,6 +249,141 @@ class ProjectCommercialReportService
             'budget_remaining' => (float) $project->budget_amount - $supplierCommitted,
             'document_count' => (clone $documents)->count(),
         ];
+    }
+
+    private function billingProgress(Project $project): array
+    {
+        return [
+            'customer' => $this->milestoneSummary($project, 'customer_po', 'customer_invoice'),
+            'supplier' => $this->milestoneSummary($project, 'supplier_po', 'supplier_invoice'),
+            'recent_invoices' => $this->recentMilestoneInvoices($project),
+        ];
+    }
+
+    private function milestoneSummary(Project $project, string $scheduleType, string $invoiceType): array
+    {
+        $scheduleDocuments = Document::query()
+            ->where('project_id', $project->id)
+            ->where('type', $scheduleType)
+            ->where('payment_terms_type', 'milestone')
+            ->whereIn('status', self::REPORT_STATUSES);
+
+        $invoiceDocuments = Document::query()
+            ->where('project_id', $project->id)
+            ->where('type', $invoiceType)
+            ->where('payment_terms_type', 'milestone')
+            ->whereIn('status', self::REPORT_STATUSES);
+
+        $scheduleAggregate = (clone $scheduleDocuments)
+            ->selectRaw('count(*) as document_count, coalesce(sum(total), 0) as total_amount')
+            ->first();
+
+        $invoiceAggregate = (clone $invoiceDocuments)
+            ->selectRaw('count(*) as document_count, coalesce(sum(total), 0) as total_amount')
+            ->first();
+
+        $plannedStageCount = (int) DocumentBillingStage::query()
+            ->join('documents', 'documents.id', '=', 'document_billing_stages.document_id')
+            ->where('documents.project_id', $project->id)
+            ->where('documents.type', $scheduleType)
+            ->where('documents.payment_terms_type', 'milestone')
+            ->whereIn('documents.status', self::REPORT_STATUSES)
+            ->count();
+
+        $latestInvoice = (clone $invoiceDocuments)
+            ->with(['customer:id,name', 'supplier:id,name'])
+            ->where(function ($query) {
+                $query->whereNotNull('billing_stage_name')
+                    ->orWhereNotNull('progress_invoice_number')
+                    ->orWhereNotNull('progress_invoice_total');
+            })
+            ->latest('issue_date')
+            ->latest('id')
+            ->first([
+                'id',
+                'type',
+                'document_number',
+                'issue_date',
+                'total',
+                'customer_id',
+                'supplier_id',
+                'progress_invoice_number',
+                'progress_invoice_total',
+                'billing_stage_name',
+            ]);
+
+        $scheduledValue = (float) ($scheduleAggregate->total_amount ?? 0);
+        $invoicedValue = (float) ($invoiceAggregate->total_amount ?? 0);
+
+        return [
+            'schedule_document_count' => (int) ($scheduleAggregate->document_count ?? 0),
+            'planned_stage_count' => $plannedStageCount,
+            'progress_invoice_count' => (int) ($invoiceAggregate->document_count ?? 0),
+            'scheduled_value' => $scheduledValue,
+            'invoiced_value' => $invoicedValue,
+            'remaining_value' => max($scheduledValue - $invoicedValue, 0),
+            'over_billed_value' => max($invoicedValue - $scheduledValue, 0),
+            'latest_progress_label' => $this->progressLabel(
+                $latestInvoice?->progress_invoice_number,
+                $latestInvoice?->progress_invoice_total,
+            ),
+            'latest_stage_name' => $latestInvoice?->billing_stage_name ?: null,
+            'latest_invoice_id' => $latestInvoice?->id,
+            'latest_invoice_number' => $latestInvoice?->document_number,
+            'latest_invoice_total' => $latestInvoice ? (float) $latestInvoice->total : 0.0,
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function recentMilestoneInvoices(Project $project): array
+    {
+        return Document::query()
+            ->where('project_id', $project->id)
+            ->whereIn('type', ['customer_invoice', 'supplier_invoice'])
+            ->where('payment_terms_type', 'milestone')
+            ->whereIn('status', self::REPORT_STATUSES)
+            ->with(['customer:id,name', 'supplier:id,name'])
+            ->latest('issue_date')
+            ->latest('id')
+            ->limit(10)
+            ->get([
+                'id',
+                'type',
+                'document_number',
+                'issue_date',
+                'total',
+                'customer_id',
+                'supplier_id',
+                'progress_invoice_number',
+                'progress_invoice_total',
+                'billing_stage_name',
+            ])
+            ->map(function (Document $document) {
+                $meta = Document::metaForSlug(Document::slugForType($document->type));
+
+                return [
+                    'document_id' => (int) $document->id,
+                    'document_number' => (string) $document->document_number,
+                    'document_label' => (string) ($meta['singular'] ?? 'Invoice'),
+                    'party_name' => (string) ($document->customer?->name ?? $document->supplier?->name ?? 'Internal'),
+                    'issue_date' => $document->issue_date?->format('Y-m-d'),
+                    'progress_label' => $this->progressLabel($document->progress_invoice_number, $document->progress_invoice_total),
+                    'billing_stage_name' => $document->billing_stage_name ?: null,
+                    'total' => (float) $document->total,
+                ];
+            })
+            ->all();
+    }
+
+    private function progressLabel(mixed $number, mixed $total): ?string
+    {
+        if (! $number || ! $total) {
+            return null;
+        }
+
+        return 'No. '.(int) $number.' of '.(int) $total;
     }
 
     /**

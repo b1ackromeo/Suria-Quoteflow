@@ -120,6 +120,7 @@ class ProjectController extends Controller
         return response()->streamDownload(function () use ($project, $workItems, $commercialReport) {
             $handle = fopen('php://output', 'w');
             $summary = $commercialReport['summary'];
+            $billingProgress = $commercialReport['billing'];
             $workItemSummaries = $commercialReport['work_items'];
             $workItemTotals = $commercialReport['totals'];
             $unassigned = $commercialReport['unassigned'];
@@ -162,6 +163,48 @@ class ProjectController extends Controller
             fputcsv($handle, ['Linked Documents', $summary['document_count']]);
             fputcsv($handle, []);
 
+            fputcsv($handle, ['Billing Progress']);
+            fputcsv($handle, ['Scope', 'Milestone Schedules', 'Planned Stages', 'Progress Invoices', 'Scheduled Value', 'Invoiced Value', 'Remaining Staged Value', 'Above Scheduled Value', 'Latest Progress', 'Latest Billing Stage']);
+
+            foreach ([
+                'Customer billing' => $billingProgress['customer'] ?? [],
+                'Supplier billing' => $billingProgress['supplier'] ?? [],
+            ] as $label => $billing) {
+                fputcsv($handle, [
+                    $label,
+                    (int) ($billing['schedule_document_count'] ?? 0),
+                    (int) ($billing['planned_stage_count'] ?? 0),
+                    (int) ($billing['progress_invoice_count'] ?? 0),
+                    $this->csvAmount($billing['scheduled_value'] ?? 0),
+                    $this->csvAmount($billing['invoiced_value'] ?? 0),
+                    $this->csvAmount($billing['remaining_value'] ?? 0),
+                    $this->csvAmount($billing['over_billed_value'] ?? 0),
+                    $billing['latest_progress_label'] ?? '',
+                    $billing['latest_stage_name'] ?? '',
+                ]);
+            }
+
+            fputcsv($handle, []);
+            fputcsv($handle, ['Recent Staged Invoices']);
+            fputcsv($handle, ['Document Number', 'Document Type', 'Party', 'Issue Date', 'Progress Invoice', 'Billing Stage', 'Amount']);
+
+            if (($billingProgress['recent_invoices'] ?? []) === []) {
+                fputcsv($handle, ['No staged invoices recorded', '', '', '', '', 'No milestone customer or supplier invoices are linked to this project yet.', '']);
+            } else {
+                foreach ($billingProgress['recent_invoices'] as $invoice) {
+                    fputcsv($handle, [
+                        $invoice['document_number'] ?? '',
+                        $invoice['document_label'] ?? '',
+                        $invoice['party_name'] ?? '',
+                        $invoice['issue_date'] ?? '',
+                        $invoice['progress_label'] ?? '',
+                        $invoice['billing_stage_name'] ?? '',
+                        $this->csvAmount($invoice['total'] ?? 0),
+                    ]);
+                }
+            }
+
+            fputcsv($handle, []);
             fputcsv($handle, ['Project Exceptions']);
             fputcsv($handle, ['Title', 'Message', 'Amount']);
 
@@ -351,6 +394,7 @@ class ProjectController extends Controller
         return view('projects.show', [
             'project' => $project,
             'summary' => $commercialReport['summary'],
+            'billingProgress' => $commercialReport['billing'],
             'workItems' => $workItems,
             'workItemSummaries' => $commercialReport['work_items'],
             'workItemTotals' => $commercialReport['totals'],
