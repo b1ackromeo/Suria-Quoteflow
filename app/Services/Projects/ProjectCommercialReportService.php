@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 
 class ProjectCommercialReportService
 {
+    private const EVIDENCE_LIMIT = 25;
+
     public const REPORT_STATUSES = [
         'draft',
         'pending_approval',
@@ -193,6 +195,7 @@ class ProjectCommercialReportService
             'totals' => $workItemReport['totals'],
             'unassigned' => $workItemReport['unassigned'],
             'exceptions' => $this->exceptions($project, $summary, $workItems, $workItemReport),
+            'evidence' => $this->exceptionEvidence($project, $summary, $workItems, $workItemReport),
         ];
     }
 
@@ -404,6 +407,236 @@ class ProjectCommercialReportService
         }
 
         return $exceptions;
+    }
+
+    /**
+     * @param  Collection<int, WbsItem>  $workItems
+     */
+    private function exceptionEvidence(Project $project, array $summary, Collection $workItems, array $workItemReport): array
+    {
+        $overCommittedWorkItems = $workItems->filter(function (WbsItem $workItem) use ($workItemReport) {
+            return (bool) ($workItemReport['items'][$workItem->id]['over_committed'] ?? false);
+        })->values();
+
+        $overActualWorkItems = $workItems->filter(function (WbsItem $workItem) use ($workItemReport) {
+            return (bool) ($workItemReport['items'][$workItem->id]['over_actual'] ?? false);
+        })->values();
+
+        return [
+            'unassigned_lines' => $this->unassignedLineEvidence($project),
+            'over_committed_work_items' => $this->groupedWorkItemEvidence(
+                $project,
+                $overCommittedWorkItems,
+                $workItemReport,
+                'supplier_po',
+                fn (WbsItem $workItem, array $itemSummary) => [
+                    'cost_budget' => (float) $workItem->cost_budget,
+                    'supplier_committed' => (float) $itemSummary['supplier_committed'],
+                    'over_amount' => abs((float) $itemSummary['remaining_budget']),
+                ],
+            ),
+            'over_actual_work_items' => $this->groupedWorkItemEvidence(
+                $project,
+                $overActualWorkItems,
+                $workItemReport,
+                'supplier_invoice',
+                fn (WbsItem $workItem, array $itemSummary) => [
+                    'cost_budget' => (float) $workItem->cost_budget,
+                    'supplier_actual' => (float) $itemSummary['supplier_actual'],
+                    'over_amount' => abs((float) $itemSummary['actual_variance']),
+                ],
+            ),
+            'supplier_actual_lines' => $this->supplierActualEvidence($project, $summary),
+        ];
+    }
+
+    private function unassignedLineEvidence(Project $project): array
+    {
+        $lineCount = (int) $this->projectEvidenceLineQuery($project)
+            ->reorder()
+            ->whereNull('document_items.wbs_item_id')
+            ->count();
+
+        if ($lineCount === 0) {
+            return [
+                'line_count' => 0,
+                'showing_count' => 0,
+                'is_truncated' => false,
+                'items' => [],
+            ];
+        }
+
+        $items = $this->projectEvidenceLineQuery($project)
+            ->whereNull('document_items.wbs_item_id')
+            ->limit(self::EVIDENCE_LIMIT)
+            ->get()
+            ->map(fn (object $row) => $this->formatEvidenceLine($row))
+            ->all();
+
+        return [
+            'line_count' => $lineCount,
+            'showing_count' => count($items),
+            'is_truncated' => $lineCount > count($items),
+            'items' => $items,
+        ];
+    }
+
+    /**
+     * @param  Collection<int, WbsItem>  $workItems
+     * @param  callable(WbsItem, array<string, mixed>): array<string, float>  $summaryBuilder
+     * @return array<int, array<string, mixed>>
+     */
+    private function groupedWorkItemEvidence(
+        Project $project,
+        Collection $workItems,
+        array $workItemReport,
+        string $documentType,
+        callable $summaryBuilder,
+    ): array {
+        if ($workItems->isEmpty()) {
+            return [];
+        }
+
+        $workItemIds = $workItems->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+        $lineCounts = $this->workItemEvidenceLineCounts($project, $workItemIds, $documentType);
+        $evidence = [];
+
+        foreach ($workItems as $workItem) {
+            $itemSummary = $workItemReport['items'][$workItem->id] ?? null;
+
+            if (! is_array($itemSummary)) {
+                continue;
+            }
+
+            $items = $this->projectEvidenceLineQuery($project)
+                ->where('documents.type', $documentType)
+                ->where('document_items.wbs_item_id', $workItem->id)
+                ->limit(self::EVIDENCE_LIMIT)
+                ->get()
+                ->map(fn (object $row) => $this->formatEvidenceLine($row))
+                ->all();
+
+            $lineCount = (int) ($lineCounts[$workItem->id] ?? 0);
+
+            $evidence[] = array_merge([
+                'work_item_id' => (int) $workItem->id,
+                'work_item_label' => $workItem->displayLabel(),
+                'line_count' => $lineCount,
+                'showing_count' => count($items),
+                'is_truncated' => $lineCount > count($items),
+                'items' => $items,
+            ], $summaryBuilder($workItem, $itemSummary));
+        }
+
+        return $evidence;
+    }
+
+    private function supplierActualEvidence(Project $project, array $summary): array
+    {
+        if (($summary['supplier_committed'] ?? 0) <= 0 || ($summary['supplier_invoiced'] ?? 0) <= ($summary['supplier_committed'] ?? 0)) {
+            return [
+                'line_count' => 0,
+                'showing_count' => 0,
+                'is_truncated' => false,
+                'over_amount' => 0.0,
+                'supplier_committed' => (float) ($summary['supplier_committed'] ?? 0),
+                'supplier_invoiced' => (float) ($summary['supplier_invoiced'] ?? 0),
+                'items' => [],
+            ];
+        }
+
+        $lineCount = (int) $this->projectEvidenceLineQuery($project)
+            ->reorder()
+            ->where('documents.type', 'supplier_invoice')
+            ->count();
+
+        $items = $this->projectEvidenceLineQuery($project)
+            ->where('documents.type', 'supplier_invoice')
+            ->limit(self::EVIDENCE_LIMIT)
+            ->get()
+            ->map(fn (object $row) => $this->formatEvidenceLine($row))
+            ->all();
+
+        return [
+            'line_count' => $lineCount,
+            'showing_count' => count($items),
+            'is_truncated' => $lineCount > count($items),
+            'over_amount' => (float) $summary['supplier_invoiced'] - (float) $summary['supplier_committed'],
+            'supplier_committed' => (float) $summary['supplier_committed'],
+            'supplier_invoiced' => (float) $summary['supplier_invoiced'],
+            'items' => $items,
+        ];
+    }
+
+    /**
+     * @param  array<int>  $workItemIds
+     * @return array<int, int>
+     */
+    private function workItemEvidenceLineCounts(Project $project, array $workItemIds, string $documentType): array
+    {
+        if ($workItemIds === []) {
+            return [];
+        }
+
+        return $this->projectEvidenceLineQuery($project)
+            ->reorder()
+            ->where('documents.type', $documentType)
+            ->whereIn('document_items.wbs_item_id', $workItemIds)
+            ->select('document_items.wbs_item_id as wbs_item_id')
+            ->selectRaw('count(*) as line_count')
+            ->groupBy('document_items.wbs_item_id')
+            ->pluck('line_count', 'wbs_item_id')
+            ->map(fn ($count) => (int) $count)
+            ->all();
+    }
+
+    private function projectEvidenceLineQuery(Project $project)
+    {
+        return DocumentItem::query()
+            ->join('documents', 'documents.id', '=', 'document_items.document_id')
+            ->leftJoin('customers', 'customers.id', '=', 'documents.customer_id')
+            ->leftJoin('suppliers', 'suppliers.id', '=', 'documents.supplier_id')
+            ->leftJoin('wbs_items', 'wbs_items.id', '=', 'document_items.wbs_item_id')
+            ->where('document_items.project_id', $project->id)
+            ->whereIn('documents.status', self::REPORT_STATUSES)
+            ->select([
+                'document_items.id',
+                'document_items.wbs_item_id',
+                'document_items.description',
+                'document_items.line_total',
+                'documents.id as document_id',
+                'documents.document_number',
+                'documents.type as document_type',
+                'documents.issue_date',
+                'customers.name as customer_name',
+                'suppliers.name as supplier_name',
+                'wbs_items.code as work_item_code',
+                'wbs_items.name as work_item_name',
+            ])
+            ->orderByDesc('documents.issue_date')
+            ->orderByDesc('document_items.id');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatEvidenceLine(object $row): array
+    {
+        $slug = Document::slugForType((string) $row->document_type);
+        $meta = Document::metaForSlug($slug);
+        $workItemCode = $row->work_item_code ? trim((string) $row->work_item_code) : null;
+        $workItemName = $row->work_item_name ? trim((string) $row->work_item_name) : null;
+
+        return [
+            'document_id' => (int) $row->document_id,
+            'document_number' => (string) $row->document_number,
+            'document_label' => (string) ($meta['singular'] ?? 'Document'),
+            'issue_date' => $row->issue_date,
+            'party_name' => (string) ($row->customer_name ?? $row->supplier_name ?? 'Internal'),
+            'description' => filled($row->description) ? trim((string) $row->description) : 'No line description',
+            'line_total' => (float) $row->line_total,
+            'work_item_label' => $workItemCode && $workItemName ? $workItemCode.' - '.$workItemName : null,
+        ];
     }
 
     private function formatPercent(float $value): string

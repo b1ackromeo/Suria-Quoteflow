@@ -122,12 +122,12 @@ class ProjectControlTest extends TestCase
         $supplierInvoice = $this->createLinkedDocument($project, 'supplier_invoice', 'SIN-2026-92001', 1300);
         $quotation = $this->createLinkedDocument($project, 'customer_quotation', 'CQ-2026-92001', 1200);
 
-        $this->addProjectLine($customerPo, $workItem, 1000);
-        $this->addProjectLine($customerInvoice, $workItem, 600);
-        $this->addProjectLine($supplierPo, $workItem, 1200);
-        $this->addProjectLine($goodsReceipt, $workItem, 900);
-        $this->addProjectLine($supplierInvoice, $workItem, 1300);
-        $this->addProjectLine($quotation, null, 1200);
+        $this->addProjectLine($customerPo, $workItem, 1000, 'Customer confirmation for rollout scope');
+        $this->addProjectLine($customerInvoice, $workItem, 600, 'First billing stage for rollout scope');
+        $this->addProjectLine($supplierPo, $workItem, 1200, 'Committed cable supply');
+        $this->addProjectLine($goodsReceipt, $workItem, 900, 'Delivered cable supply');
+        $this->addProjectLine($supplierInvoice, $workItem, 1300, 'Supplier overtime claim');
+        $this->addProjectLine($quotation, null, 1200, 'Quotation line waiting for cost code');
 
         $show = $this->get(route('projects.show', $project));
 
@@ -138,11 +138,16 @@ class ProjectControlTest extends TestCase
         $show->assertSee('Unbilled revenue');
         $show->assertSee('Unpaid supplier cost');
         $show->assertSee('Project exceptions');
+        $show->assertSee('Review evidence');
         $show->assertSee('Margin below target');
         $show->assertSee('Work item missing');
         $show->assertSee('Budget overrun');
         $show->assertSee('Actual cost over budget');
         $show->assertSee('Supplier actual above committed');
+        $show->assertSee('Quotation line waiting for cost code');
+        $show->assertSee('Committed cable supply');
+        $show->assertSee('Supplier overtime claim');
+        $show->assertSee(route('documents.show', $supplierInvoice), false);
         $show->assertSee('Received / accepted');
         $show->assertSee('Actual variance');
     }
@@ -166,10 +171,10 @@ class ProjectControlTest extends TestCase
         $supplierInvoice = $this->createLinkedDocument($project, 'supplier_invoice', 'SIN-2026-92501', 1300);
         $quotation = $this->createLinkedDocument($project, 'customer_quotation', 'CQ-2026-92501', 1200);
 
-        $this->addProjectLine($customerPo, $workItem, 1000);
-        $this->addProjectLine($supplierPo, $workItem, 1200);
-        $this->addProjectLine($supplierInvoice, $workItem, 1300);
-        $this->addProjectLine($quotation, null, 1200);
+        $this->addProjectLine($customerPo, $workItem, 1000, 'Confirmed export scope');
+        $this->addProjectLine($supplierPo, $workItem, 1200, 'Committed export materials');
+        $this->addProjectLine($supplierInvoice, $workItem, 1300, 'Supplier invoice above commitment');
+        $this->addProjectLine($quotation, null, 1200, 'Export line still missing cost code');
 
         $response = $this->get(route('projects.report.export', $project));
 
@@ -185,6 +190,10 @@ class ProjectControlTest extends TestCase
         $this->assertStringContainsString('"Supplier Committed",1200.00', $csv);
         $this->assertStringContainsString('"Project Exceptions"', $csv);
         $this->assertStringContainsString('"Margin below target"', $csv);
+        $this->assertStringContainsString('"Review Evidence"', $csv);
+        $this->assertStringContainsString('"Work item missing",,CQ-2026-92501,"Customer quotation",2026-05-14', $csv);
+        $this->assertStringContainsString('"Budget overrun","2.01 - Exported work item",SPO-2026-92501,"Purchase order",2026-05-14', $csv);
+        $this->assertStringContainsString('"Supplier invoice above commitment"', $csv);
         $this->assertStringContainsString('"Work Breakdown"', $csv);
         $this->assertStringContainsString('2.01,"Exported work item",Active,Service,3,1500.00,1000.00,0.00,1000.00,0.00,1200.00,0.00,1300.00,-200.00,-300.00', $csv);
         $this->assertStringContainsString('"Unassigned project lines",,,1', $csv);
@@ -783,14 +792,14 @@ class ProjectControlTest extends TestCase
         ]);
     }
 
-    private function addProjectLine(Document $document, ?WbsItem $workItem, float $total): DocumentItem
+    private function addProjectLine(Document $document, ?WbsItem $workItem, float $total, ?string $description = null): DocumentItem
     {
         return DocumentItem::create([
             'document_id' => $document->id,
             'product_id' => $this->service->id,
             'project_id' => $document->project_id,
             'wbs_item_id' => $workItem?->id,
-            'description' => 'Project report test line',
+            'description' => $description ?? 'Project report test line',
             'quantity' => 1,
             'unit' => 'job',
             'unit_price' => $total,

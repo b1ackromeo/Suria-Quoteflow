@@ -124,6 +124,7 @@ class ProjectController extends Controller
             $workItemTotals = $commercialReport['totals'];
             $unassigned = $commercialReport['unassigned'];
             $exceptions = $commercialReport['exceptions'];
+            $evidence = $commercialReport['evidence'];
 
             fputcsv($handle, ['Project commercial report']);
             fputcsv($handle, ['Project Code', $project->project_code]);
@@ -173,6 +174,58 @@ class ProjectController extends Controller
                         $exception['message'],
                         array_key_exists('amount', $exception) ? $this->csvAmount($exception['amount']) : '',
                     ]);
+                }
+            }
+
+            fputcsv($handle, []);
+            fputcsv($handle, ['Review Evidence']);
+            fputcsv($handle, ['Issue', 'Work item / cost code', 'Document Number', 'Document Type', 'Issue Date', 'Party', 'Line Description', 'Amount']);
+
+            if (! $this->hasProjectEvidence($evidence)) {
+                fputcsv($handle, ['No review evidence visible', '', '', '', '', '', 'No document lines are currently listed for the visible project exceptions.', '']);
+            } else {
+                $unassignedEvidence = $evidence['unassigned_lines'] ?? ['line_count' => 0, 'items' => []];
+
+                if (($unassignedEvidence['line_count'] ?? 0) > 0) {
+                    $this->writeEvidenceRows(
+                        $handle,
+                        'Work item missing',
+                        null,
+                        $unassignedEvidence['items'] ?? [],
+                        (int) ($unassignedEvidence['line_count'] ?? 0),
+                    );
+                }
+
+                foreach ($evidence['over_committed_work_items'] ?? [] as $group) {
+                    $this->writeEvidenceRows(
+                        $handle,
+                        'Budget overrun',
+                        $group['work_item_label'] ?? null,
+                        $group['items'] ?? [],
+                        (int) ($group['line_count'] ?? 0),
+                    );
+                }
+
+                foreach ($evidence['over_actual_work_items'] ?? [] as $group) {
+                    $this->writeEvidenceRows(
+                        $handle,
+                        'Actual cost over budget',
+                        $group['work_item_label'] ?? null,
+                        $group['items'] ?? [],
+                        (int) ($group['line_count'] ?? 0),
+                    );
+                }
+
+                $supplierActualEvidence = $evidence['supplier_actual_lines'] ?? ['line_count' => 0, 'items' => []];
+
+                if (($supplierActualEvidence['line_count'] ?? 0) > 0) {
+                    $this->writeEvidenceRows(
+                        $handle,
+                        'Supplier actual above committed',
+                        null,
+                        $supplierActualEvidence['items'] ?? [],
+                        (int) ($supplierActualEvidence['line_count'] ?? 0),
+                    );
                 }
             }
 
@@ -303,6 +356,7 @@ class ProjectController extends Controller
             'workItemTotals' => $commercialReport['totals'],
             'unassignedWorkItemSummary' => $commercialReport['unassigned'],
             'projectExceptions' => $commercialReport['exceptions'],
+            'projectEvidence' => $commercialReport['evidence'],
             'workItemStatuses' => WbsItem::STATUSES,
             'workItemCostTypes' => WbsItem::COST_TYPES,
             'documents' => $project->documents()
@@ -418,5 +472,46 @@ class ProjectController extends Controller
     private function csvPercent(mixed $value): string
     {
         return $value === null ? '' : $this->csvAmount($value);
+    }
+
+    private function hasProjectEvidence(array $evidence): bool
+    {
+        return (int) ($evidence['unassigned_lines']['line_count'] ?? 0) > 0
+            || ! empty($evidence['over_committed_work_items'] ?? [])
+            || ! empty($evidence['over_actual_work_items'] ?? [])
+            || (int) ($evidence['supplier_actual_lines']['line_count'] ?? 0) > 0;
+    }
+
+    /**
+     * @param  resource  $handle
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    private function writeEvidenceRows($handle, string $issue, ?string $workItemLabel, array $items, int $lineCount): void
+    {
+        foreach ($items as $item) {
+            fputcsv($handle, [
+                $issue,
+                $workItemLabel ?: (string) ($item['work_item_label'] ?? ''),
+                $item['document_number'] ?? '',
+                $item['document_label'] ?? '',
+                $item['issue_date'] ?? '',
+                $item['party_name'] ?? '',
+                $item['description'] ?? '',
+                $this->csvAmount($item['line_total'] ?? 0),
+            ]);
+        }
+
+        if ($lineCount > count($items)) {
+            fputcsv($handle, [
+                'Note',
+                $workItemLabel ?: '',
+                '',
+                '',
+                '',
+                '',
+                'Showing first '.count($items).' of '.$lineCount.' lines in this export.',
+                '',
+            ]);
+        }
     }
 }

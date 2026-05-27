@@ -10,6 +10,17 @@
     $percent = fn ($value) => $value === null ? 'Not available' : rtrim(rtrim(number_format((float) $value, 2), '0'), '.').'%';
     $marginTarget = rtrim(rtrim(number_format((float) $project->margin_target_percent, 2), '0'), '.');
     $projectExceptions = $projectExceptions ?? [];
+    $projectEvidence = $projectEvidence ?? [];
+    $unassignedEvidence = $projectEvidence['unassigned_lines'] ?? ['line_count' => 0, 'showing_count' => 0, 'is_truncated' => false, 'items' => []];
+    $overCommittedEvidence = $projectEvidence['over_committed_work_items'] ?? [];
+    $overActualEvidence = $projectEvidence['over_actual_work_items'] ?? [];
+    $supplierActualEvidence = $projectEvidence['supplier_actual_lines'] ?? ['line_count' => 0, 'showing_count' => 0, 'is_truncated' => false, 'items' => []];
+    $evidenceSectionCount = collect([
+        ($unassignedEvidence['line_count'] ?? 0) > 0,
+        count($overCommittedEvidence) > 0,
+        count($overActualEvidence) > 0,
+        ($supplierActualEvidence['line_count'] ?? 0) > 0,
+    ])->filter()->count();
 @endphp
 
 @section('content')
@@ -197,6 +208,224 @@
                                 <p>Budget, margin, actual cost, and work-item assignment checks have no visible blockers.</p>
                             </article>
                         @endforelse
+                    </div>
+                </section>
+
+                <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+                    <div class="directory-table-header border-0 p-4">
+                        <div>
+                            <h2 class="panel-title">Review evidence</h2>
+                            <p class="panel-subtitle">Open the document lines behind each visible exception before deciding the next action.</p>
+                        </div>
+                        <span class="issuer-mini">{{ $evidenceSectionCount }} section{{ $evidenceSectionCount === 1 ? '' : 's' }}</span>
+                    </div>
+
+                    <div class="divide-y divide-slate-200">
+                        @if(($unassignedEvidence['line_count'] ?? 0) > 0)
+                            <article class="p-4">
+                                <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                                    <div>
+                                        <h3 class="text-sm font-bold text-slate-950">Work item missing</h3>
+                                        <p class="mt-1 text-sm font-medium leading-6 text-slate-600">These project lines still need a work item or cost code before the project position is fully traceable.</p>
+                                    </div>
+                                    <span class="issuer-mini">{{ $unassignedEvidence['line_count'] }} line{{ (int) $unassignedEvidence['line_count'] === 1 ? '' : 's' }}</span>
+                                </div>
+
+                                <div class="document-compact-table mt-4">
+                                    <table>
+                                        <thead>
+                                        <tr>
+                                            <th>Document</th>
+                                            <th>Party</th>
+                                            <th>Issue date</th>
+                                            <th>Line description</th>
+                                            <th>Work item</th>
+                                            <th class="text-right">Amount</th>
+                                            <th></th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        @foreach($unassignedEvidence['items'] as $item)
+                                            <tr>
+                                                <td data-label="Document">
+                                                    <strong>{{ $item['document_number'] }}</strong>
+                                                    <span>{{ $item['document_label'] }}</span>
+                                                </td>
+                                                <td data-label="Party">{{ $item['party_name'] }}</td>
+                                                <td data-label="Issue date">{{ $date($item['issue_date']) }}</td>
+                                                <td data-label="Line description">{{ $item['description'] }}</td>
+                                                <td data-label="Work item">Not assigned</td>
+                                                <td data-label="Amount" class="text-right font-bold text-slate-950">{{ $money($item['line_total']) }}</td>
+                                                <td data-label="Action" class="text-right">
+                                                    <a class="btn btn-secondary" href="{{ route('documents.show', $item['document_id']) }}">Open</a>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                @if($unassignedEvidence['is_truncated'] ?? false)
+                                    <p class="mt-3 text-xs font-semibold text-slate-500">Showing first {{ $unassignedEvidence['showing_count'] }} of {{ $unassignedEvidence['line_count'] }} lines on this page.</p>
+                                @endif
+                            </article>
+                        @endif
+
+                        @foreach($overCommittedEvidence as $group)
+                            <article class="p-4">
+                                <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                                    <div>
+                                        <h3 class="text-sm font-bold text-slate-950">Budget overrun</h3>
+                                        <p class="mt-1 text-sm font-medium leading-6 text-slate-600">{{ $group['work_item_label'] }} has supplier commitments of {{ $money($group['supplier_committed']) }} against a cost budget of {{ $money($group['cost_budget']) }}.</p>
+                                    </div>
+                                    <span class="issuer-mini">{{ $group['line_count'] }} line{{ (int) $group['line_count'] === 1 ? '' : 's' }}</span>
+                                </div>
+
+                                <div class="document-compact-table mt-4">
+                                    <table>
+                                        <thead>
+                                        <tr>
+                                            <th>Document</th>
+                                            <th>Party</th>
+                                            <th>Issue date</th>
+                                            <th>Line description</th>
+                                            <th>Work item</th>
+                                            <th class="text-right">Amount</th>
+                                            <th></th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        @foreach($group['items'] as $item)
+                                            <tr>
+                                                <td data-label="Document">
+                                                    <strong>{{ $item['document_number'] }}</strong>
+                                                    <span>{{ $item['document_label'] }}</span>
+                                                </td>
+                                                <td data-label="Party">{{ $item['party_name'] }}</td>
+                                                <td data-label="Issue date">{{ $date($item['issue_date']) }}</td>
+                                                <td data-label="Line description">{{ $item['description'] }}</td>
+                                                <td data-label="Work item">{{ $group['work_item_label'] }}</td>
+                                                <td data-label="Amount" class="text-right font-bold text-slate-950">{{ $money($item['line_total']) }}</td>
+                                                <td data-label="Action" class="text-right">
+                                                    <a class="btn btn-secondary" href="{{ route('documents.show', $item['document_id']) }}">Open</a>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                @if($group['is_truncated'] ?? false)
+                                    <p class="mt-3 text-xs font-semibold text-slate-500">Showing first {{ $group['showing_count'] }} of {{ $group['line_count'] }} lines on this page.</p>
+                                @endif
+                            </article>
+                        @endforeach
+
+                        @foreach($overActualEvidence as $group)
+                            <article class="p-4">
+                                <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                                    <div>
+                                        <h3 class="text-sm font-bold text-slate-950">Actual cost over budget</h3>
+                                        <p class="mt-1 text-sm font-medium leading-6 text-slate-600">{{ $group['work_item_label'] }} has supplier invoices of {{ $money($group['supplier_actual']) }} against a cost budget of {{ $money($group['cost_budget']) }}.</p>
+                                    </div>
+                                    <span class="issuer-mini">{{ $group['line_count'] }} line{{ (int) $group['line_count'] === 1 ? '' : 's' }}</span>
+                                </div>
+
+                                <div class="document-compact-table mt-4">
+                                    <table>
+                                        <thead>
+                                        <tr>
+                                            <th>Document</th>
+                                            <th>Party</th>
+                                            <th>Issue date</th>
+                                            <th>Line description</th>
+                                            <th>Work item</th>
+                                            <th class="text-right">Amount</th>
+                                            <th></th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        @foreach($group['items'] as $item)
+                                            <tr>
+                                                <td data-label="Document">
+                                                    <strong>{{ $item['document_number'] }}</strong>
+                                                    <span>{{ $item['document_label'] }}</span>
+                                                </td>
+                                                <td data-label="Party">{{ $item['party_name'] }}</td>
+                                                <td data-label="Issue date">{{ $date($item['issue_date']) }}</td>
+                                                <td data-label="Line description">{{ $item['description'] }}</td>
+                                                <td data-label="Work item">{{ $group['work_item_label'] }}</td>
+                                                <td data-label="Amount" class="text-right font-bold text-slate-950">{{ $money($item['line_total']) }}</td>
+                                                <td data-label="Action" class="text-right">
+                                                    <a class="btn btn-secondary" href="{{ route('documents.show', $item['document_id']) }}">Open</a>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                @if($group['is_truncated'] ?? false)
+                                    <p class="mt-3 text-xs font-semibold text-slate-500">Showing first {{ $group['showing_count'] }} of {{ $group['line_count'] }} lines on this page.</p>
+                                @endif
+                            </article>
+                        @endforeach
+
+                        @if(($supplierActualEvidence['line_count'] ?? 0) > 0)
+                            <article class="p-4">
+                                <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                                    <div>
+                                        <h3 class="text-sm font-bold text-slate-950">Supplier actual above committed</h3>
+                                        <p class="mt-1 text-sm font-medium leading-6 text-slate-600">Supplier invoices total {{ $money($supplierActualEvidence['supplier_invoiced']) }} against supplier commitments of {{ $money($supplierActualEvidence['supplier_committed']) }}.</p>
+                                    </div>
+                                    <span class="issuer-mini">{{ $supplierActualEvidence['line_count'] }} line{{ (int) $supplierActualEvidence['line_count'] === 1 ? '' : 's' }}</span>
+                                </div>
+
+                                <div class="document-compact-table mt-4">
+                                    <table>
+                                        <thead>
+                                        <tr>
+                                            <th>Document</th>
+                                            <th>Party</th>
+                                            <th>Issue date</th>
+                                            <th>Line description</th>
+                                            <th>Work item</th>
+                                            <th class="text-right">Amount</th>
+                                            <th></th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        @foreach($supplierActualEvidence['items'] as $item)
+                                            <tr>
+                                                <td data-label="Document">
+                                                    <strong>{{ $item['document_number'] }}</strong>
+                                                    <span>{{ $item['document_label'] }}</span>
+                                                </td>
+                                                <td data-label="Party">{{ $item['party_name'] }}</td>
+                                                <td data-label="Issue date">{{ $date($item['issue_date']) }}</td>
+                                                <td data-label="Line description">{{ $item['description'] }}</td>
+                                                <td data-label="Work item">{{ $item['work_item_label'] ?? 'Not assigned' }}</td>
+                                                <td data-label="Amount" class="text-right font-bold text-slate-950">{{ $money($item['line_total']) }}</td>
+                                                <td data-label="Action" class="text-right">
+                                                    <a class="btn btn-secondary" href="{{ route('documents.show', $item['document_id']) }}">Open</a>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                @if($supplierActualEvidence['is_truncated'] ?? false)
+                                    <p class="mt-3 text-xs font-semibold text-slate-500">Showing first {{ $supplierActualEvidence['showing_count'] }} of {{ $supplierActualEvidence['line_count'] }} lines on this page.</p>
+                                @endif
+                            </article>
+                        @endif
+
+                        @if($evidenceSectionCount === 0)
+                            <article class="p-4">
+                                <p class="text-sm font-semibold text-slate-600">No document lines are currently listed for the visible project exceptions.</p>
+                            </article>
+                        @endif
                     </div>
                 </section>
 

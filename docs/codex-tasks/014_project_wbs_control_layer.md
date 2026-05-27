@@ -493,6 +493,7 @@ The project commercial review can be exported as a filtered CSV using streamed, 
 The Projects list and CSV export can be filtered by commercial review status, including work-item budget overruns, actual cost overruns, unassigned project lines, margin exceptions, and supplier actuals above purchase order commitments.
 Project portfolio totals on the Projects list follow the active search, status, and commercial review filters so the visible cards, header counts, and side totals remain aligned.
 Each project detail page can export its commercial summary, exception list, and work breakdown budget report as a CSV for management review.
+Project detail pages now include review evidence with document-line drill-down for unassigned project lines, work-item budget overruns, actual cost overruns, and supplier invoice lines behind supplier-actual-above-committed exceptions.
 ```
 
 This answers:
