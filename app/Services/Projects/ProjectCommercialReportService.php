@@ -17,6 +17,10 @@ class ProjectCommercialReportService
 {
     private const EVIDENCE_LIMIT = 25;
 
+    private const DELIVERY_GAP_ALERT_PERCENT = 25.0;
+
+    private const RECEIVED_NOT_INVOICED_ALERT_PERCENT = 10.0;
+
     public const REPORT_STATUSES = [
         'draft',
         'pending_approval',
@@ -533,6 +537,13 @@ class ProjectCommercialReportService
                 'invoiced_percent' => $receivedCost > 0 ? ($supplierInvoiced / $receivedCost) * 100 : null,
             ],
             'work_items' => $workItemRows,
+            'alerts' => $this->deliveryBillingAlerts(
+                $customerConfirmed,
+                $customerInvoiced,
+                $supplierCommitted,
+                $receivedCost,
+                $supplierInvoiced,
+            ),
             'evidence' => $this->deliveryBillingEvidence($project, $workItemRows),
             'recent_documents' => $this->recentDeliveryBillingDocuments($project),
         ];
@@ -569,6 +580,84 @@ class ProjectCommercialReportService
         }
 
         return false;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function deliveryBillingAlerts(
+        float $customerConfirmed,
+        float $customerInvoiced,
+        float $supplierCommitted,
+        float $receivedCost,
+        float $supplierInvoiced,
+    ): array {
+        $alerts = [];
+        $customerUnbilled = max($customerConfirmed - $customerInvoiced, 0);
+        $customerAboveConfirmed = max($customerInvoiced - $customerConfirmed, 0);
+        $supplierNotYetReceived = max($supplierCommitted - $receivedCost, 0);
+        $receivedNotInvoiced = max($receivedCost - $supplierInvoiced, 0);
+        $supplierAboveReceived = max($supplierInvoiced - $receivedCost, 0);
+        $customerUnbilledPercent = $customerConfirmed > 0 ? ($customerUnbilled / $customerConfirmed) * 100 : null;
+        $supplierNotYetReceivedPercent = $supplierCommitted > 0 ? ($supplierNotYetReceived / $supplierCommitted) * 100 : null;
+        $receivedNotInvoicedPercent = $receivedCost > 0 ? ($receivedNotInvoiced / $receivedCost) * 100 : null;
+
+        if ($customerAboveConfirmed > 0) {
+            $alerts[] = [
+                'state' => 'blocked',
+                'title' => 'Customer invoice above confirmed value',
+                'message' => 'Customer invoice value is above customer PO received value. Review the customer invoice before relying on the project billing position.',
+                'amount' => $customerAboveConfirmed,
+                'percent' => $customerConfirmed > 0 ? ($customerAboveConfirmed / $customerConfirmed) * 100 : null,
+                'threshold_label' => 'Any amount',
+            ];
+        }
+
+        if ($supplierAboveReceived > 0) {
+            $alerts[] = [
+                'state' => 'blocked',
+                'title' => 'Supplier invoice above received value',
+                'message' => 'Supplier invoice value is above goods receipt value. Review the supplier invoice before recording further supplier payment.',
+                'amount' => $supplierAboveReceived,
+                'percent' => $receivedCost > 0 ? ($supplierAboveReceived / $receivedCost) * 100 : null,
+                'threshold_label' => 'Any amount',
+            ];
+        }
+
+        if ($customerUnbilledPercent !== null && $customerUnbilledPercent >= self::DELIVERY_GAP_ALERT_PERCENT) {
+            $alerts[] = [
+                'state' => 'waiting',
+                'title' => 'Customer billing attention',
+                'message' => 'Customer unbilled value is '.$this->formatPercent($customerUnbilledPercent).' of customer PO received value.',
+                'amount' => $customerUnbilled,
+                'percent' => $customerUnbilledPercent,
+                'threshold_label' => $this->formatPercent(self::DELIVERY_GAP_ALERT_PERCENT),
+            ];
+        }
+
+        if ($supplierNotYetReceivedPercent !== null && $supplierNotYetReceivedPercent >= self::DELIVERY_GAP_ALERT_PERCENT) {
+            $alerts[] = [
+                'state' => 'waiting',
+                'title' => 'Supplier delivery attention',
+                'message' => 'Purchase order value not yet received is '.$this->formatPercent($supplierNotYetReceivedPercent).' of supplier committed value.',
+                'amount' => $supplierNotYetReceived,
+                'percent' => $supplierNotYetReceivedPercent,
+                'threshold_label' => $this->formatPercent(self::DELIVERY_GAP_ALERT_PERCENT),
+            ];
+        }
+
+        if ($receivedNotInvoicedPercent !== null && $receivedNotInvoicedPercent >= self::RECEIVED_NOT_INVOICED_ALERT_PERCENT) {
+            $alerts[] = [
+                'state' => 'waiting',
+                'title' => 'Supplier invoice expected',
+                'message' => 'Received not invoiced value is '.$this->formatPercent($receivedNotInvoicedPercent).' of received / accepted value.',
+                'amount' => $receivedNotInvoiced,
+                'percent' => $receivedNotInvoicedPercent,
+                'threshold_label' => $this->formatPercent(self::RECEIVED_NOT_INVOICED_ALERT_PERCENT),
+            ];
+        }
+
+        return $alerts;
     }
 
     /**

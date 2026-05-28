@@ -234,6 +234,12 @@ class ProjectControlTest extends TestCase
         $show->assertSee('Supplier delivery and invoices');
         $show->assertSee('Not yet received');
         $show->assertSee('Received not invoiced');
+        $show->assertSee('Customer billing attention');
+        $show->assertSee('Supplier delivery attention');
+        $show->assertSee('Supplier invoice expected');
+        $show->assertSee('Alert level');
+        $show->assertSee('Threshold: 25%');
+        $show->assertSee('Threshold: 10%');
         $show->assertSee('Delivery cabling');
         $show->assertSee('Recent delivery documents');
         $show->assertSee('GR-2026-93401');
@@ -546,6 +552,10 @@ class ProjectControlTest extends TestCase
         $this->assertStringContainsString('"Customer Unbilled",600.00', $csv);
         $this->assertStringContainsString('"Not Yet Received",400.00', $csv);
         $this->assertStringContainsString('"Received Not Invoiced",100.00', $csv);
+        $this->assertStringContainsString('"Delivery Billing Alerts"', $csv);
+        $this->assertStringContainsString('"Customer billing attention","Customer unbilled value is 60% of customer PO received value.",600.00,60.00,25%', $csv);
+        $this->assertStringContainsString('"Supplier delivery attention","Purchase order value not yet received is 57.14% of supplier committed value.",400.00,57.14,25%', $csv);
+        $this->assertStringContainsString('"Supplier invoice expected","Received not invoiced value is 33.33% of received / accepted value.",100.00,33.33,10%', $csv);
         $this->assertStringContainsString('"Delivery Billing By Work Item"', $csv);
         $this->assertStringContainsString('"3.01 - Delivery cabling",5,1000.00,400.00,600.00,700.00,300.00,200.00,400.00,100.00,0.00,0.00', $csv);
         $this->assertStringContainsString('"Delivery Billing Evidence"', $csv);

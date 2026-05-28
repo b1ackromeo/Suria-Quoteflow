@@ -51,6 +51,7 @@
     $deliveryCustomer = $deliveryBilling['customer'] ?? [];
     $deliverySupplier = $deliveryBilling['supplier'] ?? [];
     $deliveryWorkItems = $deliveryBilling['work_items'] ?? [];
+    $deliveryAlerts = $deliveryBilling['alerts'] ?? [];
     $deliveryEvidence = collect($deliveryBilling['evidence'] ?? [])
         ->filter(fn ($issue) => (int) ($issue['line_count'] ?? 0) > 0)
         ->values();
@@ -444,6 +445,25 @@
                                 </dl>
                             </article>
                         </div>
+
+                        @if($deliveryAlerts !== [])
+                            <div class="document-readiness-list">
+                                @foreach($deliveryAlerts as $alert)
+                                    <article class="document-readiness-item readiness-state-{{ $alert['state'] }}">
+                                        <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                                            <div>
+                                                <strong>{{ $alert['title'] }}</strong>
+                                                <p>{{ $alert['message'] }}</p>
+                                            </div>
+                                            <span class="issuer-mini">{{ $money($alert['amount'] ?? 0) }}</span>
+                                        </div>
+                                        <p class="mt-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                            Alert level: {{ $alert['percent'] === null ? 'Amount review' : $percent($alert['percent']) }} · Threshold: {{ $alert['threshold_label'] }}
+                                        </p>
+                                    </article>
+                                @endforeach
+                            </div>
+                        @endif
 
                         @if($deliveryWorkItems !== [])
                             <div class="document-compact-table mt-4">

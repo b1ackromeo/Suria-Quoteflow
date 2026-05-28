@@ -245,6 +245,24 @@ class ProjectController extends Controller
             fputcsv($handle, ['Supplier Invoiced %', $this->csvPercent($deliverySupplier['invoiced_percent'] ?? null)]);
 
             fputcsv($handle, []);
+            fputcsv($handle, ['Delivery Billing Alerts']);
+            fputcsv($handle, ['Alert', 'Message', 'Amount', 'Alert Level %', 'Threshold']);
+
+            if (($deliveryBilling['alerts'] ?? []) === []) {
+                fputcsv($handle, ['No delivery billing alerts visible', 'Delivery billing gaps are below the current alert levels.', '', '', '']);
+            } else {
+                foreach ($deliveryBilling['alerts'] as $alert) {
+                    fputcsv($handle, [
+                        $alert['title'] ?? '',
+                        $alert['message'] ?? '',
+                        $this->csvAmount($alert['amount'] ?? 0),
+                        $this->csvPercent($alert['percent'] ?? null),
+                        $alert['threshold_label'] ?? '',
+                    ]);
+                }
+            }
+
+            fputcsv($handle, []);
             fputcsv($handle, ['Delivery Billing By Work Item']);
             fputcsv($handle, [
                 'Work item / cost code',
