@@ -166,6 +166,10 @@ class CompanyProfileSettingsTest extends TestCase
         $response = $this->actingAs($admin)->get(route('company-profiles.edit', $company));
 
         $response->assertOk();
+        $response->assertSee('enctype="multipart/form-data"', false);
+        $response->assertSee('data-company-logo-preview', false);
+        $response->assertSee('data-company-logo-input', false);
+        $response->assertSee('data-company-logo-preview-status', false);
         $response->assertSee('data-country-select', false);
         $response->assertSee('data-country-default-field="timezone"', false);
         $response->assertSee('data-country-default-field="currency_display"', false);

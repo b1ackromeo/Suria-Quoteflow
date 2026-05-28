@@ -11,6 +11,14 @@ class SupplierInvoiceMatchingService
     private const ROUNDING_TOLERANCE = 0.01;
     private const SOFT_TOLERANCE_AMOUNT = 1.00;
     private const SOFT_TOLERANCE_RATE = 0.005;
+    private const ACTIVE_INVOICE_STATUSES = [
+        'pending_approval',
+        'approved',
+        'matched',
+        'part_paid',
+        'paid',
+        'closed',
+    ];
 
     public function __construct(private SupplierInvoiceVerificationService $verification)
     {
@@ -174,6 +182,11 @@ class SupplierInvoiceMatchingService
         $companyProfile = CompanyProfile::active();
         $currency = strtoupper($document->currency ?: $relatedDocument->currency ?: $companyProfile->baseCurrency());
         $money = fn (float $amount): string => $companyProfile->formatMoney($amount, $currency);
+        $remainingBlocker = $this->remainingInvoiceableAmountBlocker($document, $relatedDocument, $invoiceTotal, $sourceTotal, $money);
+
+        if ($remainingBlocker !== null) {
+            return $remainingBlocker;
+        }
 
         if ($difference == 0.0) {
             return [true, 'Invoice total matches the '.$this->linkedDocumentLabel($relatedDocument).' amount exactly.'];
@@ -188,10 +201,83 @@ class SupplierInvoiceMatchingService
         }
 
         if ($invoiceTotal < $sourceTotal) {
-            return [false, 'Partial supplier invoice amount differs from the '.$this->linkedDocumentLabel($relatedDocument).' by '.$money($difference).'. Partial matching is not treated as a normal match; use admin or manager override with notes if this partial invoice is accepted.'];
+            return $this->partialInvoiceAmountCheck($document, $relatedDocument, $invoiceTotal, $sourceTotal, $money);
         }
 
         return [false, 'Invoice total variance of '.$money($difference).' exceeds the soft tolerance of '.$money($policy['soft_tolerance_limit']).'. Admin or manager override with notes is required.'];
+    }
+
+    /**
+     * @param  callable(float): string  $money
+     * @return array{0: bool, 1: string}
+     */
+    private function remainingInvoiceableAmountBlocker(Document $document, Document $relatedDocument, float $invoiceTotal, float $sourceTotal, callable $money): ?array
+    {
+        $previouslyInvoiced = $this->previouslyInvoicedAmountForSource($document, $relatedDocument);
+
+        if ($previouslyInvoiced <= 0) {
+            return null;
+        }
+
+        $remainingAmount = max(0, $sourceTotal - $previouslyInvoiced);
+        $difference = $invoiceTotal - $remainingAmount;
+
+        if ($difference <= self::ROUNDING_TOLERANCE) {
+            return null;
+        }
+
+        return [
+            false,
+            'Supplier invoice total exceeds the remaining '.$this->linkedDocumentLabel($relatedDocument).' value by '.$money($difference).'. Admin or manager override with notes is required.',
+        ];
+    }
+
+    /**
+     * @param  callable(float): string  $money
+     * @return array{0: bool, 1: string}
+     */
+    private function partialInvoiceAmountCheck(Document $document, Document $relatedDocument, float $invoiceTotal, float $sourceTotal, callable $money): array
+    {
+        $previouslyInvoiced = $this->previouslyInvoicedAmountForSource($document, $relatedDocument);
+        $remainingAmount = max(0, $sourceTotal - $previouslyInvoiced);
+        $difference = $invoiceTotal - $remainingAmount;
+        $linkedDocumentLabel = $this->linkedDocumentLabel($relatedDocument);
+
+        if ($difference <= self::ROUNDING_TOLERANCE) {
+            return [
+                true,
+                'Partial supplier invoice is within the remaining '.$linkedDocumentLabel.' value. Remaining before this invoice: '.$money($remainingAmount).'.',
+            ];
+        }
+
+        return [
+            false,
+            'Supplier invoice total exceeds the remaining '.$linkedDocumentLabel.' value by '.$money($difference).'. Admin or manager override with notes is required.',
+        ];
+    }
+
+    private function previouslyInvoicedAmountForSource(Document $document, Document $relatedDocument): float
+    {
+        $query = Document::query()
+            ->where('type', 'supplier_invoice')
+            ->whereKeyNot($document->id)
+            ->whereIn('status', self::ACTIVE_INVOICE_STATUSES);
+
+        if ($relatedDocument->type === 'goods_receipt') {
+            $query->where('related_document_id', $relatedDocument->id);
+        } elseif ($relatedDocument->type === 'supplier_po') {
+            $query->where(function ($query) use ($relatedDocument) {
+                $query->where('related_document_id', $relatedDocument->id)
+                    ->orWhereHas('relatedDocument', function ($query) use ($relatedDocument) {
+                        $query->where('type', 'goods_receipt')
+                            ->where('related_document_id', $relatedDocument->id);
+                    });
+            });
+        } else {
+            return 0.0;
+        }
+
+        return (float) $query->sum('total');
     }
 
     private function linkedDocumentLabel(?Document $document): string

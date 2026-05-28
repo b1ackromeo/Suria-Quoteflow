@@ -203,6 +203,54 @@ class ProjectControlTest extends TestCase
         $show->assertSee(route('documents.show', $customerInvoice), false);
     }
 
+    public function test_project_page_shows_partial_delivery_billing_report(): void
+    {
+        $project = $this->createProject([
+            'project_code' => 'PRJ-2026-034',
+            'name' => 'Partial delivery billing project',
+        ]);
+        $workItem = $this->createWorkItem($project, [
+            'code' => '3.01',
+            'name' => 'Delivery cabling',
+        ]);
+        $customerPo = $this->createLinkedDocument($project, 'customer_po', 'CPO-2026-93401', 1000);
+        $customerInvoice = $this->createLinkedDocument($project, 'customer_invoice', 'INV-2026-93401', 400);
+        $supplierPo = $this->createLinkedDocument($project, 'supplier_po', 'SPO-2026-93401', 700);
+        $goodsReceipt = $this->createLinkedDocument($project, 'goods_receipt', 'GR-2026-93401', 300);
+        $supplierInvoice = $this->createLinkedDocument($project, 'supplier_invoice', 'SIN-2026-93401', 200);
+
+        $this->addProjectLine($customerPo, $workItem, 1000, 'Customer confirmed cabling scope');
+        $this->addProjectLine($customerInvoice, $workItem, 400, 'First customer billing for cabling');
+        $this->addProjectLine($supplierPo, $workItem, 700, 'Supplier cable purchase order');
+        $this->addProjectLine($goodsReceipt, $workItem, 300, 'Partial cable delivery received');
+        $this->addProjectLine($supplierInvoice, $workItem, 200, 'Supplier invoice for partial delivery');
+
+        $show = $this->get(route('projects.show', $project));
+
+        $show->assertOk();
+        $show->assertSee('Partial delivery billing');
+        $show->assertSee('Customer delivery billing');
+        $show->assertSee('Customer unbilled');
+        $show->assertSee('Supplier delivery and invoices');
+        $show->assertSee('Not yet received');
+        $show->assertSee('Received not invoiced');
+        $show->assertSee('Delivery cabling');
+        $show->assertSee('Recent delivery documents');
+        $show->assertSee('GR-2026-93401');
+        $show->assertSee('SIN-2026-93401');
+        $show->assertSee('Delivery billing evidence');
+        $show->assertSee('Customer PO received lines are above customer invoice lines');
+        $show->assertSee('Purchase order lines are above goods receipt lines');
+        $show->assertSee('Goods receipt lines are above supplier invoice lines');
+        $show->assertSee('Customer confirmed cabling scope');
+        $show->assertSee('Supplier cable purchase order');
+        $show->assertSee('Partial cable delivery received');
+        $show->assertSee(route('documents.show', $customerPo), false);
+        $show->assertSee('600.00');
+        $show->assertSee('400.00');
+        $show->assertSee('100.00');
+    }
+
     public function test_project_page_shows_retention_summary(): void
     {
         $project = $this->createProject([
@@ -465,6 +513,47 @@ class ProjectControlTest extends TestCase
         $this->assertStringContainsString('"Recent Staged Invoices"', $csv);
         $this->assertStringContainsString('INV-2026-92601,"Customer invoice","Acme Trading Sdn Bhd",2026-05-14,"No. 1 of 2",Deposit,600.00', $csv);
         $this->assertStringContainsString('SIN-2026-92601,"Supplier invoice","Best Supplies Sdn Bhd",2026-05-14,"No. 1 of 2",Deposit,300.00', $csv);
+    }
+
+    public function test_project_commercial_report_export_includes_partial_delivery_billing(): void
+    {
+        $project = $this->createProject([
+            'project_code' => 'PRJ-2026-036',
+            'name' => 'Partial delivery export project',
+        ]);
+        $workItem = $this->createWorkItem($project, [
+            'code' => '3.01',
+            'name' => 'Delivery cabling',
+        ]);
+        $customerPo = $this->createLinkedDocument($project, 'customer_po', 'CPO-2026-93601', 1000);
+        $customerInvoice = $this->createLinkedDocument($project, 'customer_invoice', 'INV-2026-93601', 400);
+        $supplierPo = $this->createLinkedDocument($project, 'supplier_po', 'SPO-2026-93601', 700);
+        $goodsReceipt = $this->createLinkedDocument($project, 'goods_receipt', 'GR-2026-93601', 300);
+        $supplierInvoice = $this->createLinkedDocument($project, 'supplier_invoice', 'SIN-2026-93601', 200);
+
+        $this->addProjectLine($customerPo, $workItem, 1000);
+        $this->addProjectLine($customerInvoice, $workItem, 400);
+        $this->addProjectLine($supplierPo, $workItem, 700);
+        $this->addProjectLine($goodsReceipt, $workItem, 300);
+        $this->addProjectLine($supplierInvoice, $workItem, 200);
+
+        $response = $this->get(route('projects.report.export', $project));
+
+        $response->assertOk();
+        $csv = $response->streamedContent();
+
+        $this->assertStringContainsString('"Partial Delivery Billing"', $csv);
+        $this->assertStringContainsString('"Customer Unbilled",600.00', $csv);
+        $this->assertStringContainsString('"Not Yet Received",400.00', $csv);
+        $this->assertStringContainsString('"Received Not Invoiced",100.00', $csv);
+        $this->assertStringContainsString('"Delivery Billing By Work Item"', $csv);
+        $this->assertStringContainsString('"3.01 - Delivery cabling",5,1000.00,400.00,600.00,700.00,300.00,200.00,400.00,100.00,0.00,0.00', $csv);
+        $this->assertStringContainsString('"Delivery Billing Evidence"', $csv);
+        $this->assertStringContainsString('"Customer unbilled",600.00,"3.01 - Delivery cabling",CPO-2026-93601,"Customer PO received",2026-05-14,"Acme Trading Sdn Bhd","Project report test line",1000.00', $csv);
+        $this->assertStringContainsString('"Not yet received",400.00,"3.01 - Delivery cabling",SPO-2026-93601,"Purchase order",2026-05-14,"Best Supplies Sdn Bhd","Project report test line",700.00', $csv);
+        $this->assertStringContainsString('"Received not invoiced",100.00,"3.01 - Delivery cabling",SIN-2026-93601,"Supplier invoice",2026-05-14,"Best Supplies Sdn Bhd","Project report test line",200.00', $csv);
+        $this->assertStringContainsString('"Recent Delivery Documents"', $csv);
+        $this->assertStringContainsString('SIN-2026-93601,"Supplier invoice","Best Supplies Sdn Bhd",2026-05-14,200.00', $csv);
     }
 
     public function test_project_commercial_report_export_includes_retention_summary(): void

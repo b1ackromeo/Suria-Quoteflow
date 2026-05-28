@@ -2835,7 +2835,7 @@ class DocumentWorkflowTest extends TestCase
         $this->assertSame('approved', $supplierInvoice->refresh()->status);
     }
 
-    public function test_partial_supplier_invoice_amount_requires_explicit_override_when_partial_matching_is_not_supported(): void
+    public function test_partial_supplier_invoice_amount_can_match_against_remaining_purchase_order_value(): void
     {
         Storage::fake('local');
         config(['ocr.enabled' => false]);
@@ -2844,26 +2844,90 @@ class DocumentWorkflowTest extends TestCase
 
         $show = $this->get(route('documents.show', $supplierInvoice));
         $show->assertOk();
-        $show->assertSee('Partial supplier invoice amount differs from the purchase order by MYR 540.00.');
-        $show->assertSee('Partial matching is not treated as a normal match');
+        $show->assertSee('Partial supplier invoice is within the remaining purchase order value.');
+        $show->assertSee('Remaining before this invoice: MYR 1,080.00.');
+        $show->assertSee('>Match supplier invoice</button>', false);
+        $show->assertDontSee('Match with audited override');
+
+        $this->transition($supplierInvoice, 'match', 'matched');
+    }
+
+    public function test_supplier_invoice_blocks_when_prior_receipt_invoice_uses_remaining_purchase_order_value(): void
+    {
+        Storage::fake('local');
+        config(['ocr.enabled' => false]);
+
+        $supplierPo = $this->createDocument('supplier-pos', [
+            'supplier_id' => $this->supplier->id,
+            'external_reference' => 'AMOUNT-PARTIAL-LIMIT-SPO',
+            'description' => 'Purchase order for partial invoice limit',
+            'quantity' => 10,
+            'unit_price' => 100,
+        ]);
+        $this->submitAndApprove($supplierPo);
+        $this->transition($supplierPo, 'issue', 'issued');
+
+        $goodsReceipt = $this->createDocument('goods-receipts', [
+            'supplier_id' => $this->supplier->id,
+            'related_document_id' => $supplierPo->id,
+            'source_type' => 'supplier_po',
+            'external_reference' => 'AMOUNT-PARTIAL-LIMIT-GR',
+            'description' => 'Partial goods receipt for invoice limit',
+            'quantity' => 6,
+            'unit_price' => 100,
+        ]);
+        $this->submitAndApprove($goodsReceipt);
+        $this->transition($goodsReceipt, 'receive', 'received');
+
+        $firstInvoice = $this->createDocument('supplier-invoices', [
+            'supplier_id' => $this->supplier->id,
+            'related_document_id' => $goodsReceipt->id,
+            'source_type' => 'goods_receipt',
+            'external_reference' => 'AMOUNT-PARTIAL-LIMIT-SIN-1',
+            'description' => 'First partial supplier invoice',
+            'quantity' => 6,
+            'unit_price' => 100,
+        ]);
+        $this->uploadSupplierInvoiceCopy($firstInvoice);
+        $this->verifySupplierInvoiceManually($firstInvoice, [
+            'fields' => [
+                'invoice_number' => 'AMOUNT-PARTIAL-LIMIT-SIN-1',
+                'invoice_date' => '2026-05-14',
+                'total' => number_format((float) $firstInvoice->refresh()->total, 2, '.', ''),
+            ],
+        ]);
+        $this->submitAndApprove($firstInvoice);
+        $this->transition($firstInvoice, 'match', 'matched');
+
+        $secondInvoice = $this->createDocument('supplier-invoices', [
+            'supplier_id' => $this->supplier->id,
+            'related_document_id' => $supplierPo->id,
+            'source_type' => 'supplier_po',
+            'external_reference' => 'AMOUNT-PARTIAL-LIMIT-SIN-2',
+            'description' => 'Second supplier invoice above remaining PO value',
+            'quantity' => 10,
+            'unit_price' => 100,
+        ]);
+        $this->uploadSupplierInvoiceCopy($secondInvoice);
+        $this->verifySupplierInvoiceManually($secondInvoice, [
+            'fields' => [
+                'invoice_number' => 'AMOUNT-PARTIAL-LIMIT-SIN-2',
+                'invoice_date' => '2026-05-14',
+                'total' => number_format((float) $secondInvoice->refresh()->total, 2, '.', ''),
+            ],
+        ]);
+        $this->submitAndApprove($secondInvoice);
+
+        $show = $this->get(route('documents.show', $secondInvoice));
+        $show->assertOk();
+        $show->assertSee('Supplier invoice total exceeds the remaining purchase order value by MYR 648.00.');
+        $show->assertSee('Match with audited override');
         $show->assertDontSee('>Match supplier invoice</button>', false);
 
-        $this->from(route('documents.show', $supplierInvoice))
-            ->post(route('documents.transition', [$supplierInvoice, 'match']))
-            ->assertRedirect(route('documents.show', $supplierInvoice))
+        $this->from(route('documents.show', $secondInvoice))
+            ->post(route('documents.transition', [$secondInvoice, 'match']))
+            ->assertRedirect(route('documents.show', $secondInvoice))
             ->assertSessionHasErrors('matching');
-
-        $this->post(route('documents.transition', [$supplierInvoice, 'match']), [
-            'matching_override_reason' => 'Manager accepted this as a partial supplier invoice against the PO.',
-        ])->assertRedirect()
-            ->assertSessionHas('status', 'Matched recorded with audited override.');
-
-        $this->assertSame('matched', $supplierInvoice->refresh()->status);
-        $this->assertDatabaseHas('audit_trails', [
-            'action' => 'supplier_invoice_match_override',
-            'auditable_type' => Document::class,
-            'auditable_id' => $supplierInvoice->id,
-        ]);
     }
 
     public function test_supplier_invoice_matching_override_requires_reason_authority_and_audit_trail(): void

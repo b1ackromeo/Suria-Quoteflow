@@ -42,6 +42,19 @@
     $customerBilling = $billingProgress['customer'] ?? [];
     $supplierBilling = $billingProgress['supplier'] ?? [];
     $recentBillingInvoices = $billingProgress['recent_invoices'] ?? [];
+    $deliveryBilling = $billingProgress['delivery'] ?? [
+        'customer' => [],
+        'supplier' => [],
+        'work_items' => [],
+        'recent_documents' => [],
+    ];
+    $deliveryCustomer = $deliveryBilling['customer'] ?? [];
+    $deliverySupplier = $deliveryBilling['supplier'] ?? [];
+    $deliveryWorkItems = $deliveryBilling['work_items'] ?? [];
+    $deliveryEvidence = collect($deliveryBilling['evidence'] ?? [])
+        ->filter(fn ($issue) => (int) ($issue['line_count'] ?? 0) > 0)
+        ->values();
+    $recentDeliveryDocuments = $deliveryBilling['recent_documents'] ?? [];
     $variationOrders = $variationSummary['items'] ?? [];
     $projectExceptions = $projectExceptions ?? [];
     $projectEvidence = $projectEvidence ?? [];
@@ -355,6 +368,230 @@
                                 <p>No milestone customer or supplier invoices are linked to this project yet.</p>
                             </article>
                         @endif
+                    </div>
+
+                    <div class="border-t border-slate-200 p-4">
+                        <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-950">Partial delivery billing</h3>
+                                <p class="mt-1 text-sm font-medium leading-6 text-slate-500">Compare customer billing, purchase orders, goods receipts, and supplier invoices for partially delivered project work.</p>
+                            </div>
+                            <span class="issuer-mini">{{ count($deliveryWorkItems) }} work item{{ count($deliveryWorkItems) === 1 ? '' : 's' }}</span>
+                        </div>
+
+                        <div class="mt-4 grid gap-4 xl:grid-cols-2">
+                            <article class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                                <h4 class="text-sm font-bold text-slate-950">Customer delivery billing</h4>
+                                <dl class="document-detail-list mt-4">
+                                    <div>
+                                        <dt>Customer confirmed</dt>
+                                        <dd>{{ $money($deliveryCustomer['confirmed_value'] ?? 0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Customer invoiced</dt>
+                                        <dd>{{ $money($deliveryCustomer['invoiced_value'] ?? 0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Customer unbilled</dt>
+                                        <dd>{{ $money($deliveryCustomer['unbilled_value'] ?? 0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Above confirmed value</dt>
+                                        <dd>{{ $money($deliveryCustomer['above_confirmed_value'] ?? 0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Invoiced percentage</dt>
+                                        <dd>{{ $percent($deliveryCustomer['invoiced_percent'] ?? null) }}</dd>
+                                    </div>
+                                </dl>
+                            </article>
+
+                            <article class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                                <h4 class="text-sm font-bold text-slate-950">Supplier delivery and invoices</h4>
+                                <dl class="document-detail-list mt-4">
+                                    <div>
+                                        <dt>Purchase order committed</dt>
+                                        <dd>{{ $money($deliverySupplier['committed_value'] ?? 0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Received / accepted</dt>
+                                        <dd>{{ $money($deliverySupplier['received_value'] ?? 0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Supplier invoiced</dt>
+                                        <dd>{{ $money($deliverySupplier['invoiced_value'] ?? 0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Not yet received</dt>
+                                        <dd>{{ $money($deliverySupplier['not_yet_received_value'] ?? 0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Received not invoiced</dt>
+                                        <dd>{{ $money($deliverySupplier['received_not_invoiced_value'] ?? 0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Above received value</dt>
+                                        <dd>{{ $money($deliverySupplier['above_received_value'] ?? 0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Received percentage</dt>
+                                        <dd>{{ $percent($deliverySupplier['received_percent'] ?? null) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Supplier invoiced percentage</dt>
+                                        <dd>{{ $percent($deliverySupplier['invoiced_percent'] ?? null) }}</dd>
+                                    </div>
+                                </dl>
+                            </article>
+                        </div>
+
+                        @if($deliveryWorkItems !== [])
+                            <div class="document-compact-table mt-4">
+                                <table>
+                                    <thead>
+                                    <tr>
+                                        <th>Work item / cost code</th>
+                                        <th class="text-right">Customer unbilled</th>
+                                        <th class="text-right">Not yet received</th>
+                                        <th class="text-right">Received not invoiced</th>
+                                        <th class="text-right">Above confirmed</th>
+                                        <th class="text-right">Above received</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    @foreach($deliveryWorkItems as $item)
+                                        <tr>
+                                            <td data-label="Work item / cost code">
+                                                <strong>{{ $item['work_item_label'] }}</strong>
+                                                <span>{{ $item['line_count'] }} project line{{ (int) $item['line_count'] === 1 ? '' : 's' }}</span>
+                                            </td>
+                                            <td data-label="Customer unbilled" class="text-right font-bold text-slate-950">{{ $money($item['customer_unbilled_value']) }}</td>
+                                            <td data-label="Not yet received" class="text-right font-bold text-slate-950">{{ $money($item['supplier_not_yet_received_value']) }}</td>
+                                            <td data-label="Received not invoiced" class="text-right font-bold text-slate-950">{{ $money($item['received_not_invoiced_value']) }}</td>
+                                            <td data-label="Above confirmed" class="text-right font-bold text-slate-950">{{ $money($item['customer_above_confirmed_value']) }}</td>
+                                            <td data-label="Above received" class="text-right font-bold text-slate-950">{{ $money($item['supplier_above_received_value']) }}</td>
+                                        </tr>
+                                    @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @else
+                            <article class="document-readiness-item readiness-state-ready mt-4">
+                                <strong>No partial delivery billing yet</strong>
+                                <p>No customer PO received, customer invoice, purchase order, goods receipt, or supplier invoice lines are linked to project work items yet.</p>
+                            </article>
+                        @endif
+
+                        @if($deliveryEvidence->isNotEmpty())
+                            <div class="mt-4">
+                                <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                                    <div>
+                                        <h4 class="text-sm font-bold text-slate-950">Delivery billing evidence</h4>
+                                        <p class="mt-1 text-sm font-medium leading-6 text-slate-500">Open the document lines behind each delivery billing gap before deciding the next action.</p>
+                                    </div>
+                                    <span class="issuer-mini">{{ $deliveryEvidence->count() }} issue{{ $deliveryEvidence->count() === 1 ? '' : 's' }}</span>
+                                </div>
+
+                                <div class="mt-4 space-y-4">
+                                    @foreach($deliveryEvidence as $issue)
+                                        <article class="rounded-lg border border-slate-200 bg-white p-4">
+                                            <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                                                <div>
+                                                    <h5 class="text-sm font-bold text-slate-950">{{ $issue['title'] }}</h5>
+                                                    <p class="mt-1 text-sm font-medium leading-6 text-slate-600">{{ $issue['message'] }}</p>
+                                                </div>
+                                                <span class="issuer-mini">{{ $money($issue['amount'] ?? 0) }}</span>
+                                            </div>
+
+                                            <div class="document-compact-table mt-4">
+                                                <table>
+                                                    <thead>
+                                                    <tr>
+                                                        <th>Document</th>
+                                                        <th>Party</th>
+                                                        <th>Issue date</th>
+                                                        <th>Line description</th>
+                                                        <th>Work item</th>
+                                                        <th class="text-right">Amount</th>
+                                                        <th></th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                    @foreach($issue['items'] as $item)
+                                                        <tr>
+                                                            <td data-label="Document">
+                                                                <strong>{{ $item['document_number'] }}</strong>
+                                                                <span>{{ $item['document_label'] }}</span>
+                                                            </td>
+                                                            <td data-label="Party">{{ $item['party_name'] }}</td>
+                                                            <td data-label="Issue date">{{ $date($item['issue_date']) }}</td>
+                                                            <td data-label="Line description">{{ $item['description'] }}</td>
+                                                            <td data-label="Work item">{{ $item['work_item_label'] ?? 'Not assigned' }}</td>
+                                                            <td data-label="Amount" class="text-right font-bold text-slate-950">{{ $money($item['line_total']) }}</td>
+                                                            <td data-label="Action" class="text-right">
+                                                                <a class="btn btn-secondary" href="{{ route('documents.show', $item['document_id']) }}">Open</a>
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            @if($issue['is_truncated'] ?? false)
+                                                <p class="mt-3 text-xs font-semibold text-slate-500">Showing first {{ $issue['showing_count'] }} of {{ $issue['line_count'] }} lines on this page.</p>
+                                            @endif
+                                        </article>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+
+                        <div class="mt-4">
+                            <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                                <div>
+                                    <h4 class="text-sm font-bold text-slate-950">Recent delivery documents</h4>
+                                    <p class="mt-1 text-sm font-medium leading-6 text-slate-500">Review the documents used in the delivery billing totals.</p>
+                                </div>
+                                <span class="issuer-mini">{{ count($recentDeliveryDocuments) }} row{{ count($recentDeliveryDocuments) === 1 ? '' : 's' }}</span>
+                            </div>
+
+                            @if($recentDeliveryDocuments !== [])
+                                <div class="document-compact-table mt-4">
+                                    <table>
+                                        <thead>
+                                        <tr>
+                                            <th>Document</th>
+                                            <th>Party</th>
+                                            <th>Issue date</th>
+                                            <th class="text-right">Amount</th>
+                                            <th></th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        @foreach($recentDeliveryDocuments as $document)
+                                            <tr>
+                                                <td data-label="Document">
+                                                    <strong>{{ $document['document_number'] }}</strong>
+                                                    <span>{{ $document['document_label'] }}</span>
+                                                </td>
+                                                <td data-label="Party">{{ $document['party_name'] }}</td>
+                                                <td data-label="Issue date">{{ $date($document['issue_date']) }}</td>
+                                                <td data-label="Amount" class="text-right font-bold text-slate-950">{{ $money($document['total']) }}</td>
+                                                <td data-label="Action" class="text-right">
+                                                    <a class="btn btn-secondary" href="{{ route('documents.show', $document['document_id']) }}">Open</a>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @else
+                                <article class="document-readiness-item readiness-state-ready mt-4">
+                                    <strong>No delivery documents recorded</strong>
+                                    <p>No customer PO received, customer invoice, purchase order, goods receipt, or supplier invoice is linked to this project yet.</p>
+                                </article>
+                            @endif
+                        </div>
                     </div>
                 </section>
 

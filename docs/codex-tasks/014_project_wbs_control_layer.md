@@ -529,14 +529,15 @@ Switching a document back to fixed payment terms clears milestone-only billing f
 Project detail pages and project CSV reports now show milestone customer billing and supplier billing roll-ups, including scheduled value, staged invoices, remaining milestone value, and the latest recorded billing stage.
 Documents can now record retention percentage, retention amount, and retention release date, and project reports now summarize customer retention held, supplier retention held, and net retention exposure.
 Projects can now record approved, pending-review, and not-proceeding variation orders with customer value change, supplier cost change, linked evidence documents, and revised contract / budget baseline reporting.
+Partial supplier invoices can now match normally when the current invoice stays within the remaining purchase order or goods receipt value, including prior invoices recorded through receipts for the same purchase order.
+Project detail pages and project CSV reports now show partial delivery billing, including customer unbilled value, purchase-order value not yet received, receipt value not yet supplier-invoiced, and the same delivery billing gaps by work item.
+Partial delivery billing reports now include document-line evidence for customer unbilled value, purchase-order value not yet received, receipt value not yet supplier-invoiced, customer invoices above confirmed value, and supplier invoices above received value.
 ```
 
 Future possible additions:
 
 ```text
-Retention
-Variation orders
-Partial delivery billing
+Optional delivery billing thresholds and management alerts
 ```
 
 These should continue only after project, WBS, budget, margin, reporting, and staged-billing foundations remain stable.

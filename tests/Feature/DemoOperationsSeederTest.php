@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\CompanyProfile;
+use App\Models\Project;
+use App\Services\Projects\ProjectCommercialReportService;
 use Database\Seeders\DemoOperationsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
@@ -31,5 +33,29 @@ class DemoOperationsSeederTest extends TestCase
         $this->assertSame('RM', $company->currencySymbol('MYR'));
         $this->assertNotEmpty($company->paymentInstructionLines());
         $this->assertStringContainsString('Reg. No. 202603107223 (003844744-P)', $company->displayPdfFooter());
+    }
+
+    public function test_demo_seed_includes_phase_five_project_billing_sample(): void
+    {
+        Artisan::call('db:seed', [
+            '--class' => DemoOperationsSeeder::class,
+        ]);
+
+        $project = Project::query()
+            ->where('project_code', 'PRJ-2026-P5-DEMO')
+            ->firstOrFail();
+        $workItems = $project->wbsItems()->with('parent')->get();
+        $report = app(ProjectCommercialReportService::class)->report($project, $workItems);
+        $delivery = $report['billing']['delivery'];
+
+        $this->assertCount(2, $workItems);
+        $this->assertSame(5, $project->documents()->count());
+        $this->assertSame(2, $project->variations()->count());
+        $this->assertSame(18000.0, $delivery['customer']['unbilled_value']);
+        $this->assertSame(11000.0, $delivery['supplier']['not_yet_received_value']);
+        $this->assertSame(2500.0, $delivery['supplier']['received_not_invoiced_value']);
+        $this->assertGreaterThan(0, $delivery['evidence']['customer_unbilled']['line_count']);
+        $this->assertGreaterThan(0, $delivery['evidence']['supplier_not_yet_received']['line_count']);
+        $this->assertGreaterThan(0, $delivery['evidence']['received_not_invoiced']['line_count']);
     }
 }

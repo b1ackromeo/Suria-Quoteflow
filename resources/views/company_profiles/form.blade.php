@@ -44,16 +44,17 @@
 
             <aside class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Logo</p>
-                <div class="mt-3">
+                <div class="mt-3" data-company-logo-preview aria-live="polite">
                     @include('company_profiles.partials.logo-mark', [
                         'company' => $company,
-                        'imageClass' => 'aspect-square w-28 rounded-2xl object-cover shadow-sm',
+                        'imageClass' => 'aspect-square w-28 rounded-2xl bg-white object-contain shadow-sm ring-1 ring-blue-100',
                         'placeholderClass' => 'company-logo-placeholder aspect-square w-28 rounded-2xl text-2xl',
                     ])
                 </div>
                 <label class="form-label mt-4">Upload logo
-                    <input class="form-input" type="file" name="logo" accept="image/*">
+                    <input class="form-input" type="file" name="logo" accept="image/*" data-company-logo-input>
                 </label>
+                <p class="sr-only" data-company-logo-preview-status>Current company logo shown.</p>
                 <p class="mt-3 text-xs font-semibold leading-5 text-slate-500">Use a square PNG/JPG logo. Existing documents will immediately use this company profile.</p>
             </aside>
         </div>
@@ -159,21 +160,79 @@
         const countryDefaults = @json($countryDefaults);
         const countrySelect = document.querySelector('[data-country-select]');
 
-        if (!countrySelect) {
+        if (countrySelect) {
+            countrySelect.addEventListener('change', () => {
+                const defaults = countryDefaults[countrySelect.value] || countryDefaults.Other;
+
+                Object.entries(defaults).forEach(([field, value]) => {
+                    const input = document.querySelector('[data-country-default-field="' + field + '"]');
+
+                    if (input && value !== undefined && value !== null) {
+                        input.value = value;
+                    }
+                });
+            });
+        }
+
+        const logoInput = document.querySelector('[data-company-logo-input]');
+        const logoPreview = document.querySelector('[data-company-logo-preview]');
+        const logoPreviewStatus = document.querySelector('[data-company-logo-preview-status]');
+        const logoPreviewClass = 'aspect-square w-28 rounded-2xl bg-white object-contain shadow-sm ring-1 ring-blue-100';
+
+        if (!logoInput || !logoPreview) {
             return;
         }
 
-        countrySelect.addEventListener('change', () => {
-            const defaults = countryDefaults[countrySelect.value] || countryDefaults.Other;
+        const originalLogoPreview = logoPreview.innerHTML;
+        let logoPreviewUrl = null;
 
-            Object.entries(defaults).forEach(([field, value]) => {
-                const input = document.querySelector('[data-country-default-field="' + field + '"]');
+        const clearLogoPreviewUrl = () => {
+            if (logoPreviewUrl) {
+                URL.revokeObjectURL(logoPreviewUrl);
+                logoPreviewUrl = null;
+            }
+        };
 
-                if (input && value !== undefined && value !== null) {
-                    input.value = value;
+        logoInput.addEventListener('change', () => {
+            const file = logoInput.files && logoInput.files[0];
+
+            clearLogoPreviewUrl();
+
+            if (!file) {
+                logoPreview.innerHTML = originalLogoPreview;
+
+                if (logoPreviewStatus) {
+                    logoPreviewStatus.textContent = 'Current company logo shown.';
                 }
-            });
+
+                return;
+            }
+
+            if (!file.type.startsWith('image/')) {
+                logoPreview.innerHTML = originalLogoPreview;
+
+                if (logoPreviewStatus) {
+                    logoPreviewStatus.textContent = 'Choose a PNG or JPG logo image.';
+                }
+
+                return;
+            }
+
+            logoPreviewUrl = URL.createObjectURL(file);
+
+            const image = new Image();
+            image.className = logoPreviewClass;
+            image.src = logoPreviewUrl;
+            image.alt = 'Selected company logo preview';
+
+            logoPreview.replaceChildren(image);
+
+            if (logoPreviewStatus) {
+                logoPreviewStatus.textContent = 'Selected company logo preview is shown.';
+            }
         });
+
+        window.addEventListener('beforeunload', clearLogoPreviewUrl);
     });
 </script>
 @endsection

@@ -190,10 +190,12 @@ class ProjectCommercialReportService
     {
         $summary = $this->commercialSummary($project);
         $workItemReport = $this->workItemSummaries($project, $workItems);
+        $billing = $this->billingProgress($project);
+        $billing['delivery'] = $this->deliveryBilling($project, $workItems, $summary, $workItemReport);
 
         return [
             'summary' => $summary,
-            'billing' => $this->billingProgress($project),
+            'billing' => $billing,
             'retention' => $this->retentionSummary($project),
             'variations' => $this->variationSummary($project),
             'work_items' => $workItemReport['items'],
@@ -461,6 +463,256 @@ class ProjectCommercialReportService
                     'total' => (float) $document->total,
                 ];
             })
+            ->all();
+    }
+
+    /**
+     * @param  Collection<int, WbsItem>  $workItems
+     */
+    private function deliveryBilling(Project $project, Collection $workItems, array $summary, array $workItemReport): array
+    {
+        $customerConfirmed = (float) ($summary['customer_confirmed'] ?? 0);
+        $customerInvoiced = (float) ($summary['customer_invoiced'] ?? 0);
+        $supplierCommitted = (float) ($summary['supplier_committed'] ?? 0);
+        $receivedCost = (float) ($summary['received_cost'] ?? 0);
+        $supplierInvoiced = (float) ($summary['supplier_invoiced'] ?? 0);
+
+        $workItemRows = [];
+        $workItemSummaries = $workItemReport['items'] ?? [];
+
+        foreach ($workItems as $workItem) {
+            $lineSummary = $workItemSummaries[$workItem->id] ?? [];
+
+            if (! $this->hasDeliveryActivity($lineSummary)) {
+                continue;
+            }
+
+            $workItemRows[] = array_merge(
+                [
+                    'work_item_id' => (int) $workItem->id,
+                    'work_item_code' => (string) $workItem->code,
+                    'work_item_name' => (string) $workItem->name,
+                    'work_item_label' => $workItem->displayLabel(),
+                    'line_count' => (int) ($lineSummary['line_count'] ?? 0),
+                ],
+                $this->deliveryGapSummary($lineSummary),
+            );
+        }
+
+        $unassigned = $workItemReport['unassigned'] ?? [];
+
+        if ($this->hasDeliveryActivity($unassigned)) {
+            $workItemRows[] = array_merge(
+                [
+                    'work_item_id' => null,
+                    'work_item_code' => '',
+                    'work_item_name' => 'Unassigned project lines',
+                    'work_item_label' => 'Unassigned project lines',
+                    'line_count' => (int) ($unassigned['line_count'] ?? 0),
+                ],
+                $this->deliveryGapSummary($unassigned),
+            );
+        }
+
+        return [
+            'customer' => [
+                'confirmed_value' => $customerConfirmed,
+                'invoiced_value' => $customerInvoiced,
+                'unbilled_value' => max($customerConfirmed - $customerInvoiced, 0),
+                'above_confirmed_value' => max($customerInvoiced - $customerConfirmed, 0),
+                'invoiced_percent' => $customerConfirmed > 0 ? ($customerInvoiced / $customerConfirmed) * 100 : null,
+            ],
+            'supplier' => [
+                'committed_value' => $supplierCommitted,
+                'received_value' => $receivedCost,
+                'invoiced_value' => $supplierInvoiced,
+                'not_yet_received_value' => max($supplierCommitted - $receivedCost, 0),
+                'received_not_invoiced_value' => max($receivedCost - $supplierInvoiced, 0),
+                'above_received_value' => max($supplierInvoiced - $receivedCost, 0),
+                'received_percent' => $supplierCommitted > 0 ? ($receivedCost / $supplierCommitted) * 100 : null,
+                'invoiced_percent' => $receivedCost > 0 ? ($supplierInvoiced / $receivedCost) * 100 : null,
+            ],
+            'work_items' => $workItemRows,
+            'evidence' => $this->deliveryBillingEvidence($project, $workItemRows),
+            'recent_documents' => $this->recentDeliveryBillingDocuments($project),
+        ];
+    }
+
+    private function deliveryGapSummary(array $summary): array
+    {
+        $customerConfirmed = (float) ($summary['customer_confirmed'] ?? 0);
+        $customerInvoiced = (float) ($summary['customer_invoiced'] ?? 0);
+        $supplierCommitted = (float) ($summary['supplier_committed'] ?? 0);
+        $receivedCost = (float) ($summary['received_cost'] ?? 0);
+        $supplierInvoiced = (float) ($summary['supplier_actual'] ?? $summary['supplier_invoiced'] ?? 0);
+
+        return [
+            'customer_confirmed' => $customerConfirmed,
+            'customer_invoiced' => $customerInvoiced,
+            'customer_unbilled_value' => max($customerConfirmed - $customerInvoiced, 0),
+            'customer_above_confirmed_value' => max($customerInvoiced - $customerConfirmed, 0),
+            'supplier_committed' => $supplierCommitted,
+            'received_value' => $receivedCost,
+            'supplier_invoiced' => $supplierInvoiced,
+            'supplier_not_yet_received_value' => max($supplierCommitted - $receivedCost, 0),
+            'received_not_invoiced_value' => max($receivedCost - $supplierInvoiced, 0),
+            'supplier_above_received_value' => max($supplierInvoiced - $receivedCost, 0),
+        ];
+    }
+
+    private function hasDeliveryActivity(array $summary): bool
+    {
+        foreach (['customer_confirmed', 'customer_invoiced', 'supplier_committed', 'received_cost', 'supplier_actual', 'supplier_invoiced'] as $key) {
+            if ((float) ($summary[$key] ?? 0) !== 0.0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $workItemRows
+     * @return array<string, array<string, mixed>>
+     */
+    private function deliveryBillingEvidence(Project $project, array $workItemRows): array
+    {
+        $issues = [
+            'customer_unbilled' => [
+                'title' => 'Customer unbilled',
+                'message' => 'Customer PO received lines are above customer invoice lines for these project work items.',
+                'amount_key' => 'customer_unbilled_value',
+                'document_types' => ['customer_po', 'customer_invoice'],
+            ],
+            'supplier_not_yet_received' => [
+                'title' => 'Not yet received',
+                'message' => 'Purchase order lines are above goods receipt lines for these project work items.',
+                'amount_key' => 'supplier_not_yet_received_value',
+                'document_types' => ['supplier_po', 'goods_receipt'],
+            ],
+            'received_not_invoiced' => [
+                'title' => 'Received not invoiced',
+                'message' => 'Goods receipt lines are above supplier invoice lines for these project work items.',
+                'amount_key' => 'received_not_invoiced_value',
+                'document_types' => ['goods_receipt', 'supplier_invoice'],
+            ],
+            'customer_above_confirmed' => [
+                'title' => 'Above confirmed value',
+                'message' => 'Customer invoice lines are above customer PO received lines for these project work items.',
+                'amount_key' => 'customer_above_confirmed_value',
+                'document_types' => ['customer_invoice', 'customer_po'],
+            ],
+            'supplier_above_received' => [
+                'title' => 'Above received value',
+                'message' => 'Supplier invoice lines are above goods receipt lines for these project work items.',
+                'amount_key' => 'supplier_above_received_value',
+                'document_types' => ['supplier_invoice', 'goods_receipt'],
+            ],
+        ];
+
+        $evidence = [];
+
+        foreach ($issues as $key => $issue) {
+            $rows = collect($workItemRows)
+                ->filter(fn (array $row) => (float) ($row[$issue['amount_key']] ?? 0) > 0)
+                ->values();
+            $amount = (float) $rows->sum(fn (array $row) => (float) ($row[$issue['amount_key']] ?? 0));
+            $workItemIds = $rows
+                ->pluck('work_item_id')
+                ->filter(fn ($id) => $id !== null)
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+            $includeUnassigned = $rows->contains(fn (array $row) => $row['work_item_id'] === null);
+
+            if ($amount <= 0 || ($workItemIds === [] && ! $includeUnassigned)) {
+                $evidence[$key] = [
+                    'title' => $issue['title'],
+                    'message' => $issue['message'],
+                    'amount' => 0.0,
+                    'line_count' => 0,
+                    'showing_count' => 0,
+                    'is_truncated' => false,
+                    'items' => [],
+                ];
+
+                continue;
+            }
+
+            $lineCount = (int) $this->deliveryEvidenceLineQuery($project, $issue['document_types'], $workItemIds, $includeUnassigned)
+                ->reorder()
+                ->count();
+            $items = $this->deliveryEvidenceLineQuery($project, $issue['document_types'], $workItemIds, $includeUnassigned)
+                ->limit(self::EVIDENCE_LIMIT)
+                ->get()
+                ->map(fn (object $row) => $this->formatEvidenceLine($row))
+                ->all();
+
+            $evidence[$key] = [
+                'title' => $issue['title'],
+                'message' => $issue['message'],
+                'amount' => $amount,
+                'line_count' => $lineCount,
+                'showing_count' => count($items),
+                'is_truncated' => $lineCount > count($items),
+                'items' => $items,
+            ];
+        }
+
+        return $evidence;
+    }
+
+    /**
+     * @param  array<int, string>  $documentTypes
+     * @param  array<int, int>  $workItemIds
+     */
+    private function deliveryEvidenceLineQuery(Project $project, array $documentTypes, array $workItemIds, bool $includeUnassigned)
+    {
+        return $this->projectEvidenceLineQuery($project)
+            ->whereIn('documents.type', $documentTypes)
+            ->where(function ($query) use ($workItemIds, $includeUnassigned) {
+                if ($workItemIds !== []) {
+                    $query->whereIn('document_items.wbs_item_id', $workItemIds);
+                }
+
+                if ($includeUnassigned) {
+                    $workItemIds === []
+                        ? $query->whereNull('document_items.wbs_item_id')
+                        : $query->orWhereNull('document_items.wbs_item_id');
+                }
+            });
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function recentDeliveryBillingDocuments(Project $project): array
+    {
+        return Document::query()
+            ->where('project_id', $project->id)
+            ->whereIn('type', ['customer_po', 'customer_invoice', 'supplier_po', 'goods_receipt', 'supplier_invoice'])
+            ->whereIn('status', self::REPORT_STATUSES)
+            ->with(['customer:id,name', 'supplier:id,name'])
+            ->latest('issue_date')
+            ->latest('id')
+            ->limit(10)
+            ->get([
+                'id',
+                'type',
+                'document_number',
+                'issue_date',
+                'total',
+                'customer_id',
+                'supplier_id',
+            ])
+            ->map(fn (Document $document) => [
+                'document_id' => (int) $document->id,
+                'document_number' => (string) $document->document_number,
+                'document_label' => $this->documentLabel($document->type),
+                'party_name' => (string) ($document->customer?->name ?? $document->supplier?->name ?? 'Internal'),
+                'issue_date' => $document->issue_date?->format('Y-m-d'),
+                'total' => (float) $document->total,
+            ])
             ->all();
     }
 

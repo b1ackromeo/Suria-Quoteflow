@@ -121,6 +121,12 @@ class ProjectController extends Controller
             $handle = fopen('php://output', 'w');
             $summary = $commercialReport['summary'];
             $billingProgress = $commercialReport['billing'];
+            $deliveryBilling = $billingProgress['delivery'] ?? [
+                'customer' => [],
+                'supplier' => [],
+                'work_items' => [],
+                'recent_documents' => [],
+            ];
             $retentionSummary = $commercialReport['retention'];
             $variationSummary = $commercialReport['variations'];
             $workItemSummaries = $commercialReport['work_items'];
@@ -202,6 +208,122 @@ class ProjectController extends Controller
                         $invoice['progress_label'] ?? '',
                         $invoice['billing_stage_name'] ?? '',
                         $this->csvAmount($invoice['total'] ?? 0),
+                    ]);
+                }
+            }
+
+            fputcsv($handle, []);
+            fputcsv($handle, ['Partial Delivery Billing']);
+            fputcsv($handle, ['Metric', 'Value']);
+
+            $deliveryCustomer = $deliveryBilling['customer'] ?? [];
+            $deliverySupplier = $deliveryBilling['supplier'] ?? [];
+
+            foreach ([
+                'Customer Confirmed' => $deliveryCustomer['confirmed_value'] ?? 0,
+                'Customer Invoiced' => $deliveryCustomer['invoiced_value'] ?? 0,
+                'Customer Unbilled' => $deliveryCustomer['unbilled_value'] ?? 0,
+                'Above Confirmed Value' => $deliveryCustomer['above_confirmed_value'] ?? 0,
+            ] as $label => $value) {
+                fputcsv($handle, [$label, $this->csvAmount($value)]);
+            }
+
+            fputcsv($handle, ['Customer Invoiced %', $this->csvPercent($deliveryCustomer['invoiced_percent'] ?? null)]);
+
+            foreach ([
+                'Purchase Order Committed' => $deliverySupplier['committed_value'] ?? 0,
+                'Received / Accepted' => $deliverySupplier['received_value'] ?? 0,
+                'Supplier Invoiced' => $deliverySupplier['invoiced_value'] ?? 0,
+                'Not Yet Received' => $deliverySupplier['not_yet_received_value'] ?? 0,
+                'Received Not Invoiced' => $deliverySupplier['received_not_invoiced_value'] ?? 0,
+                'Above Received Value' => $deliverySupplier['above_received_value'] ?? 0,
+            ] as $label => $value) {
+                fputcsv($handle, [$label, $this->csvAmount($value)]);
+            }
+
+            fputcsv($handle, ['Received %', $this->csvPercent($deliverySupplier['received_percent'] ?? null)]);
+            fputcsv($handle, ['Supplier Invoiced %', $this->csvPercent($deliverySupplier['invoiced_percent'] ?? null)]);
+
+            fputcsv($handle, []);
+            fputcsv($handle, ['Delivery Billing By Work Item']);
+            fputcsv($handle, [
+                'Work item / cost code',
+                'Line Count',
+                'Customer Confirmed',
+                'Customer Invoiced',
+                'Customer Unbilled',
+                'Supplier Committed',
+                'Received / Accepted',
+                'Supplier Invoiced',
+                'Not Yet Received',
+                'Received Not Invoiced',
+                'Above Confirmed',
+                'Above Received',
+            ]);
+
+            if (($deliveryBilling['work_items'] ?? []) === []) {
+                fputcsv($handle, ['No partial delivery billing yet', '', '', '', '', '', '', '', '', '', '', 'No customer PO received, customer invoice, purchase order, goods receipt, or supplier invoice lines are linked to project work items yet.']);
+            } else {
+                foreach ($deliveryBilling['work_items'] as $item) {
+                    fputcsv($handle, [
+                        $item['work_item_label'] ?? '',
+                        (int) ($item['line_count'] ?? 0),
+                        $this->csvAmount($item['customer_confirmed'] ?? 0),
+                        $this->csvAmount($item['customer_invoiced'] ?? 0),
+                        $this->csvAmount($item['customer_unbilled_value'] ?? 0),
+                        $this->csvAmount($item['supplier_committed'] ?? 0),
+                        $this->csvAmount($item['received_value'] ?? 0),
+                        $this->csvAmount($item['supplier_invoiced'] ?? 0),
+                        $this->csvAmount($item['supplier_not_yet_received_value'] ?? 0),
+                        $this->csvAmount($item['received_not_invoiced_value'] ?? 0),
+                        $this->csvAmount($item['customer_above_confirmed_value'] ?? 0),
+                        $this->csvAmount($item['supplier_above_received_value'] ?? 0),
+                    ]);
+                }
+            }
+
+            $deliveryEvidence = collect($deliveryBilling['evidence'] ?? [])
+                ->filter(fn ($issue) => (int) ($issue['line_count'] ?? 0) > 0)
+                ->values();
+
+            fputcsv($handle, []);
+            fputcsv($handle, ['Delivery Billing Evidence']);
+            fputcsv($handle, ['Issue', 'Gap Amount', 'Work item / cost code', 'Document Number', 'Document Type', 'Issue Date', 'Party', 'Line Description', 'Amount']);
+
+            if ($deliveryEvidence->isEmpty()) {
+                fputcsv($handle, ['No delivery billing evidence visible', '', '', '', '', '', '', 'No document lines are currently listed for the visible delivery billing gaps.', '']);
+            } else {
+                foreach ($deliveryEvidence as $issue) {
+                    foreach ($issue['items'] ?? [] as $item) {
+                        fputcsv($handle, [
+                            $issue['title'] ?? '',
+                            $this->csvAmount($issue['amount'] ?? 0),
+                            $item['work_item_label'] ?? '',
+                            $item['document_number'] ?? '',
+                            $item['document_label'] ?? '',
+                            $item['issue_date'] ?? '',
+                            $item['party_name'] ?? '',
+                            $item['description'] ?? '',
+                            $this->csvAmount($item['line_total'] ?? 0),
+                        ]);
+                    }
+                }
+            }
+
+            fputcsv($handle, []);
+            fputcsv($handle, ['Recent Delivery Documents']);
+            fputcsv($handle, ['Document Number', 'Document Type', 'Party', 'Issue Date', 'Amount']);
+
+            if (($deliveryBilling['recent_documents'] ?? []) === []) {
+                fputcsv($handle, ['No delivery documents recorded', '', '', 'No customer PO received, customer invoice, purchase order, goods receipt, or supplier invoice is linked to this project yet.', '']);
+            } else {
+                foreach ($deliveryBilling['recent_documents'] as $document) {
+                    fputcsv($handle, [
+                        $document['document_number'] ?? '',
+                        $document['document_label'] ?? '',
+                        $document['party_name'] ?? '',
+                        $document['issue_date'] ?? '',
+                        $this->csvAmount($document['total'] ?? 0),
                     ]);
                 }
             }

@@ -228,5 +228,7 @@ class DemoOperationsSeeder extends Seeder
                 'created_by' => $admin->id,
             ]);
         });
+
+        $this->call(PhaseFiveProjectDemoSeeder::class);
     }
 }
