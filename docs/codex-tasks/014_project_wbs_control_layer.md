@@ -506,7 +506,7 @@ Which projects are profitable, over budget, blocked, or commercially risky?
 
 Goal: make staged billing commercially consistent before adding more complex contract billing controls.
 
-Implementation status: Phase 5 scope complete in the Laravel Blade app (100%). Configurable alert levels remain a future enhancement.
+Implementation status: Phase 5 scope complete in the Laravel Blade app (100%).
 
 Build:
 
@@ -533,12 +533,13 @@ Partial supplier invoices can now match normally when the current invoice stays 
 Project detail pages and project CSV reports now show partial delivery billing, including customer unbilled value, purchase-order value not yet received, receipt value not yet supplier-invoiced, and the same delivery billing gaps by work item.
 Partial delivery billing reports now include document-line evidence for customer unbilled value, purchase-order value not yet received, receipt value not yet supplier-invoiced, customer invoices above confirmed value, and supplier invoices above received value.
 Partial delivery billing reports now show management alerts when customer unbilled value or purchase-order value not yet received reaches 25%, received-not-invoiced value reaches 10%, or any invoice value is above the confirmed or received value.
+Company profiles can now set default delivery billing alert levels, and individual projects can override the customer-unbilled / not-yet-received level and the received-not-invoiced level.
 ```
 
 Future possible additions:
 
 ```text
-Configurable alert levels per project or company
+Per-work-item alert levels for exceptionally sensitive project sections
 ```
 
 These should continue only after project, WBS, budget, margin, reporting, and staged-billing foundations remain stable.

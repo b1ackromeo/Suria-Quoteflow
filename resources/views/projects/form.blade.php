@@ -9,6 +9,10 @@
     $contractValue = old('contract_value', $project->contract_value ?? 0);
     $budgetAmount = old('budget_amount', $project->budget_amount ?? 0);
     $marginTarget = old('margin_target_percent', $project->margin_target_percent ?? 0);
+    $deliveryGapAlert = old('delivery_gap_alert_percent', $project->delivery_gap_alert_percent);
+    $receivedNotInvoicedAlert = old('received_not_invoiced_alert_percent', $project->received_not_invoiced_alert_percent);
+    $companyDeliveryGapAlert = $companyProfile->formatPercent($companyProfile->deliveryGapAlertPercent());
+    $companyReceivedNotInvoicedAlert = $companyProfile->formatPercent($companyProfile->receivedNotInvoicedAlertPercent());
 @endphp
 
 @section('content')
@@ -103,6 +107,31 @@
                 <label class="form-label md:col-span-2 xl:col-span-4">
                     Project summary
                     <textarea class="form-input min-h-36 leading-6" name="description" placeholder="Scope, commercial notes, delivery phases, or budget context.">{{ old('description', $project->description) }}</textarea>
+                </label>
+            </div>
+        </section>
+
+        <section class="directory-form-section">
+            <div class="directory-form-section-header">
+                <div>
+                    <p class="studio-section-kicker">Commercial control</p>
+                    <h2 class="studio-section-title">Delivery billing alert levels</h2>
+                    <p class="mt-1 text-sm font-semibold leading-6 text-slate-500">
+                        Leave blank to use company alert levels. Project values are used for this job only.
+                    </p>
+                </div>
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-2">
+                <label class="form-label">
+                    Customer unbilled / not yet received alert %
+                    <input class="form-input" type="number" step="0.01" min="0" max="100" name="delivery_gap_alert_percent" value="{{ $deliveryGapAlert }}" placeholder="{{ $companyProfile->deliveryGapAlertPercent() }}">
+                    <span class="mt-1 text-xs font-semibold text-slate-400">Company alert level: {{ $companyDeliveryGapAlert }}</span>
+                </label>
+                <label class="form-label">
+                    Received not invoiced alert %
+                    <input class="form-input" type="number" step="0.01" min="0" max="100" name="received_not_invoiced_alert_percent" value="{{ $receivedNotInvoicedAlert }}" placeholder="{{ $companyProfile->receivedNotInvoicedAlertPercent() }}">
+                    <span class="mt-1 text-xs font-semibold text-slate-400">Company alert level: {{ $companyReceivedNotInvoicedAlert }}</span>
                 </label>
             </div>
         </section>

@@ -26,6 +26,8 @@ class Project extends Model
         'contract_value',
         'budget_amount',
         'margin_target_percent',
+        'delivery_gap_alert_percent',
+        'received_not_invoiced_alert_percent',
         'description',
     ];
 
@@ -35,6 +37,8 @@ class Project extends Model
         'contract_value' => 'decimal:2',
         'budget_amount' => 'decimal:2',
         'margin_target_percent' => 'decimal:2',
+        'delivery_gap_alert_percent' => 'decimal:2',
+        'received_not_invoiced_alert_percent' => 'decimal:2',
     ];
 
     public function customer(): BelongsTo

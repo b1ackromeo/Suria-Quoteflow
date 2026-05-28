@@ -97,6 +97,8 @@ class CompanyProfileController extends Controller
             'tax_registration_label' => ['required', 'string', 'max:120'],
             'tax_registration_number' => ['nullable', 'string', 'max:120'],
             'default_tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+            'delivery_gap_alert_percent' => ['required', 'numeric', 'min:0', 'max:100'],
+            'received_not_invoiced_alert_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'payment_instructions' => ['nullable', 'string', 'max:5000'],
             'pdf_footer' => ['nullable', 'string', 'max:5000'],
             'logo' => ['nullable', 'image', 'max:1024'],
@@ -107,7 +109,7 @@ class CompanyProfileController extends Controller
     {
         $defaults = CompanyProfile::defaults();
 
-        foreach (['country', 'timezone', 'base_currency', 'currency_display', 'currency_symbol_override', 'date_format', 'number_format', 'tax_label', 'tax_registration_label', 'default_tax_rate'] as $field) {
+        foreach (['country', 'timezone', 'base_currency', 'currency_display', 'currency_symbol_override', 'date_format', 'number_format', 'tax_label', 'tax_registration_label', 'default_tax_rate', 'delivery_gap_alert_percent', 'received_not_invoiced_alert_percent'] as $field) {
             if (! $request->has($field)) {
                 $request->merge([$field => $defaults[$field]]);
             }

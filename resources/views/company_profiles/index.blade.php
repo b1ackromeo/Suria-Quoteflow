@@ -127,6 +127,28 @@
 </section>
 
 <section class="panel mt-5">
+    <div class="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+            <p class="text-xs font-bold uppercase tracking-wide text-[#0a4f93]">Project control settings</p>
+            <h2 class="text-lg font-bold tracking-tight text-slate-950">Delivery billing alert levels</h2>
+            <p class="mt-1 text-sm font-semibold text-slate-500">These company alert levels are used unless a project has its own alert levels.</p>
+        </div>
+        <a class="btn btn-secondary" href="{{ route('company-profiles.edit', $company) }}">Edit settings</a>
+    </div>
+
+    <dl class="mt-4 grid gap-4 text-sm md:grid-cols-2">
+        <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Customer unbilled / not yet received</dt>
+            <dd class="mt-1 font-semibold text-slate-900">{{ $company->formatPercent($company->deliveryGapAlertPercent()) }}</dd>
+        </div>
+        <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Received not invoiced</dt>
+            <dd class="mt-1 font-semibold text-slate-900">{{ $company->formatPercent($company->receivedNotInvoicedAlertPercent()) }}</dd>
+        </div>
+    </dl>
+</section>
+
+<section class="panel mt-5">
     <div>
         <p class="text-xs font-bold uppercase tracking-wide text-[#0a4f93]">PDF document text</p>
         <h2 class="text-lg font-bold tracking-tight text-slate-950">Payment instructions and footer</h2>

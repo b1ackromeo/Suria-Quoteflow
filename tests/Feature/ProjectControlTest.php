@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\CompanyProfile;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\DocumentItem;
@@ -234,6 +235,8 @@ class ProjectControlTest extends TestCase
         $show->assertSee('Supplier delivery and invoices');
         $show->assertSee('Not yet received');
         $show->assertSee('Received not invoiced');
+        $show->assertSee('Delivery billing alert levels');
+        $show->assertSee('Company setting');
         $show->assertSee('Customer billing attention');
         $show->assertSee('Supplier delivery attention');
         $show->assertSee('Supplier invoice expected');
@@ -255,6 +258,55 @@ class ProjectControlTest extends TestCase
         $show->assertSee('600.00');
         $show->assertSee('400.00');
         $show->assertSee('100.00');
+    }
+
+    public function test_project_delivery_billing_alert_levels_can_override_company_defaults(): void
+    {
+        CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
+            'delivery_gap_alert_percent' => 20,
+            'received_not_invoiced_alert_percent' => 5,
+        ]));
+
+        $project = $this->createProject([
+            'project_code' => 'PRJ-2026-037',
+            'name' => 'Configured delivery alert project',
+            'delivery_gap_alert_percent' => 70,
+            'received_not_invoiced_alert_percent' => 40,
+        ]);
+        $workItem = $this->createWorkItem($project, [
+            'code' => '3.02',
+            'name' => 'Delivery testing',
+        ]);
+        $customerPo = $this->createLinkedDocument($project, 'customer_po', 'CPO-2026-93701', 1000);
+        $customerInvoice = $this->createLinkedDocument($project, 'customer_invoice', 'INV-2026-93701', 400);
+        $supplierPo = $this->createLinkedDocument($project, 'supplier_po', 'SPO-2026-93701', 700);
+        $goodsReceipt = $this->createLinkedDocument($project, 'goods_receipt', 'GR-2026-93701', 300);
+        $supplierInvoice = $this->createLinkedDocument($project, 'supplier_invoice', 'SIN-2026-93701', 200);
+
+        $this->addProjectLine($customerPo, $workItem, 1000, 'Customer confirmed testing scope');
+        $this->addProjectLine($customerInvoice, $workItem, 400, 'First customer billing for testing');
+        $this->addProjectLine($supplierPo, $workItem, 700, 'Supplier testing purchase order');
+        $this->addProjectLine($goodsReceipt, $workItem, 300, 'Partial testing delivery received');
+        $this->addProjectLine($supplierInvoice, $workItem, 200, 'Supplier invoice for testing delivery');
+
+        $show = $this->get(route('projects.show', $project));
+
+        $show->assertOk();
+        $show->assertSee('Delivery billing alert levels');
+        $show->assertSee('Project setting');
+        $show->assertSee('70%');
+        $show->assertSee('40%');
+        $show->assertDontSee('Customer billing attention');
+        $show->assertDontSee('Supplier delivery attention');
+        $show->assertDontSee('Supplier invoice expected');
+
+        $response = $this->get(route('projects.report.export', $project));
+        $csv = $response->streamedContent();
+
+        $this->assertStringContainsString('"Delivery Billing Alert Levels"', $csv);
+        $this->assertStringContainsString('"Customer unbilled / not yet received",70%,"Project setting"', $csv);
+        $this->assertStringContainsString('"Received not invoiced",40%,"Project setting"', $csv);
+        $this->assertStringContainsString('"No delivery billing alerts visible","Delivery billing gaps are below the current alert levels."', $csv);
     }
 
     public function test_project_page_shows_retention_summary(): void
@@ -778,6 +830,8 @@ class ProjectControlTest extends TestCase
             'contract_value' => 50000,
             'budget_amount' => 35000,
             'margin_target_percent' => 25,
+            'delivery_gap_alert_percent' => 30,
+            'received_not_invoiced_alert_percent' => 12.5,
             'description' => 'Migration project for UAT coverage.',
         ])->assertRedirect();
 
@@ -788,6 +842,8 @@ class ProjectControlTest extends TestCase
             'name' => 'Data centre migration',
             'status' => 'active',
         ]);
+        $this->assertSame(30.0, (float) $project->delivery_gap_alert_percent);
+        $this->assertSame(12.5, (float) $project->received_not_invoiced_alert_percent);
         $this->assertDatabaseHas('audit_trails', [
             'action' => 'project_created',
             'auditable_type' => Project::class,
@@ -805,6 +861,8 @@ class ProjectControlTest extends TestCase
             'contract_value' => 50000,
             'budget_amount' => 35000,
             'margin_target_percent' => 25,
+            'delivery_gap_alert_percent' => '',
+            'received_not_invoiced_alert_percent' => '',
             'description' => 'Updated project status.',
         ])->assertRedirect(route('projects.show', $project));
 
@@ -813,6 +871,8 @@ class ProjectControlTest extends TestCase
             'name' => 'Data centre migration phase 1',
             'status' => 'on_hold',
         ]);
+        $this->assertNull($project->refresh()->delivery_gap_alert_percent);
+        $this->assertNull($project->received_not_invoiced_alert_percent);
     }
 
     public function test_document_flow_still_allows_no_project_and_can_link_project_when_needed(): void

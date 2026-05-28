@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CompanyProfile;
 use App\Models\Customer;
 use App\Models\Project;
 use App\Models\User;
@@ -125,6 +126,7 @@ class ProjectController extends Controller
                 'customer' => [],
                 'supplier' => [],
                 'work_items' => [],
+                'alert_levels' => [],
                 'recent_documents' => [],
             ];
             $retentionSummary = $commercialReport['retention'];
@@ -243,6 +245,22 @@ class ProjectController extends Controller
 
             fputcsv($handle, ['Received %', $this->csvPercent($deliverySupplier['received_percent'] ?? null)]);
             fputcsv($handle, ['Supplier Invoiced %', $this->csvPercent($deliverySupplier['invoiced_percent'] ?? null)]);
+
+            $deliveryAlertLevels = $deliveryBilling['alert_levels'] ?? [];
+
+            fputcsv($handle, []);
+            fputcsv($handle, ['Delivery Billing Alert Levels']);
+            fputcsv($handle, ['Alert Level', 'Value', 'Source']);
+            fputcsv($handle, [
+                'Customer unbilled / not yet received',
+                $deliveryAlertLevels['delivery_gap']['label'] ?? '',
+                $deliveryAlertLevels['delivery_gap']['source'] ?? '',
+            ]);
+            fputcsv($handle, [
+                'Received not invoiced',
+                $deliveryAlertLevels['received_not_invoiced']['label'] ?? '',
+                $deliveryAlertLevels['received_not_invoiced']['source'] ?? '',
+            ]);
 
             fputcsv($handle, []);
             fputcsv($handle, ['Delivery Billing Alerts']);
@@ -634,6 +652,7 @@ class ProjectController extends Controller
     {
         return [
             'project' => $project,
+            'companyProfile' => CompanyProfile::active(),
             'statuses' => Project::STATUSES,
             'customers' => Customer::query()->where('is_active', true)->orderBy('name')->get(),
             'managers' => User::query()
@@ -657,11 +676,17 @@ class ProjectController extends Controller
             'contract_value' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'budget_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'margin_target_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'delivery_gap_alert_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'received_not_invoiced_alert_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'description' => ['nullable', 'string'],
         ]);
 
         foreach (['contract_value', 'budget_amount', 'margin_target_percent'] as $field) {
             $data[$field] = (float) ($data[$field] ?? 0);
+        }
+
+        foreach (['delivery_gap_alert_percent', 'received_not_invoiced_alert_percent'] as $field) {
+            $data[$field] = filled($data[$field] ?? null) ? (float) $data[$field] : null;
         }
 
         return $data;

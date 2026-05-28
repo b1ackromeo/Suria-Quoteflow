@@ -134,6 +134,23 @@
 
     <section class="panel space-y-5">
         <div>
+            <p class="text-xs font-bold uppercase tracking-wide text-[#0a4f93]">Project control settings</p>
+            <h2 class="panel-title">Delivery billing alert levels</h2>
+            <p class="panel-subtitle">These company alert levels are used by project delivery billing reports unless a project has its own alert levels.</p>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+            <label class="form-label">Customer unbilled / not yet received alert %
+                <input class="form-input" type="number" step="0.01" min="0" max="100" name="delivery_gap_alert_percent" value="{{ old('delivery_gap_alert_percent', $company->deliveryGapAlertPercent()) }}" required placeholder="25">
+            </label>
+            <label class="form-label">Received not invoiced alert %
+                <input class="form-input" type="number" step="0.01" min="0" max="100" name="received_not_invoiced_alert_percent" value="{{ old('received_not_invoiced_alert_percent', $company->receivedNotInvoicedAlertPercent()) }}" required placeholder="10">
+            </label>
+        </div>
+    </section>
+
+    <section class="panel space-y-5">
+        <div>
             <p class="text-xs font-bold uppercase tracking-wide text-[#0a4f93]">PDF document text</p>
             <h2 class="panel-title">Payment instructions and footer</h2>
             <p class="panel-subtitle">Use these fields for bank transfer instructions, remittance notes, legal footer text, or country-specific document notes.</p>

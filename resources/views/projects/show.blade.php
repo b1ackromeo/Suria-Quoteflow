@@ -46,12 +46,14 @@
         'customer' => [],
         'supplier' => [],
         'work_items' => [],
+        'alert_levels' => [],
         'recent_documents' => [],
     ];
     $deliveryCustomer = $deliveryBilling['customer'] ?? [];
     $deliverySupplier = $deliveryBilling['supplier'] ?? [];
     $deliveryWorkItems = $deliveryBilling['work_items'] ?? [];
     $deliveryAlerts = $deliveryBilling['alerts'] ?? [];
+    $deliveryAlertLevels = $deliveryBilling['alert_levels'] ?? [];
     $deliveryEvidence = collect($deliveryBilling['evidence'] ?? [])
         ->filter(fn ($issue) => (int) ($issue['line_count'] ?? 0) > 0)
         ->values();
@@ -441,6 +443,30 @@
                                     <div>
                                         <dt>Supplier invoiced percentage</dt>
                                         <dd>{{ $percent($deliverySupplier['invoiced_percent'] ?? null) }}</dd>
+                                    </div>
+                                </dl>
+                            </article>
+                        </div>
+
+                        <div class="mt-4 grid gap-4 md:grid-cols-2">
+                            <article class="rounded-lg border border-blue-100 bg-blue-50 p-4">
+                                <h4 class="text-sm font-bold text-slate-950">Delivery billing alert levels</h4>
+                                <dl class="document-detail-list mt-4">
+                                    <div>
+                                        <dt>Customer unbilled / not yet received</dt>
+                                        <dd>{{ $deliveryAlertLevels['delivery_gap']['label'] ?? 'Not set' }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Setting source</dt>
+                                        <dd>{{ $deliveryAlertLevels['delivery_gap']['source'] ?? 'Company setting' }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Received not invoiced</dt>
+                                        <dd>{{ $deliveryAlertLevels['received_not_invoiced']['label'] ?? 'Not set' }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Setting source</dt>
+                                        <dd>{{ $deliveryAlertLevels['received_not_invoiced']['source'] ?? 'Company setting' }}</dd>
                                     </div>
                                 </dl>
                             </article>
