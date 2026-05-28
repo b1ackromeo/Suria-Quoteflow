@@ -8,13 +8,14 @@ Before making code changes:
 
 1. Read this `AGENTS.md` file.
 2. Read the specific task file under `docs/codex-tasks/` assigned for the work.
-3. For UI, UX, Blade, CSS, dashboard, form, navigation, copywriting, or accessibility work, read the relevant files under `docs/design/` and `docs/codex-reference/10_BUSINESS_WORDING_STANDARD.md`.
-4. For backend, dashboard, reports, exports, document lists, document show pages, PDF, OCR, or UI loading work, read `docs/performance/01_performance_and_loading_rules.md`.
-5. Inspect all affected routes, controllers, models, migrations, Blade views, CSS, and tests before editing.
-6. Summarize the current behavior and the smallest safe implementation plan.
-7. Implement one objective at a time.
-8. Add or update tests when behavior changes.
-9. Summarize changed files, tests run, performance considerations, and remaining risks.
+3. For e-invoicing, tax compliance, invoice submission, country adapters, Peppol, MyInvois, ZATCA, GST IRP, SDI, PDP, QR validation links, or e-invoice payload work, read `docs/codex-reference/11_GLOBAL_E_INVOICING_IMPLEMENTATION.md` before editing.
+4. For UI, UX, Blade, CSS, dashboard, form, navigation, copywriting, or accessibility work, read the relevant files under `docs/design/` and `docs/codex-reference/10_BUSINESS_WORDING_STANDARD.md`.
+5. For backend, dashboard, reports, exports, document lists, document show pages, PDF, OCR, or UI loading work, read `docs/performance/01_performance_and_loading_rules.md`.
+6. Inspect all affected routes, controllers, models, migrations, Blade views, CSS, and tests before editing.
+7. Summarize the current behavior and the smallest safe implementation plan.
+8. Implement one objective at a time.
+9. Add or update tests when behavior changes.
+10. Summarize changed files, tests run, performance considerations, and remaining risks.
 
 Do not make broad unrelated refactors while completing a task.
 
@@ -159,7 +160,27 @@ Do not use these as end-user labels unless the task explicitly requires a techni
 
 Challenge bad copy before implementing it. If a requested or existing label sounds like Codex derived it from routes, models, states, or implementation details, replace it with business wording and document the decision in the task summary.
 
-Hard UI verification rule:
+## E-invoicing architecture rule
+
+Suria QuoteFlow is intended to be a global SaaS. E-invoicing must be implemented as a global compliance engine with pluggable country/network adapters, not as a Malaysia-only, Peppol-only, or single-country module.
+
+Before e-invoicing implementation, read:
+
+```text
+docs/codex-reference/11_GLOBAL_E_INVOICING_IMPLEMENTATION.md
+```
+
+Hard rules:
+
+- keep existing customer invoice and supplier invoice workflows intact
+- add e-invoicing as a compliance layer linked to existing documents
+- keep e-invoicing disabled by default until configured
+- use neutral tables and services before country adapters
+- do not convert supplier invoice verification/matching into e-invoicing
+- do not hardcode MyInvois, Peppol, ZATCA, GST IRP, SDI, or PDP rules into `DocumentController`
+- do not store secrets, certificates, passphrases, tokens, or private keys in plain text
+
+## Hard UI verification rule
 
 - Do not mark UI, dashboard, layout, navigation, form, typography, or responsive work as complete from a single wide-desktop view.
 - Render and inspect the affected page in browser at the required desktop/laptop/mobile sizes from `docs/design/07_responsive_behavior.md` before calling it fixed.
@@ -198,6 +219,7 @@ Use these only as needed for the current task:
 - `docs/codex-reference/07_SUGGESTED_FILE_MAP.md`
 - `docs/codex-reference/08_SHARED_HOSTING_DONT_BREAK_RULES.md`
 - `docs/codex-reference/10_BUSINESS_WORDING_STANDARD.md`
+- `docs/codex-reference/11_GLOBAL_E_INVOICING_IMPLEMENTATION.md`
 - `docs/design/00_README.md`
 - `docs/design/09_ui_ux_audit_findings.md`
 - `docs/performance/01_performance_and_loading_rules.md`
