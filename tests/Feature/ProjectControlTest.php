@@ -7,6 +7,7 @@ use App\Models\Document;
 use App\Models\DocumentItem;
 use App\Models\Product;
 use App\Models\Project;
+use App\Models\ProjectVariation;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Models\WbsItem;
@@ -225,6 +226,151 @@ class ProjectControlTest extends TestCase
         $show->assertSee('2026-08-15');
     }
 
+    public function test_project_page_shows_variation_order_summary_and_register(): void
+    {
+        $project = $this->createProject([
+            'project_code' => 'PRJ-2026-029',
+            'name' => 'Variation order project',
+            'contract_value' => 25000,
+            'budget_amount' => 15000,
+        ]);
+        $sourceDocument = $this->createLinkedDocument($project, 'customer_quotation', 'CQ-2026-92901', 2000);
+
+        $this->createVariation($project, [
+            'variation_number' => 'VO-2026-001',
+            'title' => 'Additional switch cabinet scope',
+            'status' => 'approved',
+            'effective_date' => '2026-05-20',
+            'customer_value' => 2000,
+            'supplier_cost' => 1200,
+            'source_document_id' => $sourceDocument->id,
+            'notes' => 'Approved by customer signed email.',
+        ]);
+        $this->createVariation($project, [
+            'variation_number' => 'VO-2026-002',
+            'title' => 'Containment rerouting',
+            'status' => 'pending_review',
+            'customer_value' => 500,
+            'supplier_cost' => 250,
+            'notes' => 'Waiting for customer confirmation.',
+        ]);
+
+        $show = $this->get(route('projects.show', $project));
+
+        $show->assertOk();
+        $show->assertSee('Variation orders');
+        $show->assertSee('Approved customer change');
+        $show->assertSee('Pending customer change');
+        $show->assertSee('Revised contract value');
+        $show->assertSee('VO-2026-001');
+        $show->assertSee('VO-2026-002');
+        $show->assertSee('Approved by customer signed email.');
+        $show->assertSee('Pending review');
+        $show->assertSee(route('documents.show', $sourceDocument), false);
+    }
+
+    public function test_admin_can_create_update_and_delete_project_variations(): void
+    {
+        $project = $this->createProject([
+            'project_code' => 'PRJ-2026-030',
+        ]);
+        $sourceDocument = $this->createLinkedDocument($project, 'customer_po', 'CPO-2026-93001', 1500);
+
+        $this->post(route('projects.variations.store', $project), [
+            'variation_number' => 'VO-2026-010',
+            'title' => 'Structured cabling increase',
+            'status' => 'approved',
+            'effective_date' => '2026-05-25',
+            'customer_value' => 1500,
+            'supplier_cost' => 700,
+            'source_document_id' => $sourceDocument->id,
+            'notes' => 'Approved scope change.',
+        ])->assertRedirect(route('projects.show', $project));
+
+        $variation = ProjectVariation::query()->firstOrFail();
+
+        $this->assertDatabaseHas('project_variations', [
+            'id' => $variation->id,
+            'project_id' => $project->id,
+            'variation_number' => 'VO-2026-010',
+            'status' => 'approved',
+        ]);
+        $this->assertDatabaseHas('audit_trails', [
+            'action' => 'project_variation_created',
+            'auditable_type' => ProjectVariation::class,
+            'auditable_id' => $variation->id,
+        ]);
+
+        $this->put(route('projects.variations.update', [$project, $variation]), [
+            'variation_number' => 'VO-2026-010',
+            'title' => 'Structured cabling increase revised',
+            'status' => 'pending_review',
+            'effective_date' => '2026-05-28',
+            'customer_value' => 1800,
+            'supplier_cost' => 900,
+            'source_document_id' => $sourceDocument->id,
+            'notes' => 'Returned for customer re-approval.',
+        ])->assertRedirect(route('projects.show', $project));
+
+        $this->assertDatabaseHas('project_variations', [
+            'id' => $variation->id,
+            'title' => 'Structured cabling increase revised',
+            'status' => 'pending_review',
+        ]);
+        $this->assertDatabaseHas('audit_trails', [
+            'action' => 'project_variation_updated',
+            'auditable_type' => ProjectVariation::class,
+            'auditable_id' => $variation->id,
+        ]);
+
+        $this->delete(route('projects.variations.destroy', [$project, $variation]))
+            ->assertRedirect(route('projects.show', $project));
+
+        $this->assertDatabaseMissing('project_variations', [
+            'id' => $variation->id,
+        ]);
+        $this->assertDatabaseHas('audit_trails', [
+            'action' => 'project_variation_deleted',
+            'auditable_type' => ProjectVariation::class,
+            'auditable_id' => $variation->id,
+        ]);
+    }
+
+    public function test_project_variation_requires_non_zero_change(): void
+    {
+        $project = $this->createProject([
+            'project_code' => 'PRJ-2026-031',
+        ]);
+        $this->post(route('projects.variations.store', $project), [
+            'variation_number' => 'VO-2026-011',
+            'title' => 'Empty approved change',
+            'status' => 'approved',
+            'effective_date' => '',
+            'customer_value' => 0,
+            'supplier_cost' => 0,
+        ])->assertSessionHasErrors([
+            'customer_value',
+        ]);
+    }
+
+    public function test_project_variation_requires_effective_date_when_approved(): void
+    {
+        $project = $this->createProject([
+            'project_code' => 'PRJ-2026-032',
+        ]);
+
+        $this->post(route('projects.variations.store', $project), [
+            'variation_number' => 'VO-2026-012',
+            'title' => 'Approved change without date',
+            'status' => 'approved',
+            'effective_date' => '',
+            'customer_value' => 1200,
+            'supplier_cost' => 500,
+        ])->assertSessionHasErrors([
+            'effective_date',
+        ]);
+    }
+
     public function test_project_commercial_report_can_be_exported_from_detail_page(): void
     {
         $project = $this->createProject([
@@ -345,6 +491,40 @@ class ProjectControlTest extends TestCase
         $this->assertStringContainsString('"Customer Retention Release",2026-08-01', $csv);
         $this->assertStringContainsString('"Supplier Retention Release",2026-08-15', $csv);
         $this->assertStringContainsString('"Documents With Retention",2', $csv);
+    }
+
+    public function test_project_commercial_report_export_includes_variation_orders(): void
+    {
+        $project = $this->createProject([
+            'project_code' => 'PRJ-2026-033',
+            'name' => 'Variation export project',
+            'contract_value' => 25000,
+            'budget_amount' => 15000,
+        ]);
+        $sourceDocument = $this->createLinkedDocument($project, 'customer_quotation', 'CQ-2026-93301', 2200);
+
+        $this->createVariation($project, [
+            'variation_number' => 'VO-2026-020',
+            'title' => 'UPS capacity increase',
+            'status' => 'approved',
+            'effective_date' => '2026-05-21',
+            'customer_value' => 2200,
+            'supplier_cost' => 1200,
+            'source_document_id' => $sourceDocument->id,
+            'notes' => 'Approved by signed change request.',
+        ]);
+
+        $response = $this->get(route('projects.report.export', $project));
+
+        $response->assertOk();
+
+        $csv = $response->streamedContent();
+
+        $this->assertStringContainsString('"Variation Orders"', $csv);
+        $this->assertStringContainsString('"Approved Customer Change",2200.00', $csv);
+        $this->assertStringContainsString('"Revised Contract Value",27200.00', $csv);
+        $this->assertStringContainsString('"Variation Order Register"', $csv);
+        $this->assertStringContainsString('VO-2026-020,"UPS capacity increase",Approved,2026-05-21,2200.00,1200.00,1000.00,CQ-2026-93301,"Customer quotation","Approved by signed change request."', $csv);
     }
 
     public function test_projects_index_shows_portfolio_commercial_review(): void
@@ -995,6 +1175,20 @@ class ProjectControlTest extends TestCase
             'retention_amount' => $amount,
             'retention_release_date' => $releaseDate,
         ]);
+    }
+
+    private function createVariation(Project $project, array $overrides = []): ProjectVariation
+    {
+        return $project->variations()->create(array_merge([
+            'variation_number' => 'VO-2026-001',
+            'title' => 'Project variation order',
+            'status' => 'pending_review',
+            'effective_date' => null,
+            'customer_value' => 0,
+            'supplier_cost' => 0,
+            'source_document_id' => null,
+            'notes' => null,
+        ], $overrides));
     }
 
     private function documentPayload(array $overrides = []): array

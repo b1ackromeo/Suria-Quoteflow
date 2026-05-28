@@ -516,6 +516,7 @@ Progress invoice stage consistency checks
 Stale milestone-field cleanup when fixed payment terms are selected
 Project billing progress roll-up on project reports
 Retention fields on documents and project reports
+Variation order register with revised project value baseline
 ```
 
 Implemented behavior:
@@ -527,6 +528,7 @@ Progress invoice saves now enforce a single current invoice stage, require the d
 Switching a document back to fixed payment terms clears milestone-only billing fields and stored billing stages so stale staged-billing data does not remain on the record.
 Project detail pages and project CSV reports now show milestone customer billing and supplier billing roll-ups, including scheduled value, staged invoices, remaining milestone value, and the latest recorded billing stage.
 Documents can now record retention percentage, retention amount, and retention release date, and project reports now summarize customer retention held, supplier retention held, and net retention exposure.
+Projects can now record approved, pending-review, and not-proceeding variation orders with customer value change, supplier cost change, linked evidence documents, and revised contract / budget baseline reporting.
 ```
 
 Future possible additions:

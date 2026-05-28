@@ -7,6 +7,7 @@ use App\Models\DocumentBillingStage;
 use App\Models\DocumentItem;
 use App\Models\Payment;
 use App\Models\Project;
+use App\Models\ProjectVariation;
 use App\Models\WbsItem;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -194,6 +195,7 @@ class ProjectCommercialReportService
             'summary' => $summary,
             'billing' => $this->billingProgress($project),
             'retention' => $this->retentionSummary($project),
+            'variations' => $this->variationSummary($project),
             'work_items' => $workItemReport['items'],
             'totals' => $workItemReport['totals'],
             'unassigned' => $workItemReport['unassigned'],
@@ -285,6 +287,63 @@ class ProjectCommercialReportService
             'customer_release_date' => (clone $customerRetention)->min('retention_release_date'),
             'supplier_release_date' => (clone $supplierRetention)->min('retention_release_date'),
             'document_count' => (clone $retentionDocuments)->count(),
+        ];
+    }
+
+    private function variationSummary(Project $project): array
+    {
+        $variations = ProjectVariation::query()
+            ->where('project_id', $project->id)
+            ->with(['sourceDocument:id,type,document_number'])
+            ->orderByRaw("case when status = 'approved' then 0 when status = 'pending_review' then 1 else 2 end")
+            ->orderByDesc('effective_date')
+            ->orderByDesc('id')
+            ->get();
+
+        $approved = $variations->where('status', 'approved');
+        $pending = $variations->where('status', 'pending_review');
+        $notProceeding = $variations->where('status', 'not_proceeding');
+        $approvedCustomerChange = (float) $approved->sum(fn (ProjectVariation $variation) => (float) $variation->customer_value);
+        $approvedSupplierCostChange = (float) $approved->sum(fn (ProjectVariation $variation) => (float) $variation->supplier_cost);
+        $pendingCustomerChange = (float) $pending->sum(fn (ProjectVariation $variation) => (float) $variation->customer_value);
+        $pendingSupplierCostChange = (float) $pending->sum(fn (ProjectVariation $variation) => (float) $variation->supplier_cost);
+        $revisedContractValue = (float) $project->contract_value + $approvedCustomerChange;
+        $revisedBudgetAmount = (float) $project->budget_amount + $approvedSupplierCostChange;
+        $approvedMarginBaseline = $revisedContractValue - $revisedBudgetAmount;
+
+        return [
+            'original_contract_value' => (float) $project->contract_value,
+            'approved_customer_change' => $approvedCustomerChange,
+            'pending_customer_change' => $pendingCustomerChange,
+            'revised_contract_value' => $revisedContractValue,
+            'original_budget_amount' => (float) $project->budget_amount,
+            'approved_supplier_cost_change' => $approvedSupplierCostChange,
+            'pending_supplier_cost_change' => $pendingSupplierCostChange,
+            'revised_budget_amount' => $revisedBudgetAmount,
+            'approved_margin_baseline' => $approvedMarginBaseline,
+            'approved_margin_baseline_percent' => $revisedContractValue > 0 ? ($approvedMarginBaseline / $revisedContractValue) * 100 : null,
+            'approved_count' => $approved->count(),
+            'pending_count' => $pending->count(),
+            'not_proceeding_count' => $notProceeding->count(),
+            'total_count' => $variations->count(),
+            'items' => $variations->map(function (ProjectVariation $variation) {
+                return [
+                    'id' => (int) $variation->id,
+                    'variation_number' => (string) $variation->variation_number,
+                    'title' => (string) $variation->title,
+                    'status' => (string) $variation->status,
+                    'status_label' => $variation->statusDisplay(),
+                    'status_class' => $variation->statusChipClass(),
+                    'effective_date' => $variation->effective_date?->format('Y-m-d'),
+                    'customer_value' => (float) $variation->customer_value,
+                    'supplier_cost' => (float) $variation->supplier_cost,
+                    'margin_impact' => $variation->marginImpact(),
+                    'source_document_id' => $variation->sourceDocument?->id,
+                    'source_document_number' => $variation->sourceDocument?->document_number,
+                    'source_document_label' => $variation->sourceDocument ? $this->documentLabel($variation->sourceDocument->type) : null,
+                    'notes' => $variation->notes,
+                ];
+            })->all(),
         ];
     }
 
@@ -802,6 +861,18 @@ class ProjectCommercialReportService
             'line_total' => (float) $row->line_total,
             'work_item_label' => $workItemCode && $workItemName ? $workItemCode.' - '.$workItemName : null,
         ];
+    }
+
+    private function documentLabel(?string $type): ?string
+    {
+        if (! $type) {
+            return null;
+        }
+
+        $slug = Document::slugForType($type);
+        $meta = Document::metaForSlug($slug);
+
+        return (string) ($meta['singular'] ?? 'Document');
     }
 
     private function formatPercent(float $value): string

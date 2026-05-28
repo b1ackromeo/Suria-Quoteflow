@@ -22,15 +22,54 @@
         'supplier_release_date' => null,
         'document_count' => 0,
     ];
+    $variationSummary = $variationSummary ?? [
+        'original_contract_value' => (float) $project->contract_value,
+        'approved_customer_change' => 0,
+        'pending_customer_change' => 0,
+        'revised_contract_value' => (float) $project->contract_value,
+        'original_budget_amount' => (float) $project->budget_amount,
+        'approved_supplier_cost_change' => 0,
+        'pending_supplier_cost_change' => 0,
+        'revised_budget_amount' => (float) $project->budget_amount,
+        'approved_margin_baseline' => (float) $project->contract_value - (float) $project->budget_amount,
+        'approved_margin_baseline_percent' => null,
+        'approved_count' => 0,
+        'pending_count' => 0,
+        'not_proceeding_count' => 0,
+        'total_count' => 0,
+        'items' => [],
+    ];
     $customerBilling = $billingProgress['customer'] ?? [];
     $supplierBilling = $billingProgress['supplier'] ?? [];
     $recentBillingInvoices = $billingProgress['recent_invoices'] ?? [];
+    $variationOrders = $variationSummary['items'] ?? [];
     $projectExceptions = $projectExceptions ?? [];
     $projectEvidence = $projectEvidence ?? [];
+    $sourceDocuments = $sourceDocuments ?? collect();
     $unassignedEvidence = $projectEvidence['unassigned_lines'] ?? ['line_count' => 0, 'showing_count' => 0, 'is_truncated' => false, 'items' => []];
     $overCommittedEvidence = $projectEvidence['over_committed_work_items'] ?? [];
     $overActualEvidence = $projectEvidence['over_actual_work_items'] ?? [];
     $supplierActualEvidence = $projectEvidence['supplier_actual_lines'] ?? ['line_count' => 0, 'showing_count' => 0, 'is_truncated' => false, 'items' => []];
+    $sourceDocumentLabel = function ($document) {
+        if (! $document) {
+            return null;
+        }
+
+        $slug = \App\Models\Document::slugForType($document->type);
+        $meta = \App\Models\Document::metaForSlug($slug);
+
+        return $meta['singular'] ?? 'Document';
+    };
+    $variationError = collect([
+        'variation_number',
+        'title',
+        'status',
+        'effective_date',
+        'customer_value',
+        'supplier_cost',
+        'source_document_id',
+        'notes',
+    ])->map(fn ($field) => $errors->first($field))->filter()->first();
     $evidenceSectionCount = collect([
         ($unassignedEvidence['line_count'] ?? 0) > 0,
         count($overCommittedEvidence) > 0,
@@ -97,12 +136,12 @@
 
             <div class="directory-stat-grid">
                 <div class="directory-stat-card">
-                    <span>Contract value</span>
-                    <strong>{{ $money($project->contract_value) }}</strong>
+                    <span>Original contract value</span>
+                    <strong>{{ $money($variationSummary['original_contract_value'] ?? $project->contract_value) }}</strong>
                 </div>
                 <div class="directory-stat-card">
-                    <span>Budget amount</span>
-                    <strong>{{ $money($project->budget_amount) }}</strong>
+                    <span>Original budget amount</span>
+                    <strong>{{ $money($variationSummary['original_budget_amount'] ?? $project->budget_amount) }}</strong>
                 </div>
                 <div class="directory-stat-card">
                     <span>Budget remaining</span>
@@ -348,6 +387,209 @@
                         <div class="directory-stat-card">
                             <span>Supplier release date</span>
                             <strong>{{ $date($retentionSummary['supplier_release_date'] ?? null) }}</strong>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="table-wrap directory-table-wrap">
+                    <div class="directory-table-header rounded-t-lg border-t-0">
+                        <div>
+                            <h2 class="panel-title">Variation orders</h2>
+                            <p class="panel-subtitle">Track approved and pending scope changes without replacing the original project value baseline.</p>
+                        </div>
+                        <span class="issuer-mini">{{ (int) ($variationSummary['total_count'] ?? 0) }} variation order{{ (int) ($variationSummary['total_count'] ?? 0) === 1 ? '' : 's' }}</span>
+                    </div>
+
+                    <div class="space-y-4 p-4">
+                        @if($variationError)
+                            <div class="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-800">
+                                {{ $variationError }}
+                            </div>
+                        @endif
+
+                        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                            <div class="directory-stat-card">
+                                <span>Approved customer change</span>
+                                <strong>{{ $money($variationSummary['approved_customer_change'] ?? 0) }}</strong>
+                            </div>
+                            <div class="directory-stat-card">
+                                <span>Pending customer change</span>
+                                <strong>{{ $money($variationSummary['pending_customer_change'] ?? 0) }}</strong>
+                            </div>
+                            <div class="directory-stat-card">
+                                <span>Approved supplier cost change</span>
+                                <strong>{{ $money($variationSummary['approved_supplier_cost_change'] ?? 0) }}</strong>
+                            </div>
+                            <div class="directory-stat-card">
+                                <span>Pending supplier cost change</span>
+                                <strong>{{ $money($variationSummary['pending_supplier_cost_change'] ?? 0) }}</strong>
+                            </div>
+                            <div class="directory-stat-card">
+                                <span>Revised contract value</span>
+                                <strong>{{ $money($variationSummary['revised_contract_value'] ?? $project->contract_value) }}</strong>
+                            </div>
+                            <div class="directory-stat-card">
+                                <span>Revised budget amount</span>
+                                <strong>{{ $money($variationSummary['revised_budget_amount'] ?? $project->budget_amount) }}</strong>
+                            </div>
+                            <div class="directory-stat-card">
+                                <span>Approved margin baseline</span>
+                                <strong>{{ $money($variationSummary['approved_margin_baseline'] ?? 0) }}</strong>
+                            </div>
+                            <div class="directory-stat-card">
+                                <span>Pending review</span>
+                                <strong>{{ (int) ($variationSummary['pending_count'] ?? 0) }}</strong>
+                            </div>
+                        </div>
+
+                        @if($canManageProject)
+                            <form method="post" action="{{ route('projects.variations.store', $project) }}" class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                                @csrf
+                                <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                                    <label class="form-label">Variation number
+                                        <input class="form-input" name="variation_number" value="{{ old('variation_number') }}" placeholder="VO-2026-001" required>
+                                    </label>
+                                    <label class="form-label xl:col-span-2">Variation title
+                                        <input class="form-input" name="title" value="{{ old('title') }}" placeholder="Additional switch cabinet scope" required>
+                                    </label>
+                                    <label class="form-label">Status
+                                        <select class="form-input" name="status" required>
+                                            @foreach(\App\Models\ProjectVariation::STATUSES as $value => $label)
+                                                <option value="{{ $value }}" @selected(old('status', 'pending_review') === $value)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </label>
+                                    <label class="form-label">Effective date
+                                        <input class="form-input" type="date" name="effective_date" value="{{ old('effective_date') }}">
+                                    </label>
+                                    <label class="form-label xl:col-span-2">Linked document
+                                        <select class="form-input" name="source_document_id">
+                                            <option value="">No linked document</option>
+                                            @foreach($sourceDocuments as $sourceDocument)
+                                                <option value="{{ $sourceDocument->id }}" @selected((string) old('source_document_id') === (string) $sourceDocument->id)>
+                                                    {{ $sourceDocument->document_number }} · {{ $sourceDocumentLabel($sourceDocument) }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </label>
+                                    <label class="form-label">Customer value change
+                                        <input class="form-input" type="number" step="0.01" name="customer_value" value="{{ old('customer_value', 0) }}" placeholder="0.00">
+                                    </label>
+                                    <label class="form-label">Supplier cost change
+                                        <input class="form-input" type="number" step="0.01" name="supplier_cost" value="{{ old('supplier_cost', 0) }}" placeholder="0.00">
+                                    </label>
+                                    <label class="form-label md:col-span-2 xl:col-span-4">Notes
+                                        <textarea class="form-input min-h-20" name="notes" placeholder="Approval note, customer instruction, or commercial summary.">{{ old('notes') }}</textarea>
+                                    </label>
+                                </div>
+                                <div class="mt-3 flex justify-end">
+                                    <button class="btn btn-secondary" type="submit">Add variation order</button>
+                                </div>
+                            </form>
+                        @endif
+
+                        <div class="space-y-3">
+                            @forelse($variationOrders as $variation)
+                                <article class="rounded-lg border border-slate-200 bg-white p-4">
+                                    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                        <div class="min-w-0">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <strong class="text-sm text-slate-950">{{ $variation['variation_number'] }}</strong>
+                                                <span class="status-chip {{ $variation['status_class'] }}">{{ $variation['status_label'] }}</span>
+                                                @if($variation['source_document_id'])
+                                                    <a class="status-chip status-draft" href="{{ route('documents.show', $variation['source_document_id']) }}">{{ $variation['source_document_number'] }}</a>
+                                                @endif
+                                            </div>
+                                            <h3 class="mt-2 text-base font-bold text-slate-950">{{ $variation['title'] }}</h3>
+                                            @if($variation['source_document_label'])
+                                                <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $variation['source_document_label'] }}</p>
+                                            @endif
+                                            @if($variation['notes'])
+                                                <p class="mt-2 text-sm font-medium leading-6 text-slate-600">{{ $variation['notes'] }}</p>
+                                            @endif
+                                        </div>
+                                        <span class="issuer-mini">{{ $variation['effective_date'] ? $date($variation['effective_date']) : 'No effective date' }}</span>
+                                    </div>
+
+                                    <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                                        <div class="directory-stat-card">
+                                            <span>Customer value change</span>
+                                            <strong>{{ $money($variation['customer_value']) }}</strong>
+                                        </div>
+                                        <div class="directory-stat-card">
+                                            <span>Supplier cost change</span>
+                                            <strong>{{ $money($variation['supplier_cost']) }}</strong>
+                                        </div>
+                                        <div class="directory-stat-card">
+                                            <span>Margin impact</span>
+                                            <strong>{{ $money($variation['margin_impact']) }}</strong>
+                                        </div>
+                                        <div class="directory-stat-card">
+                                            <span>Effective date</span>
+                                            <strong>{{ $variation['effective_date'] ? $date($variation['effective_date']) : 'Not set' }}</strong>
+                                        </div>
+                                    </div>
+
+                                    @if($canManageProject)
+                                        <details class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                            <summary class="cursor-pointer text-sm font-bold text-slate-700">Edit variation order</summary>
+                                            <div class="mt-3 space-y-3">
+                                                <form method="post" action="{{ route('projects.variations.update', [$project, $variation['id']]) }}">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                                                        <label class="form-label">Variation number
+                                                            <input class="form-input" name="variation_number" value="{{ $variation['variation_number'] }}" required>
+                                                        </label>
+                                                        <label class="form-label xl:col-span-2">Variation title
+                                                            <input class="form-input" name="title" value="{{ $variation['title'] }}" required>
+                                                        </label>
+                                                        <label class="form-label">Status
+                                                            <select class="form-input" name="status" required>
+                                                                @foreach(\App\Models\ProjectVariation::STATUSES as $value => $label)
+                                                                    <option value="{{ $value }}" @selected($variation['status'] === $value)>{{ $label }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </label>
+                                                        <label class="form-label">Effective date
+                                                            <input class="form-input" type="date" name="effective_date" value="{{ $variation['effective_date'] }}">
+                                                        </label>
+                                                        <label class="form-label xl:col-span-2">Linked document
+                                                            <select class="form-input" name="source_document_id">
+                                                                <option value="">No linked document</option>
+                                                                @foreach($sourceDocuments as $sourceDocument)
+                                                                    <option value="{{ $sourceDocument->id }}" @selected((string) ($variation['source_document_id'] ?? '') === (string) $sourceDocument->id)>
+                                                                        {{ $sourceDocument->document_number }} · {{ $sourceDocumentLabel($sourceDocument) }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </select>
+                                                        </label>
+                                                        <label class="form-label">Customer value change
+                                                            <input class="form-input" type="number" step="0.01" name="customer_value" value="{{ $variation['customer_value'] }}">
+                                                        </label>
+                                                        <label class="form-label">Supplier cost change
+                                                            <input class="form-input" type="number" step="0.01" name="supplier_cost" value="{{ $variation['supplier_cost'] }}">
+                                                        </label>
+                                                        <label class="form-label md:col-span-2 xl:col-span-4">Notes
+                                                            <textarea class="form-input min-h-20" name="notes">{{ $variation['notes'] }}</textarea>
+                                                        </label>
+                                                    </div>
+                                                    <div class="mt-3 flex justify-end">
+                                                        <button class="btn btn-secondary" type="submit">Save variation order</button>
+                                                    </div>
+                                                </form>
+                                                <form method="post" action="{{ route('projects.variations.destroy', [$project, $variation['id']]) }}" onsubmit="return confirm('Delete this variation order?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button class="btn btn-danger" type="submit">Delete</button>
+                                                </form>
+                                            </div>
+                                        </details>
+                                    @endif
+                                </article>
+                            @empty
+                                <div class="empty-cell rounded-lg border border-slate-200 bg-slate-50">No variation orders recorded yet. Add approved or pending scope changes here when the original project baseline is no longer enough.</div>
+                            @endforelse
                         </div>
                     </div>
                 </section>

@@ -52,6 +52,14 @@ class Project extends Model
         return $this->hasMany(Document::class);
     }
 
+    public function variations(): HasMany
+    {
+        return $this->hasMany(ProjectVariation::class)
+            ->orderByRaw("case when status = 'approved' then 0 when status = 'pending_review' then 1 else 2 end")
+            ->orderByDesc('effective_date')
+            ->orderByDesc('id');
+    }
+
     public function wbsItems(): HasMany
     {
         return $this->hasMany(WbsItem::class)->orderBy('sort_order')->orderBy('code');

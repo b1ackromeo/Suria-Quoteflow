@@ -11,6 +11,7 @@ use App\Http\Controllers\DocumentPdfController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectVariationController;
 use App\Http\Controllers\ProjectWorkItemController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SearchController;
@@ -46,6 +47,9 @@ Route::middleware(['auth', 'role:admin,manager,sales,procurement,accounts,viewer
     Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
     Route::get('/projects/{project}/edit', [ProjectController::class, 'edit'])->middleware('role:admin,manager')->name('projects.edit');
     Route::put('/projects/{project}', [ProjectController::class, 'update'])->middleware('role:admin,manager')->name('projects.update');
+    Route::post('/projects/{project}/variation-orders', [ProjectVariationController::class, 'store'])->middleware('role:admin,manager')->name('projects.variations.store');
+    Route::put('/projects/{project}/variation-orders/{projectVariation}', [ProjectVariationController::class, 'update'])->middleware('role:admin,manager')->name('projects.variations.update');
+    Route::delete('/projects/{project}/variation-orders/{projectVariation}', [ProjectVariationController::class, 'destroy'])->middleware('role:admin,manager')->name('projects.variations.destroy');
     Route::post('/projects/{project}/work-items', [ProjectWorkItemController::class, 'store'])->middleware('role:admin,manager')->name('projects.work-items.store');
     Route::put('/projects/{project}/work-items/{wbsItem}', [ProjectWorkItemController::class, 'update'])->middleware('role:admin,manager')->name('projects.work-items.update');
     Route::delete('/projects/{project}/work-items/{wbsItem}', [ProjectWorkItemController::class, 'destroy'])->middleware('role:admin,manager')->name('projects.work-items.destroy');

@@ -122,6 +122,7 @@ class ProjectController extends Controller
             $summary = $commercialReport['summary'];
             $billingProgress = $commercialReport['billing'];
             $retentionSummary = $commercialReport['retention'];
+            $variationSummary = $commercialReport['variations'];
             $workItemSummaries = $commercialReport['work_items'];
             $workItemTotals = $commercialReport['totals'];
             $unassigned = $commercialReport['unassigned'];
@@ -214,6 +215,46 @@ class ProjectController extends Controller
             fputcsv($handle, ['Customer Retention Release', $retentionSummary['customer_release_date'] ?? '']);
             fputcsv($handle, ['Supplier Retention Release', $retentionSummary['supplier_release_date'] ?? '']);
             fputcsv($handle, ['Documents With Retention', (int) ($retentionSummary['document_count'] ?? 0)]);
+
+            fputcsv($handle, []);
+            fputcsv($handle, ['Variation Orders']);
+            fputcsv($handle, ['Metric', 'Value']);
+            fputcsv($handle, ['Original Contract Value', $this->csvAmount($variationSummary['original_contract_value'] ?? $project->contract_value)]);
+            fputcsv($handle, ['Approved Customer Change', $this->csvAmount($variationSummary['approved_customer_change'] ?? 0)]);
+            fputcsv($handle, ['Pending Customer Change', $this->csvAmount($variationSummary['pending_customer_change'] ?? 0)]);
+            fputcsv($handle, ['Revised Contract Value', $this->csvAmount($variationSummary['revised_contract_value'] ?? $project->contract_value)]);
+            fputcsv($handle, ['Original Budget Amount', $this->csvAmount($variationSummary['original_budget_amount'] ?? $project->budget_amount)]);
+            fputcsv($handle, ['Approved Supplier Cost Change', $this->csvAmount($variationSummary['approved_supplier_cost_change'] ?? 0)]);
+            fputcsv($handle, ['Pending Supplier Cost Change', $this->csvAmount($variationSummary['pending_supplier_cost_change'] ?? 0)]);
+            fputcsv($handle, ['Revised Budget Amount', $this->csvAmount($variationSummary['revised_budget_amount'] ?? $project->budget_amount)]);
+            fputcsv($handle, ['Approved Margin Baseline', $this->csvAmount($variationSummary['approved_margin_baseline'] ?? 0)]);
+            fputcsv($handle, ['Approved Margin Baseline %', $this->csvPercent($variationSummary['approved_margin_baseline_percent'] ?? null)]);
+            fputcsv($handle, ['Approved Variation Orders', (int) ($variationSummary['approved_count'] ?? 0)]);
+            fputcsv($handle, ['Pending Variation Orders', (int) ($variationSummary['pending_count'] ?? 0)]);
+            fputcsv($handle, ['Not Proceeding Variation Orders', (int) ($variationSummary['not_proceeding_count'] ?? 0)]);
+
+            fputcsv($handle, []);
+            fputcsv($handle, ['Variation Order Register']);
+            fputcsv($handle, ['Variation Number', 'Title', 'Status', 'Effective Date', 'Customer Value Change', 'Supplier Cost Change', 'Margin Impact', 'Linked Document Number', 'Linked Document Type', 'Notes']);
+
+            if (($variationSummary['items'] ?? []) === []) {
+                fputcsv($handle, ['No variation orders recorded', '', '', '', '', '', '', '', '', 'Add approved or pending scope changes here when the original project baseline is no longer enough.']);
+            } else {
+                foreach ($variationSummary['items'] as $variation) {
+                    fputcsv($handle, [
+                        $variation['variation_number'] ?? '',
+                        $variation['title'] ?? '',
+                        $variation['status_label'] ?? '',
+                        $variation['effective_date'] ?? '',
+                        $this->csvAmount($variation['customer_value'] ?? 0),
+                        $this->csvAmount($variation['supplier_cost'] ?? 0),
+                        $this->csvAmount($variation['margin_impact'] ?? 0),
+                        $variation['source_document_number'] ?? '',
+                        $variation['source_document_label'] ?? '',
+                        $variation['notes'] ?? '',
+                    ]);
+                }
+            }
 
             fputcsv($handle, []);
             fputcsv($handle, ['Project Exceptions']);
@@ -407,6 +448,7 @@ class ProjectController extends Controller
             'summary' => $commercialReport['summary'],
             'billingProgress' => $commercialReport['billing'],
             'retentionSummary' => $commercialReport['retention'],
+            'variationSummary' => $commercialReport['variations'],
             'workItems' => $workItems,
             'workItemSummaries' => $commercialReport['work_items'],
             'workItemTotals' => $commercialReport['totals'],
@@ -415,6 +457,11 @@ class ProjectController extends Controller
             'projectEvidence' => $commercialReport['evidence'],
             'workItemStatuses' => WbsItem::STATUSES,
             'workItemCostTypes' => WbsItem::COST_TYPES,
+            'sourceDocuments' => $project->documents()
+                ->whereIn('type', ['customer_quotation', 'customer_po', 'supplier_quotation', 'supplier_po'])
+                ->latest('issue_date')
+                ->latest('id')
+                ->get(['id', 'type', 'document_number']),
             'documents' => $project->documents()
                 ->with(['customer', 'supplier'])
                 ->latest('issue_date')
