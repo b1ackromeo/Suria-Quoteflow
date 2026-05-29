@@ -138,12 +138,20 @@
 
     <dl class="mt-4 grid gap-4 text-sm md:grid-cols-2">
         <div>
-            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Customer unbilled / not yet received</dt>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Customer unbilled / not yet received %</dt>
             <dd class="mt-1 font-semibold text-slate-900">{{ $company->formatPercent($company->deliveryGapAlertPercent()) }}</dd>
         </div>
         <div>
-            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Received not invoiced</dt>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Received not invoiced %</dt>
             <dd class="mt-1 font-semibold text-slate-900">{{ $company->formatPercent($company->receivedNotInvoicedAlertPercent()) }}</dd>
+        </div>
+        <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Customer unbilled / not yet received amount</dt>
+            <dd class="mt-1 font-semibold text-slate-900">{{ $company->formatMoney($company->deliveryGapAlertAmount()) }}</dd>
+        </div>
+        <div>
+            <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Received not invoiced amount</dt>
+            <dd class="mt-1 font-semibold text-slate-900">{{ $company->formatMoney($company->receivedNotInvoicedAlertAmount()) }}</dd>
         </div>
     </dl>
 </section>

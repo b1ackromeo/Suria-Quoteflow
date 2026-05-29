@@ -146,6 +146,14 @@
             <label class="form-label">Received not invoiced alert %
                 <input class="form-input" type="number" step="0.01" min="0" max="100" name="received_not_invoiced_alert_percent" value="{{ old('received_not_invoiced_alert_percent', $company->receivedNotInvoicedAlertPercent()) }}" required placeholder="10">
             </label>
+            <label class="form-label">Customer unbilled / not yet received amount alert
+                <input class="form-input" type="number" step="0.01" min="0" name="delivery_gap_alert_amount" value="{{ old('delivery_gap_alert_amount', $company->deliveryGapAlertAmount()) }}" required placeholder="0">
+                <span class="mt-1 text-xs font-semibold text-slate-400">Use 0 when percentage-only alerts are enough.</span>
+            </label>
+            <label class="form-label">Received not invoiced amount alert
+                <input class="form-input" type="number" step="0.01" min="0" name="received_not_invoiced_alert_amount" value="{{ old('received_not_invoiced_alert_amount', $company->receivedNotInvoicedAlertAmount()) }}" required placeholder="0">
+                <span class="mt-1 text-xs font-semibold text-slate-400">Use 0 when percentage-only alerts are enough.</span>
+            </label>
         </div>
     </section>
 

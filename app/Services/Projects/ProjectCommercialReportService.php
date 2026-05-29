@@ -22,6 +22,12 @@ class ProjectCommercialReportService
 
     private const DEFAULT_RECEIVED_NOT_INVOICED_ALERT_PERCENT = 10.0;
 
+    private const DEFAULT_DELIVERY_GAP_ALERT_AMOUNT = 0.0;
+
+    private const DEFAULT_RECEIVED_NOT_INVOICED_ALERT_AMOUNT = 0.0;
+
+    private ?CompanyProfile $companyProfile = null;
+
     public const REPORT_STATUSES = [
         'draft',
         'pending_approval',
@@ -573,6 +579,8 @@ class ProjectCommercialReportService
         $supplierAboveReceived = max($supplierInvoiced - $receivedCost, 0);
         $deliveryGapAlertPercent = (float) ($alertLevels['delivery_gap']['value'] ?? self::DEFAULT_DELIVERY_GAP_ALERT_PERCENT);
         $receivedNotInvoicedAlertPercent = (float) ($alertLevels['received_not_invoiced']['value'] ?? self::DEFAULT_RECEIVED_NOT_INVOICED_ALERT_PERCENT);
+        $deliveryGapAlertAmount = (float) ($alertLevels['delivery_gap_amount']['value'] ?? self::DEFAULT_DELIVERY_GAP_ALERT_AMOUNT);
+        $receivedNotInvoicedAlertAmount = (float) ($alertLevels['received_not_invoiced_amount']['value'] ?? self::DEFAULT_RECEIVED_NOT_INVOICED_ALERT_AMOUNT);
         $customerUnbilledPercent = $customerConfirmed > 0 ? ($customerUnbilled / $customerConfirmed) * 100 : null;
         $supplierNotYetReceivedPercent = $supplierCommitted > 0 ? ($supplierNotYetReceived / $supplierCommitted) * 100 : null;
         $receivedNotInvoicedPercent = $receivedCost > 0 ? ($receivedNotInvoiced / $receivedCost) * 100 : null;
@@ -587,6 +595,8 @@ class ProjectCommercialReportService
             $supplierAboveReceived,
             $deliveryGapAlertPercent,
             $receivedNotInvoicedAlertPercent,
+            $deliveryGapAlertAmount,
+            $receivedNotInvoicedAlertAmount,
         );
 
         return [
@@ -609,6 +619,10 @@ class ProjectCommercialReportService
             'alert_levels' => $alertLevels,
             'delivery_gap_alert_label' => $alertLevels['delivery_gap']['label'] ?? $this->formatPercent($deliveryGapAlertPercent),
             'received_not_invoiced_alert_label' => $alertLevels['received_not_invoiced']['label'] ?? $this->formatPercent($receivedNotInvoicedAlertPercent),
+            'delivery_gap_alert_amount_label' => $alertLevels['delivery_gap_amount']['label'] ?? $this->formatAlertAmount($deliveryGapAlertAmount),
+            'received_not_invoiced_alert_amount_label' => $alertLevels['received_not_invoiced_amount']['label'] ?? $this->formatAlertAmount($receivedNotInvoicedAlertAmount),
+            'delivery_gap_alert_summary' => $this->deliveryThresholdLabel($deliveryGapAlertPercent, $deliveryGapAlertAmount),
+            'received_not_invoiced_alert_summary' => $this->deliveryThresholdLabel($receivedNotInvoicedAlertPercent, $receivedNotInvoicedAlertAmount),
             'delivery_alert_source' => $this->deliveryAlertSourceLabel($alertLevels),
             'attention_reasons' => $attentionReasons,
             'attention_count' => count($attentionReasons),
@@ -631,6 +645,8 @@ class ProjectCommercialReportService
         float $supplierAboveReceived,
         float $deliveryGapAlertPercent,
         float $receivedNotInvoicedAlertPercent,
+        float $deliveryGapAlertAmount,
+        float $receivedNotInvoicedAlertAmount,
     ): array {
         $reasons = [];
 
@@ -642,19 +658,33 @@ class ProjectCommercialReportService
             $reasons[] = 'Supplier invoice above received value';
         }
 
-        if ($customerUnbilled > 0 && $customerUnbilledPercent !== null && $customerUnbilledPercent >= $deliveryGapAlertPercent) {
+        if ($this->deliveryMetricTriggersAlert($customerUnbilled, $customerUnbilledPercent, $deliveryGapAlertPercent, $deliveryGapAlertAmount)) {
             $reasons[] = 'Customer unbilled above alert level';
         }
 
-        if ($supplierNotYetReceived > 0 && $supplierNotYetReceivedPercent !== null && $supplierNotYetReceivedPercent >= $deliveryGapAlertPercent) {
+        if ($this->deliveryMetricTriggersAlert($supplierNotYetReceived, $supplierNotYetReceivedPercent, $deliveryGapAlertPercent, $deliveryGapAlertAmount)) {
             $reasons[] = 'Not yet received above alert level';
         }
 
-        if ($receivedNotInvoiced > 0 && $receivedNotInvoicedPercent !== null && $receivedNotInvoicedPercent >= $receivedNotInvoicedAlertPercent) {
+        if ($this->deliveryMetricTriggersAlert($receivedNotInvoiced, $receivedNotInvoicedPercent, $receivedNotInvoicedAlertPercent, $receivedNotInvoicedAlertAmount)) {
             $reasons[] = 'Received not invoiced above alert level';
         }
 
         return $reasons;
+    }
+
+    private function deliveryMetricTriggersAlert(
+        float $amount,
+        ?float $percent,
+        float $percentThreshold,
+        float $amountThreshold,
+    ): bool {
+        if ($amount <= 0) {
+            return false;
+        }
+
+        return ($percent !== null && $percent >= $percentThreshold)
+            || ($amountThreshold > 0 && $amount >= $amountThreshold);
     }
 
     private function hasDeliveryActivity(array $summary): bool
@@ -682,6 +712,8 @@ class ProjectCommercialReportService
         $alerts = [];
         $deliveryGapAlertPercent = (float) ($alertLevels['delivery_gap']['value'] ?? self::DEFAULT_DELIVERY_GAP_ALERT_PERCENT);
         $receivedNotInvoicedAlertPercent = (float) ($alertLevels['received_not_invoiced']['value'] ?? self::DEFAULT_RECEIVED_NOT_INVOICED_ALERT_PERCENT);
+        $deliveryGapAlertAmount = (float) ($alertLevels['delivery_gap_amount']['value'] ?? self::DEFAULT_DELIVERY_GAP_ALERT_AMOUNT);
+        $receivedNotInvoicedAlertAmount = (float) ($alertLevels['received_not_invoiced_amount']['value'] ?? self::DEFAULT_RECEIVED_NOT_INVOICED_ALERT_AMOUNT);
         $customerUnbilled = max($customerConfirmed - $customerInvoiced, 0);
         $customerAboveConfirmed = max($customerInvoiced - $customerConfirmed, 0);
         $supplierNotYetReceived = max($supplierCommitted - $receivedCost, 0);
@@ -713,36 +745,36 @@ class ProjectCommercialReportService
             ];
         }
 
-        if ($customerUnbilledPercent !== null && $customerUnbilledPercent >= $deliveryGapAlertPercent) {
+        if ($this->deliveryMetricTriggersAlert($customerUnbilled, $customerUnbilledPercent, $deliveryGapAlertPercent, $deliveryGapAlertAmount)) {
             $alerts[] = [
                 'state' => 'waiting',
                 'title' => 'Customer billing attention',
                 'message' => 'Customer unbilled value is '.$this->formatPercent($customerUnbilledPercent).' of customer PO received value.',
                 'amount' => $customerUnbilled,
                 'percent' => $customerUnbilledPercent,
-                'threshold_label' => $this->formatPercent($deliveryGapAlertPercent),
+                'threshold_label' => $this->deliveryThresholdLabel($deliveryGapAlertPercent, $deliveryGapAlertAmount),
             ];
         }
 
-        if ($supplierNotYetReceivedPercent !== null && $supplierNotYetReceivedPercent >= $deliveryGapAlertPercent) {
+        if ($this->deliveryMetricTriggersAlert($supplierNotYetReceived, $supplierNotYetReceivedPercent, $deliveryGapAlertPercent, $deliveryGapAlertAmount)) {
             $alerts[] = [
                 'state' => 'waiting',
                 'title' => 'Supplier delivery attention',
                 'message' => 'Purchase order value not yet received is '.$this->formatPercent($supplierNotYetReceivedPercent).' of supplier committed value.',
                 'amount' => $supplierNotYetReceived,
                 'percent' => $supplierNotYetReceivedPercent,
-                'threshold_label' => $this->formatPercent($deliveryGapAlertPercent),
+                'threshold_label' => $this->deliveryThresholdLabel($deliveryGapAlertPercent, $deliveryGapAlertAmount),
             ];
         }
 
-        if ($receivedNotInvoicedPercent !== null && $receivedNotInvoicedPercent >= $receivedNotInvoicedAlertPercent) {
+        if ($this->deliveryMetricTriggersAlert($receivedNotInvoiced, $receivedNotInvoicedPercent, $receivedNotInvoicedAlertPercent, $receivedNotInvoicedAlertAmount)) {
             $alerts[] = [
                 'state' => 'waiting',
                 'title' => 'Supplier invoice expected',
                 'message' => 'Received not invoiced value is '.$this->formatPercent($receivedNotInvoicedPercent).' of received / accepted value.',
                 'amount' => $receivedNotInvoiced,
                 'percent' => $receivedNotInvoicedPercent,
-                'threshold_label' => $this->formatPercent($receivedNotInvoicedAlertPercent),
+                'threshold_label' => $this->deliveryThresholdLabel($receivedNotInvoicedAlertPercent, $receivedNotInvoicedAlertAmount),
             ];
         }
 
@@ -754,7 +786,7 @@ class ProjectCommercialReportService
      */
     private function deliveryAlertLevels(Project $project): array
     {
-        $company = CompanyProfile::active();
+        $company = $this->companyProfile();
 
         $deliveryGap = $this->resolvedAlertLevel(
             $project->delivery_gap_alert_percent,
@@ -765,6 +797,16 @@ class ProjectCommercialReportService
             $project->received_not_invoiced_alert_percent,
             $company->receivedNotInvoicedAlertPercent(),
             self::DEFAULT_RECEIVED_NOT_INVOICED_ALERT_PERCENT,
+        );
+        $deliveryGapAmount = $this->resolvedAlertLevel(
+            $project->delivery_gap_alert_amount,
+            $company->deliveryGapAlertAmount(),
+            self::DEFAULT_DELIVERY_GAP_ALERT_AMOUNT,
+        );
+        $receivedNotInvoicedAmount = $this->resolvedAlertLevel(
+            $project->received_not_invoiced_alert_amount,
+            $company->receivedNotInvoicedAlertAmount(),
+            self::DEFAULT_RECEIVED_NOT_INVOICED_ALERT_AMOUNT,
         );
 
         return [
@@ -777,6 +819,16 @@ class ProjectCommercialReportService
                 'value' => $receivedNotInvoiced['value'],
                 'label' => $this->formatPercent($receivedNotInvoiced['value']),
                 'source' => $receivedNotInvoiced['source'],
+            ],
+            'delivery_gap_amount' => [
+                'value' => $deliveryGapAmount['value'],
+                'label' => $this->formatAlertAmount($deliveryGapAmount['value']),
+                'source' => $deliveryGapAmount['source'],
+            ],
+            'received_not_invoiced_amount' => [
+                'value' => $receivedNotInvoicedAmount['value'],
+                'label' => $this->formatAlertAmount($receivedNotInvoicedAmount['value']),
+                'source' => $receivedNotInvoicedAmount['source'],
             ],
         ];
     }
@@ -796,11 +848,25 @@ class ProjectCommercialReportService
                 $workItem->delivery_gap_alert_percent,
                 $projectAlertLevels['delivery_gap'] ?? [],
                 self::DEFAULT_DELIVERY_GAP_ALERT_PERCENT,
+                'percent',
             ),
             'received_not_invoiced' => $this->resolvedWorkItemAlertLevel(
                 $workItem->received_not_invoiced_alert_percent,
                 $projectAlertLevels['received_not_invoiced'] ?? [],
                 self::DEFAULT_RECEIVED_NOT_INVOICED_ALERT_PERCENT,
+                'percent',
+            ),
+            'delivery_gap_amount' => $this->resolvedWorkItemAlertLevel(
+                $workItem->delivery_gap_alert_amount,
+                $projectAlertLevels['delivery_gap_amount'] ?? [],
+                self::DEFAULT_DELIVERY_GAP_ALERT_AMOUNT,
+                'amount',
+            ),
+            'received_not_invoiced_amount' => $this->resolvedWorkItemAlertLevel(
+                $workItem->received_not_invoiced_alert_amount,
+                $projectAlertLevels['received_not_invoiced_amount'] ?? [],
+                self::DEFAULT_RECEIVED_NOT_INVOICED_ALERT_AMOUNT,
+                'amount',
             ),
         ];
     }
@@ -809,14 +875,14 @@ class ProjectCommercialReportService
      * @param  array{value?: float, label?: string, source?: string}  $baseLevel
      * @return array{value: float, label: string, source: string}
      */
-    private function resolvedWorkItemAlertLevel(mixed $workItemValue, array $baseLevel, float $defaultValue): array
+    private function resolvedWorkItemAlertLevel(mixed $workItemValue, array $baseLevel, float $defaultValue, string $format): array
     {
         if ($workItemValue !== null && $workItemValue !== '') {
             $value = (float) $workItemValue;
 
             return [
                 'value' => $value,
-                'label' => $this->formatPercent($value),
+                'label' => $format === 'amount' ? $this->formatAlertAmount($value) : $this->formatPercent($value),
                 'source' => 'Work item setting',
             ];
         }
@@ -825,7 +891,7 @@ class ProjectCommercialReportService
 
         return [
             'value' => $value,
-            'label' => $baseLevel['label'] ?? $this->formatPercent($value),
+            'label' => $baseLevel['label'] ?? ($format === 'amount' ? $this->formatAlertAmount($value) : $this->formatPercent($value)),
             'source' => $baseLevel['source'] ?? 'Company setting',
         ];
     }
@@ -834,7 +900,11 @@ class ProjectCommercialReportService
     {
         $sources = [];
 
-        foreach (['delivery_gap', 'received_not_invoiced'] as $key) {
+        foreach (['delivery_gap', 'received_not_invoiced', 'delivery_gap_amount', 'received_not_invoiced_amount'] as $key) {
+            if (str_ends_with($key, '_amount') && (float) ($alertLevels[$key]['value'] ?? 0) <= 0) {
+                continue;
+            }
+
             $source = (string) ($alertLevels[$key]['source'] ?? '');
 
             if ($source !== '' && ! in_array($source, $sources, true)) {
@@ -1426,6 +1496,31 @@ class ProjectCommercialReportService
     private function formatPercent(float $value): string
     {
         return rtrim(rtrim(number_format($value, 2), '0'), '.').'%';
+    }
+
+    private function formatAlertAmount(float $value): string
+    {
+        return $this->companyProfile()->formatMoney($value);
+    }
+
+    private function deliveryThresholdLabel(float $percentThreshold, float $amountThreshold): string
+    {
+        $parts = [$this->formatPercent($percentThreshold)];
+
+        if ($amountThreshold > 0) {
+            $parts[] = $this->formatAlertAmount($amountThreshold);
+        }
+
+        return implode(' or ', $parts);
+    }
+
+    private function companyProfile(): CompanyProfile
+    {
+        if ($this->companyProfile === null) {
+            $this->companyProfile = CompanyProfile::active();
+        }
+
+        return $this->companyProfile;
     }
 
     /**

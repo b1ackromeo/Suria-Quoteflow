@@ -250,15 +250,17 @@ class ProjectController extends Controller
 
             fputcsv($handle, []);
             fputcsv($handle, ['Delivery Billing Alert Levels']);
-            fputcsv($handle, ['Alert Level', 'Value', 'Source']);
+            fputcsv($handle, ['Alert Level', 'Percent', 'Amount', 'Source']);
             fputcsv($handle, [
                 'Customer unbilled / not yet received',
                 $deliveryAlertLevels['delivery_gap']['label'] ?? '',
+                $deliveryAlertLevels['delivery_gap_amount']['label'] ?? '',
                 $deliveryAlertLevels['delivery_gap']['source'] ?? '',
             ]);
             fputcsv($handle, [
                 'Received not invoiced',
                 $deliveryAlertLevels['received_not_invoiced']['label'] ?? '',
+                $deliveryAlertLevels['received_not_invoiced_amount']['label'] ?? '',
                 $deliveryAlertLevels['received_not_invoiced']['source'] ?? '',
             ]);
 
@@ -286,7 +288,9 @@ class ProjectController extends Controller
                 'Work item / cost code',
                 'Line Count',
                 'Delivery Gap Alert Level',
+                'Delivery Gap Amount Alert',
                 'Received Not Invoiced Alert Level',
+                'Received Not Invoiced Amount Alert',
                 'Alert Source',
                 'Delivery Billing Status',
                 'Customer Confirmed',
@@ -302,14 +306,16 @@ class ProjectController extends Controller
             ]);
 
             if (($deliveryBilling['work_items'] ?? []) === []) {
-                fputcsv($handle, ['No partial delivery billing yet', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'No customer PO received, customer invoice, purchase order, goods receipt, or supplier invoice lines are linked to project work items yet.']);
+                fputcsv($handle, ['No partial delivery billing yet', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'No customer PO received, customer invoice, purchase order, goods receipt, or supplier invoice lines are linked to project work items yet.']);
             } else {
                 foreach ($deliveryBilling['work_items'] as $item) {
                     fputcsv($handle, [
                         $item['work_item_label'] ?? '',
                         (int) ($item['line_count'] ?? 0),
                         $item['delivery_gap_alert_label'] ?? '',
+                        $item['delivery_gap_alert_amount_label'] ?? '',
                         $item['received_not_invoiced_alert_label'] ?? '',
+                        $item['received_not_invoiced_alert_amount_label'] ?? '',
                         $item['delivery_alert_source'] ?? '',
                         $item['attention_label'] ?? '',
                         $this->csvAmount($item['customer_confirmed'] ?? 0),
@@ -686,6 +692,8 @@ class ProjectController extends Controller
             'margin_target_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'delivery_gap_alert_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'received_not_invoiced_alert_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'delivery_gap_alert_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'received_not_invoiced_alert_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'description' => ['nullable', 'string'],
         ]);
 
@@ -693,7 +701,7 @@ class ProjectController extends Controller
             $data[$field] = (float) ($data[$field] ?? 0);
         }
 
-        foreach (['delivery_gap_alert_percent', 'received_not_invoiced_alert_percent'] as $field) {
+        foreach (['delivery_gap_alert_percent', 'received_not_invoiced_alert_percent', 'delivery_gap_alert_amount', 'received_not_invoiced_alert_amount'] as $field) {
             $data[$field] = filled($data[$field] ?? null) ? (float) $data[$field] : null;
         }
 

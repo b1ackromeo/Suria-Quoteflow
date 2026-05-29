@@ -11,8 +11,12 @@
     $marginTarget = old('margin_target_percent', $project->margin_target_percent ?? 0);
     $deliveryGapAlert = old('delivery_gap_alert_percent', $project->delivery_gap_alert_percent);
     $receivedNotInvoicedAlert = old('received_not_invoiced_alert_percent', $project->received_not_invoiced_alert_percent);
+    $deliveryGapAlertAmount = old('delivery_gap_alert_amount', $project->delivery_gap_alert_amount);
+    $receivedNotInvoicedAlertAmount = old('received_not_invoiced_alert_amount', $project->received_not_invoiced_alert_amount);
     $companyDeliveryGapAlert = $companyProfile->formatPercent($companyProfile->deliveryGapAlertPercent());
     $companyReceivedNotInvoicedAlert = $companyProfile->formatPercent($companyProfile->receivedNotInvoicedAlertPercent());
+    $companyDeliveryGapAlertAmount = $companyProfile->formatMoney($companyProfile->deliveryGapAlertAmount());
+    $companyReceivedNotInvoicedAlertAmount = $companyProfile->formatMoney($companyProfile->receivedNotInvoicedAlertAmount());
 @endphp
 
 @section('content')
@@ -132,6 +136,16 @@
                     Received not invoiced alert %
                     <input class="form-input" type="number" step="0.01" min="0" max="100" name="received_not_invoiced_alert_percent" value="{{ $receivedNotInvoicedAlert }}" placeholder="{{ $companyProfile->receivedNotInvoicedAlertPercent() }}">
                     <span class="mt-1 text-xs font-semibold text-slate-400">Company alert level: {{ $companyReceivedNotInvoicedAlert }}</span>
+                </label>
+                <label class="form-label">
+                    Customer unbilled / not yet received amount alert
+                    <input class="form-input" type="number" step="0.01" min="0" name="delivery_gap_alert_amount" value="{{ $deliveryGapAlertAmount }}" placeholder="{{ $companyProfile->deliveryGapAlertAmount() }}">
+                    <span class="mt-1 text-xs font-semibold text-slate-400">Company alert amount: {{ $companyDeliveryGapAlertAmount }}</span>
+                </label>
+                <label class="form-label">
+                    Received not invoiced amount alert
+                    <input class="form-input" type="number" step="0.01" min="0" name="received_not_invoiced_alert_amount" value="{{ $receivedNotInvoicedAlertAmount }}" placeholder="{{ $companyProfile->receivedNotInvoicedAlertAmount() }}">
+                    <span class="mt-1 text-xs font-semibold text-slate-400">Company alert amount: {{ $companyReceivedNotInvoicedAlertAmount }}</span>
                 </label>
             </div>
         </section>

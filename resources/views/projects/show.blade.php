@@ -457,7 +457,15 @@
                                         <dd>{{ $deliveryAlertLevels['delivery_gap']['label'] ?? 'Not set' }}</dd>
                                     </div>
                                     <div>
-                                        <dt>Setting source</dt>
+                                        <dt>Amount alert</dt>
+                                        <dd>{{ $deliveryAlertLevels['delivery_gap_amount']['label'] ?? $money(0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Amount source</dt>
+                                        <dd>{{ $deliveryAlertLevels['delivery_gap_amount']['source'] ?? 'Company setting' }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Percent source</dt>
                                         <dd>{{ $deliveryAlertLevels['delivery_gap']['source'] ?? 'Company setting' }}</dd>
                                     </div>
                                     <div>
@@ -465,7 +473,15 @@
                                         <dd>{{ $deliveryAlertLevels['received_not_invoiced']['label'] ?? 'Not set' }}</dd>
                                     </div>
                                     <div>
-                                        <dt>Setting source</dt>
+                                        <dt>Amount alert</dt>
+                                        <dd>{{ $deliveryAlertLevels['received_not_invoiced_amount']['label'] ?? $money(0) }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Amount source</dt>
+                                        <dd>{{ $deliveryAlertLevels['received_not_invoiced_amount']['source'] ?? 'Company setting' }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Percent source</dt>
                                         <dd>{{ $deliveryAlertLevels['received_not_invoiced']['source'] ?? 'Company setting' }}</dd>
                                     </div>
                                 </dl>
@@ -514,7 +530,7 @@
                                             <td data-label="Work item / cost code">
                                                 <strong>{{ $item['work_item_label'] }}</strong>
                                                 <span>{{ $item['line_count'] }} project line{{ (int) $item['line_count'] === 1 ? '' : 's' }}</span>
-                                                <span>Alert levels: {{ $itemAlertLevels['delivery_gap']['label'] ?? 'Not set' }} delivery gap · {{ $itemAlertLevels['received_not_invoiced']['label'] ?? 'Not set' }} received not invoiced</span>
+                                                <span>Alert levels: {{ $item['delivery_gap_alert_summary'] ?? ($itemAlertLevels['delivery_gap']['label'] ?? 'Not set') }} delivery gap · {{ $item['received_not_invoiced_alert_summary'] ?? ($itemAlertLevels['received_not_invoiced']['label'] ?? 'Not set') }} received not invoiced</span>
                                                 <span>{{ $item['delivery_alert_source'] ?? 'Company setting' }}</span>
                                                 <span class="status-chip {{ $item['attention_class'] ?? 'status-approved' }}">{{ $item['attention_label'] ?? 'Clear' }}</span>
                                                 @if($attentionReasons !== [])
@@ -1226,6 +1242,14 @@
                                         <input class="form-input" type="number" step="0.01" min="0" max="100" name="received_not_invoiced_alert_percent" value="{{ old('received_not_invoiced_alert_percent') }}" placeholder="{{ $deliveryAlertLevels['received_not_invoiced']['value'] ?? 10 }}">
                                         <span class="mt-1 block text-xs font-semibold text-slate-500">Blank uses the project or company alert level.</span>
                                     </label>
+                                    <label class="form-label">Delivery gap amount alert
+                                        <input class="form-input" type="number" step="0.01" min="0" name="delivery_gap_alert_amount" value="{{ old('delivery_gap_alert_amount') }}" placeholder="{{ $deliveryAlertLevels['delivery_gap_amount']['value'] ?? 0 }}">
+                                        <span class="mt-1 block text-xs font-semibold text-slate-500">Blank uses the project or company amount alert.</span>
+                                    </label>
+                                    <label class="form-label">Received not invoiced amount alert
+                                        <input class="form-input" type="number" step="0.01" min="0" name="received_not_invoiced_alert_amount" value="{{ old('received_not_invoiced_alert_amount') }}" placeholder="{{ $deliveryAlertLevels['received_not_invoiced_amount']['value'] ?? 0 }}">
+                                        <span class="mt-1 block text-xs font-semibold text-slate-500">Blank uses the project or company amount alert.</span>
+                                    </label>
                                     <label class="form-label md:col-span-2 xl:col-span-4">Description
                                         <textarea class="form-input min-h-20" name="description" placeholder="Scope, deliverable, or cost-code note">{{ old('description') }}</textarea>
                                     </label>
@@ -1358,6 +1382,14 @@
                                                         <label class="form-label">Received not invoiced alert %
                                                             <input class="form-input" type="number" step="0.01" min="0" max="100" name="received_not_invoiced_alert_percent" value="{{ old('received_not_invoiced_alert_percent', $workItem->received_not_invoiced_alert_percent) }}" placeholder="{{ $deliveryAlertLevels['received_not_invoiced']['value'] ?? 10 }}">
                                                             <span class="mt-1 block text-xs font-semibold text-slate-500">Blank uses the project or company alert level.</span>
+                                                        </label>
+                                                        <label class="form-label">Delivery gap amount alert
+                                                            <input class="form-input" type="number" step="0.01" min="0" name="delivery_gap_alert_amount" value="{{ old('delivery_gap_alert_amount', $workItem->delivery_gap_alert_amount) }}" placeholder="{{ $deliveryAlertLevels['delivery_gap_amount']['value'] ?? 0 }}">
+                                                            <span class="mt-1 block text-xs font-semibold text-slate-500">Blank uses the project or company amount alert.</span>
+                                                        </label>
+                                                        <label class="form-label">Received not invoiced amount alert
+                                                            <input class="form-input" type="number" step="0.01" min="0" name="received_not_invoiced_alert_amount" value="{{ old('received_not_invoiced_alert_amount', $workItem->received_not_invoiced_alert_amount) }}" placeholder="{{ $deliveryAlertLevels['received_not_invoiced_amount']['value'] ?? 0 }}">
+                                                            <span class="mt-1 block text-xs font-semibold text-slate-500">Blank uses the project or company amount alert.</span>
                                                         </label>
                                                         <label class="form-label">Sort order
                                                             <input class="form-input" type="number" min="0" name="sort_order" value="{{ old('sort_order', $workItem->sort_order) }}">

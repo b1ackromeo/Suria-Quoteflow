@@ -30,6 +30,8 @@ class CompanyProfile extends Model
         'default_tax_rate',
         'delivery_gap_alert_percent',
         'received_not_invoiced_alert_percent',
+        'delivery_gap_alert_amount',
+        'received_not_invoiced_alert_amount',
         'payment_instructions',
         'pdf_footer',
         'is_active',
@@ -39,6 +41,8 @@ class CompanyProfile extends Model
         'default_tax_rate' => 'decimal:2',
         'delivery_gap_alert_percent' => 'decimal:2',
         'received_not_invoiced_alert_percent' => 'decimal:2',
+        'delivery_gap_alert_amount' => 'decimal:2',
+        'received_not_invoiced_alert_amount' => 'decimal:2',
         'is_active' => 'boolean',
     ];
 
@@ -73,6 +77,8 @@ class CompanyProfile extends Model
             'default_tax_rate' => 0,
             'delivery_gap_alert_percent' => 25,
             'received_not_invoiced_alert_percent' => 10,
+            'delivery_gap_alert_amount' => 0,
+            'received_not_invoiced_alert_amount' => 0,
             'payment_instructions' => null,
             'pdf_footer' => null,
             'is_active' => true,
@@ -202,6 +208,16 @@ class CompanyProfile extends Model
     public function receivedNotInvoicedAlertPercent(): float
     {
         return (float) ($this->received_not_invoiced_alert_percent ?? static::defaults()['received_not_invoiced_alert_percent']);
+    }
+
+    public function deliveryGapAlertAmount(): float
+    {
+        return (float) ($this->delivery_gap_alert_amount ?? static::defaults()['delivery_gap_alert_amount']);
+    }
+
+    public function receivedNotInvoicedAlertAmount(): float
+    {
+        return (float) ($this->received_not_invoiced_alert_amount ?? static::defaults()['received_not_invoiced_alert_amount']);
     }
 
     public function displayPdfFooter(): string

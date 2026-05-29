@@ -535,12 +535,13 @@ Partial delivery billing reports now include document-line evidence for customer
 Partial delivery billing reports now show management alerts when customer unbilled value or purchase-order value not yet received reaches 25%, received-not-invoiced value reaches 10%, or any invoice value is above the confirmed or received value.
 Company profiles can now set default delivery billing alert levels, and individual projects can override the customer-unbilled / not-yet-received level and the received-not-invoiced level.
 Project work items can now set delivery billing alert levels for sensitive project sections, and delivery billing rows show inherited or work-item levels with a clear/review status.
+Delivery billing alert levels can now include optional amount thresholds, so high-value gaps can be flagged even when their percentage remains below the percentage alert level.
 ```
 
 Future possible additions:
 
 ```text
-Amount-based delivery billing alert levels and scheduled management reminders
+Scheduled delivery billing reminders
 ```
 
 These should continue only after project, WBS, budget, margin, reporting, and staged-billing foundations remain stable.

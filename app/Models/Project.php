@@ -28,6 +28,8 @@ class Project extends Model
         'margin_target_percent',
         'delivery_gap_alert_percent',
         'received_not_invoiced_alert_percent',
+        'delivery_gap_alert_amount',
+        'received_not_invoiced_alert_amount',
         'description',
     ];
 
@@ -39,6 +41,8 @@ class Project extends Model
         'margin_target_percent' => 'decimal:2',
         'delivery_gap_alert_percent' => 'decimal:2',
         'received_not_invoiced_alert_percent' => 'decimal:2',
+        'delivery_gap_alert_amount' => 'decimal:2',
+        'received_not_invoiced_alert_amount' => 'decimal:2',
     ];
 
     public function customer(): BelongsTo

@@ -69,6 +69,8 @@ class ProjectWorkItemController extends Controller
             'cost_budget' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'delivery_gap_alert_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'received_not_invoiced_alert_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'delivery_gap_alert_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'received_not_invoiced_alert_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999999'],
             'status' => ['required', Rule::in(array_keys(WbsItem::STATUSES))],
         ]);
@@ -81,7 +83,7 @@ class ProjectWorkItemController extends Controller
             $data[$field] = (float) ($data[$field] ?? 0);
         }
 
-        foreach (['delivery_gap_alert_percent', 'received_not_invoiced_alert_percent'] as $field) {
+        foreach (['delivery_gap_alert_percent', 'received_not_invoiced_alert_percent', 'delivery_gap_alert_amount', 'received_not_invoiced_alert_amount'] as $field) {
             $data[$field] = filled($data[$field] ?? null) ? (float) $data[$field] : null;
         }
 
