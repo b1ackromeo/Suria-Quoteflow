@@ -501,7 +501,10 @@ class ProjectCommercialReportService
                     'work_item_label' => $workItem->displayLabel(),
                     'line_count' => (int) ($lineSummary['line_count'] ?? 0),
                 ],
-                $this->deliveryGapSummary($lineSummary),
+                $this->deliveryGapSummary(
+                    $lineSummary,
+                    $this->deliveryAlertLevelsForWorkItem($workItem, $alertLevels),
+                ),
             );
         }
 
@@ -516,7 +519,10 @@ class ProjectCommercialReportService
                     'work_item_label' => 'Unassigned project lines',
                     'line_count' => (int) ($unassigned['line_count'] ?? 0),
                 ],
-                $this->deliveryGapSummary($unassigned),
+                $this->deliveryGapSummary(
+                    $unassigned,
+                    $this->deliveryAlertLevelsForWorkItem(null, $alertLevels),
+                ),
             );
         }
 
@@ -553,26 +559,102 @@ class ProjectCommercialReportService
         ];
     }
 
-    private function deliveryGapSummary(array $summary): array
+    private function deliveryGapSummary(array $summary, array $alertLevels): array
     {
         $customerConfirmed = (float) ($summary['customer_confirmed'] ?? 0);
         $customerInvoiced = (float) ($summary['customer_invoiced'] ?? 0);
         $supplierCommitted = (float) ($summary['supplier_committed'] ?? 0);
         $receivedCost = (float) ($summary['received_cost'] ?? 0);
         $supplierInvoiced = (float) ($summary['supplier_actual'] ?? $summary['supplier_invoiced'] ?? 0);
+        $customerUnbilled = max($customerConfirmed - $customerInvoiced, 0);
+        $customerAboveConfirmed = max($customerInvoiced - $customerConfirmed, 0);
+        $supplierNotYetReceived = max($supplierCommitted - $receivedCost, 0);
+        $receivedNotInvoiced = max($receivedCost - $supplierInvoiced, 0);
+        $supplierAboveReceived = max($supplierInvoiced - $receivedCost, 0);
+        $deliveryGapAlertPercent = (float) ($alertLevels['delivery_gap']['value'] ?? self::DEFAULT_DELIVERY_GAP_ALERT_PERCENT);
+        $receivedNotInvoicedAlertPercent = (float) ($alertLevels['received_not_invoiced']['value'] ?? self::DEFAULT_RECEIVED_NOT_INVOICED_ALERT_PERCENT);
+        $customerUnbilledPercent = $customerConfirmed > 0 ? ($customerUnbilled / $customerConfirmed) * 100 : null;
+        $supplierNotYetReceivedPercent = $supplierCommitted > 0 ? ($supplierNotYetReceived / $supplierCommitted) * 100 : null;
+        $receivedNotInvoicedPercent = $receivedCost > 0 ? ($receivedNotInvoiced / $receivedCost) * 100 : null;
+        $attentionReasons = $this->deliveryGapAttentionReasons(
+            $customerUnbilled,
+            $customerUnbilledPercent,
+            $customerAboveConfirmed,
+            $supplierNotYetReceived,
+            $supplierNotYetReceivedPercent,
+            $receivedNotInvoiced,
+            $receivedNotInvoicedPercent,
+            $supplierAboveReceived,
+            $deliveryGapAlertPercent,
+            $receivedNotInvoicedAlertPercent,
+        );
 
         return [
             'customer_confirmed' => $customerConfirmed,
             'customer_invoiced' => $customerInvoiced,
-            'customer_unbilled_value' => max($customerConfirmed - $customerInvoiced, 0),
-            'customer_above_confirmed_value' => max($customerInvoiced - $customerConfirmed, 0),
+            'customer_unbilled_value' => $customerUnbilled,
+            'customer_unbilled_percent' => $customerUnbilledPercent,
+            'customer_unbilled_alert' => in_array('Customer unbilled above alert level', $attentionReasons, true),
+            'customer_above_confirmed_value' => $customerAboveConfirmed,
             'supplier_committed' => $supplierCommitted,
             'received_value' => $receivedCost,
             'supplier_invoiced' => $supplierInvoiced,
-            'supplier_not_yet_received_value' => max($supplierCommitted - $receivedCost, 0),
-            'received_not_invoiced_value' => max($receivedCost - $supplierInvoiced, 0),
-            'supplier_above_received_value' => max($supplierInvoiced - $receivedCost, 0),
+            'supplier_not_yet_received_value' => $supplierNotYetReceived,
+            'supplier_not_yet_received_percent' => $supplierNotYetReceivedPercent,
+            'supplier_not_yet_received_alert' => in_array('Not yet received above alert level', $attentionReasons, true),
+            'received_not_invoiced_value' => $receivedNotInvoiced,
+            'received_not_invoiced_percent' => $receivedNotInvoicedPercent,
+            'received_not_invoiced_alert' => in_array('Received not invoiced above alert level', $attentionReasons, true),
+            'supplier_above_received_value' => $supplierAboveReceived,
+            'alert_levels' => $alertLevels,
+            'delivery_gap_alert_label' => $alertLevels['delivery_gap']['label'] ?? $this->formatPercent($deliveryGapAlertPercent),
+            'received_not_invoiced_alert_label' => $alertLevels['received_not_invoiced']['label'] ?? $this->formatPercent($receivedNotInvoicedAlertPercent),
+            'delivery_alert_source' => $this->deliveryAlertSourceLabel($alertLevels),
+            'attention_reasons' => $attentionReasons,
+            'attention_count' => count($attentionReasons),
+            'attention_label' => $attentionReasons === [] ? 'Clear' : 'Review delivery billing',
+            'attention_class' => $attentionReasons === [] ? 'status-approved' : 'status-pending_approval',
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function deliveryGapAttentionReasons(
+        float $customerUnbilled,
+        ?float $customerUnbilledPercent,
+        float $customerAboveConfirmed,
+        float $supplierNotYetReceived,
+        ?float $supplierNotYetReceivedPercent,
+        float $receivedNotInvoiced,
+        ?float $receivedNotInvoicedPercent,
+        float $supplierAboveReceived,
+        float $deliveryGapAlertPercent,
+        float $receivedNotInvoicedAlertPercent,
+    ): array {
+        $reasons = [];
+
+        if ($customerAboveConfirmed > 0) {
+            $reasons[] = 'Customer invoice above confirmed value';
+        }
+
+        if ($supplierAboveReceived > 0) {
+            $reasons[] = 'Supplier invoice above received value';
+        }
+
+        if ($customerUnbilled > 0 && $customerUnbilledPercent !== null && $customerUnbilledPercent >= $deliveryGapAlertPercent) {
+            $reasons[] = 'Customer unbilled above alert level';
+        }
+
+        if ($supplierNotYetReceived > 0 && $supplierNotYetReceivedPercent !== null && $supplierNotYetReceivedPercent >= $deliveryGapAlertPercent) {
+            $reasons[] = 'Not yet received above alert level';
+        }
+
+        if ($receivedNotInvoiced > 0 && $receivedNotInvoicedPercent !== null && $receivedNotInvoicedPercent >= $receivedNotInvoicedAlertPercent) {
+            $reasons[] = 'Received not invoiced above alert level';
+        }
+
+        return $reasons;
     }
 
     private function hasDeliveryActivity(array $summary): bool
@@ -697,6 +779,74 @@ class ProjectCommercialReportService
                 'source' => $receivedNotInvoiced['source'],
             ],
         ];
+    }
+
+    /**
+     * @param  array<string, array{value: float, label: string, source: string}>  $projectAlertLevels
+     * @return array<string, array{value: float, label: string, source: string}>
+     */
+    private function deliveryAlertLevelsForWorkItem(?WbsItem $workItem, array $projectAlertLevels): array
+    {
+        if ($workItem === null) {
+            return $projectAlertLevels;
+        }
+
+        return [
+            'delivery_gap' => $this->resolvedWorkItemAlertLevel(
+                $workItem->delivery_gap_alert_percent,
+                $projectAlertLevels['delivery_gap'] ?? [],
+                self::DEFAULT_DELIVERY_GAP_ALERT_PERCENT,
+            ),
+            'received_not_invoiced' => $this->resolvedWorkItemAlertLevel(
+                $workItem->received_not_invoiced_alert_percent,
+                $projectAlertLevels['received_not_invoiced'] ?? [],
+                self::DEFAULT_RECEIVED_NOT_INVOICED_ALERT_PERCENT,
+            ),
+        ];
+    }
+
+    /**
+     * @param  array{value?: float, label?: string, source?: string}  $baseLevel
+     * @return array{value: float, label: string, source: string}
+     */
+    private function resolvedWorkItemAlertLevel(mixed $workItemValue, array $baseLevel, float $defaultValue): array
+    {
+        if ($workItemValue !== null && $workItemValue !== '') {
+            $value = (float) $workItemValue;
+
+            return [
+                'value' => $value,
+                'label' => $this->formatPercent($value),
+                'source' => 'Work item setting',
+            ];
+        }
+
+        $value = (float) ($baseLevel['value'] ?? $defaultValue);
+
+        return [
+            'value' => $value,
+            'label' => $baseLevel['label'] ?? $this->formatPercent($value),
+            'source' => $baseLevel['source'] ?? 'Company setting',
+        ];
+    }
+
+    private function deliveryAlertSourceLabel(array $alertLevels): string
+    {
+        $sources = [];
+
+        foreach (['delivery_gap', 'received_not_invoiced'] as $key) {
+            $source = (string) ($alertLevels[$key]['source'] ?? '');
+
+            if ($source !== '' && ! in_array($source, $sources, true)) {
+                $sources[] = $source;
+            }
+        }
+
+        if (count($sources) === 1) {
+            return $sources[0];
+        }
+
+        return $sources === [] ? 'Company setting' : 'Mixed settings';
     }
 
     /**

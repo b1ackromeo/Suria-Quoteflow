@@ -506,10 +506,20 @@
                                     </thead>
                                     <tbody>
                                     @foreach($deliveryWorkItems as $item)
+                                        @php
+                                            $itemAlertLevels = $item['alert_levels'] ?? [];
+                                            $attentionReasons = $item['attention_reasons'] ?? [];
+                                        @endphp
                                         <tr>
                                             <td data-label="Work item / cost code">
                                                 <strong>{{ $item['work_item_label'] }}</strong>
                                                 <span>{{ $item['line_count'] }} project line{{ (int) $item['line_count'] === 1 ? '' : 's' }}</span>
+                                                <span>Alert levels: {{ $itemAlertLevels['delivery_gap']['label'] ?? 'Not set' }} delivery gap · {{ $itemAlertLevels['received_not_invoiced']['label'] ?? 'Not set' }} received not invoiced</span>
+                                                <span>{{ $item['delivery_alert_source'] ?? 'Company setting' }}</span>
+                                                <span class="status-chip {{ $item['attention_class'] ?? 'status-approved' }}">{{ $item['attention_label'] ?? 'Clear' }}</span>
+                                                @if($attentionReasons !== [])
+                                                    <span>{{ implode(' · ', $attentionReasons) }}</span>
+                                                @endif
                                             </td>
                                             <td data-label="Customer unbilled" class="text-right font-bold text-slate-950">{{ $money($item['customer_unbilled_value']) }}</td>
                                             <td data-label="Not yet received" class="text-right font-bold text-slate-950">{{ $money($item['supplier_not_yet_received_value']) }}</td>
@@ -1208,6 +1218,14 @@
                                     <label class="form-label">Cost budget
                                         <input class="form-input" type="number" step="0.01" min="0" name="cost_budget" value="{{ old('cost_budget', 0) }}">
                                     </label>
+                                    <label class="form-label">Delivery gap alert %
+                                        <input class="form-input" type="number" step="0.01" min="0" max="100" name="delivery_gap_alert_percent" value="{{ old('delivery_gap_alert_percent') }}" placeholder="{{ $deliveryAlertLevels['delivery_gap']['value'] ?? 25 }}">
+                                        <span class="mt-1 block text-xs font-semibold text-slate-500">Blank uses the project or company alert level.</span>
+                                    </label>
+                                    <label class="form-label">Received not invoiced alert %
+                                        <input class="form-input" type="number" step="0.01" min="0" max="100" name="received_not_invoiced_alert_percent" value="{{ old('received_not_invoiced_alert_percent') }}" placeholder="{{ $deliveryAlertLevels['received_not_invoiced']['value'] ?? 10 }}">
+                                        <span class="mt-1 block text-xs font-semibold text-slate-500">Blank uses the project or company alert level.</span>
+                                    </label>
                                     <label class="form-label md:col-span-2 xl:col-span-4">Description
                                         <textarea class="form-input min-h-20" name="description" placeholder="Scope, deliverable, or cost-code note">{{ old('description') }}</textarea>
                                     </label>
@@ -1332,6 +1350,14 @@
                                                         </label>
                                                         <label class="form-label">Cost budget
                                                             <input class="form-input" type="number" step="0.01" min="0" name="cost_budget" value="{{ old('cost_budget', $workItem->cost_budget) }}">
+                                                        </label>
+                                                        <label class="form-label">Delivery gap alert %
+                                                            <input class="form-input" type="number" step="0.01" min="0" max="100" name="delivery_gap_alert_percent" value="{{ old('delivery_gap_alert_percent', $workItem->delivery_gap_alert_percent) }}" placeholder="{{ $deliveryAlertLevels['delivery_gap']['value'] ?? 25 }}">
+                                                            <span class="mt-1 block text-xs font-semibold text-slate-500">Blank uses the project or company alert level.</span>
+                                                        </label>
+                                                        <label class="form-label">Received not invoiced alert %
+                                                            <input class="form-input" type="number" step="0.01" min="0" max="100" name="received_not_invoiced_alert_percent" value="{{ old('received_not_invoiced_alert_percent', $workItem->received_not_invoiced_alert_percent) }}" placeholder="{{ $deliveryAlertLevels['received_not_invoiced']['value'] ?? 10 }}">
+                                                            <span class="mt-1 block text-xs font-semibold text-slate-500">Blank uses the project or company alert level.</span>
                                                         </label>
                                                         <label class="form-label">Sort order
                                                             <input class="form-input" type="number" min="0" name="sort_order" value="{{ old('sort_order', $workItem->sort_order) }}">

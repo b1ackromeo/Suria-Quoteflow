@@ -285,6 +285,10 @@ class ProjectController extends Controller
             fputcsv($handle, [
                 'Work item / cost code',
                 'Line Count',
+                'Delivery Gap Alert Level',
+                'Received Not Invoiced Alert Level',
+                'Alert Source',
+                'Delivery Billing Status',
                 'Customer Confirmed',
                 'Customer Invoiced',
                 'Customer Unbilled',
@@ -298,12 +302,16 @@ class ProjectController extends Controller
             ]);
 
             if (($deliveryBilling['work_items'] ?? []) === []) {
-                fputcsv($handle, ['No partial delivery billing yet', '', '', '', '', '', '', '', '', '', '', 'No customer PO received, customer invoice, purchase order, goods receipt, or supplier invoice lines are linked to project work items yet.']);
+                fputcsv($handle, ['No partial delivery billing yet', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'No customer PO received, customer invoice, purchase order, goods receipt, or supplier invoice lines are linked to project work items yet.']);
             } else {
                 foreach ($deliveryBilling['work_items'] as $item) {
                     fputcsv($handle, [
                         $item['work_item_label'] ?? '',
                         (int) ($item['line_count'] ?? 0),
+                        $item['delivery_gap_alert_label'] ?? '',
+                        $item['received_not_invoiced_alert_label'] ?? '',
+                        $item['delivery_alert_source'] ?? '',
+                        $item['attention_label'] ?? '',
                         $this->csvAmount($item['customer_confirmed'] ?? 0),
                         $this->csvAmount($item['customer_invoiced'] ?? 0),
                         $this->csvAmount($item['customer_unbilled_value'] ?? 0),

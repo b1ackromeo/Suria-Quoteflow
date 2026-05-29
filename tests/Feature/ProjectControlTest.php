@@ -244,6 +244,8 @@ class ProjectControlTest extends TestCase
         $show->assertSee('Threshold: 25%');
         $show->assertSee('Threshold: 10%');
         $show->assertSee('Delivery cabling');
+        $show->assertSee('Review delivery billing');
+        $show->assertSee('Alert levels: 25% delivery gap');
         $show->assertSee('Recent delivery documents');
         $show->assertSee('GR-2026-93401');
         $show->assertSee('SIN-2026-93401');
@@ -307,6 +309,56 @@ class ProjectControlTest extends TestCase
         $this->assertStringContainsString('"Customer unbilled / not yet received",70%,"Project setting"', $csv);
         $this->assertStringContainsString('"Received not invoiced",40%,"Project setting"', $csv);
         $this->assertStringContainsString('"No delivery billing alerts visible","Delivery billing gaps are below the current alert levels."', $csv);
+    }
+
+    public function test_work_item_delivery_billing_alert_levels_override_project_levels(): void
+    {
+        CompanyProfile::create(array_merge(CompanyProfile::defaults(), [
+            'delivery_gap_alert_percent' => 20,
+            'received_not_invoiced_alert_percent' => 5,
+        ]));
+
+        $project = $this->createProject([
+            'project_code' => 'PRJ-2026-038',
+            'name' => 'Sensitive work item delivery alerts',
+            'delivery_gap_alert_percent' => 70,
+            'received_not_invoiced_alert_percent' => 40,
+        ]);
+        $workItem = $this->createWorkItem($project, [
+            'code' => '3.03',
+            'name' => 'Sensitive delivery section',
+            'delivery_gap_alert_percent' => 25,
+            'received_not_invoiced_alert_percent' => 10,
+        ]);
+        $customerPo = $this->createLinkedDocument($project, 'customer_po', 'CPO-2026-93801', 1000);
+        $customerInvoice = $this->createLinkedDocument($project, 'customer_invoice', 'INV-2026-93801', 400);
+        $supplierPo = $this->createLinkedDocument($project, 'supplier_po', 'SPO-2026-93801', 700);
+        $goodsReceipt = $this->createLinkedDocument($project, 'goods_receipt', 'GR-2026-93801', 300);
+        $supplierInvoice = $this->createLinkedDocument($project, 'supplier_invoice', 'SIN-2026-93801', 200);
+
+        $this->addProjectLine($customerPo, $workItem, 1000, 'Customer confirmed sensitive scope');
+        $this->addProjectLine($customerInvoice, $workItem, 400, 'First customer billing for sensitive scope');
+        $this->addProjectLine($supplierPo, $workItem, 700, 'Supplier purchase order for sensitive scope');
+        $this->addProjectLine($goodsReceipt, $workItem, 300, 'Partial sensitive delivery received');
+        $this->addProjectLine($supplierInvoice, $workItem, 200, 'Supplier invoice for sensitive delivery');
+
+        $show = $this->get(route('projects.show', $project));
+
+        $show->assertOk();
+        $show->assertSee('Project setting');
+        $show->assertSee('Work item setting');
+        $show->assertSee('Alert levels: 25% delivery gap');
+        $show->assertSee('10% received not invoiced');
+        $show->assertSee('Review delivery billing');
+        $show->assertSee('Customer unbilled above alert level');
+        $show->assertDontSee('Customer billing attention');
+        $show->assertDontSee('Supplier delivery attention');
+        $show->assertDontSee('Supplier invoice expected');
+
+        $response = $this->get(route('projects.report.export', $project));
+        $csv = $response->streamedContent();
+
+        $this->assertStringContainsString('"3.03 - Sensitive delivery section",5,25%,10%,"Work item setting","Review delivery billing",1000.00,400.00,600.00,700.00,300.00,200.00,400.00,100.00,0.00,0.00', $csv);
     }
 
     public function test_project_page_shows_retention_summary(): void
@@ -609,7 +661,7 @@ class ProjectControlTest extends TestCase
         $this->assertStringContainsString('"Supplier delivery attention","Purchase order value not yet received is 57.14% of supplier committed value.",400.00,57.14,25%', $csv);
         $this->assertStringContainsString('"Supplier invoice expected","Received not invoiced value is 33.33% of received / accepted value.",100.00,33.33,10%', $csv);
         $this->assertStringContainsString('"Delivery Billing By Work Item"', $csv);
-        $this->assertStringContainsString('"3.01 - Delivery cabling",5,1000.00,400.00,600.00,700.00,300.00,200.00,400.00,100.00,0.00,0.00', $csv);
+        $this->assertStringContainsString('"3.01 - Delivery cabling",5,25%,10%,"Company setting","Review delivery billing",1000.00,400.00,600.00,700.00,300.00,200.00,400.00,100.00,0.00,0.00', $csv);
         $this->assertStringContainsString('"Delivery Billing Evidence"', $csv);
         $this->assertStringContainsString('"Customer unbilled",600.00,"3.01 - Delivery cabling",CPO-2026-93601,"Customer PO received",2026-05-14,"Acme Trading Sdn Bhd","Project report test line",1000.00', $csv);
         $this->assertStringContainsString('"Not yet received",400.00,"3.01 - Delivery cabling",SPO-2026-93601,"Purchase order",2026-05-14,"Best Supplies Sdn Bhd","Project report test line",700.00', $csv);
@@ -918,11 +970,15 @@ class ProjectControlTest extends TestCase
             'cost_type' => 'service',
             'revenue_budget' => 15000,
             'cost_budget' => 9000,
+            'delivery_gap_alert_percent' => 15,
+            'received_not_invoiced_alert_percent' => 8,
             'sort_order' => 10,
             'status' => 'active',
         ])->assertRedirect(route('projects.show', $project));
 
         $workItem = WbsItem::query()->where('project_id', $project->id)->where('code', '1.01')->firstOrFail();
+        $this->assertSame(15.0, (float) $workItem->delivery_gap_alert_percent);
+        $this->assertSame(8.0, (float) $workItem->received_not_invoiced_alert_percent);
 
         $this->assertDatabaseHas('audit_trails', [
             'action' => 'work_item_created',
@@ -935,6 +991,24 @@ class ProjectControlTest extends TestCase
         $show->assertSee('Work breakdown');
         $show->assertSee('Installation and commissioning');
         $show->assertSee('Cost code');
+        $show->assertSee('Delivery gap alert %');
+
+        $this->put(route('projects.work-items.update', [$project, $workItem]), [
+            'code' => '1.01',
+            'name' => 'Installation and commissioning',
+            'description' => 'Site installation, testing, and handover.',
+            'cost_type' => 'service',
+            'revenue_budget' => 15000,
+            'cost_budget' => 9000,
+            'delivery_gap_alert_percent' => '',
+            'received_not_invoiced_alert_percent' => 12.5,
+            'sort_order' => 10,
+            'status' => 'active',
+        ])->assertRedirect(route('projects.show', $project));
+
+        $workItem->refresh();
+        $this->assertNull($workItem->delivery_gap_alert_percent);
+        $this->assertSame(12.5, (float) $workItem->received_not_invoiced_alert_percent);
 
         $this->post(route('documents.store', 'customer-quotations'), $this->documentPayload([
             'external_reference' => 'WBS-CQ',
